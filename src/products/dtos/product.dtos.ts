@@ -24,7 +24,7 @@ export class CreateProductDTO {
   readonly description: string;
 
   @IsUrl()
-  @IsNotEmpty()
+  @IsOptional()
   @ApiProperty()
   readonly image: string;
 
