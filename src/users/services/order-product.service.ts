@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -34,6 +34,9 @@ export class OrderProductService {
   async update(id: number, changes: UpdateOrderProductDto) {
     const item = await this.itemRepo.findOne({ where: { id } });
 
+    if (!item) {
+      throw new NotFoundException('Item not found');
+    }
     if (changes.orderId) {
       const order = await this.orderService.findOne(changes.orderId);
       item.order = order;
