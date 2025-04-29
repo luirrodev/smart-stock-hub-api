@@ -50,9 +50,9 @@ export class BrandsService {
         throw new ConflictException('This brand already exists');
       }
     }
-    const brandToUpdate = await this.brandRepo.findOne({
-      where: { id },
-    });
+
+    const brandToUpdate = await this.findOne(id);
+
     this.brandRepo.merge(brandToUpdate, changes);
     return this.brandRepo.save(brandToUpdate);
   }
