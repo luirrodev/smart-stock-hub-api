@@ -36,6 +36,9 @@ export class OrdersService {
       const customer = await this.customerRepo.findOne({
         where: { id: data.customerId },
       });
+      if (!customer) {
+        throw new NotFoundException('Customer not found');
+      }
       newOrder.customer = customer;
     }
     return this.orderRepo.save(newOrder);
@@ -47,6 +50,9 @@ export class OrdersService {
       const customer = await this.customerRepo.findOne({
         where: { id: changes.customerId },
       });
+      if (!customer) {
+        throw new NotFoundException('Customer not found');
+      }
       orderToUpdate.customer = customer;
     }
     return this.orderRepo.save(orderToUpdate);
