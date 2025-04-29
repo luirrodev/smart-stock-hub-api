@@ -1,5 +1,5 @@
 # Etapa de construcción
-FROM node:20-alpine3.19 AS builder
+FROM node:lts-alpine AS builder
 
 WORKDIR /usr/src/app
 
@@ -22,7 +22,7 @@ COPY . .
 RUN pnpm run build
 
 # Etapa de producción
-FROM node:20-alpine3.19 AS production
+FROM node:lts-alpine AS production
 
 # Establecer NODE_ENV a producción
 ENV NODE_ENV=prod
