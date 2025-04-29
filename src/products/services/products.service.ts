@@ -52,12 +52,14 @@ export class ProductsService {
 
   async create(data: CreateProductDTO) {
     const newProduct = this.productRepo.create(data);
+
     if (data.brandId) {
       const brand = await this.brandRepo.findOne({
         where: { id: data.brandId },
       });
-      newProduct.brand = brand;
+      if (brand) newProduct.brand = brand;
     }
+
     if (data.categoriesId) {
       const categories = await this.categoryRepo.findBy({
         id: In(data.categoriesId),
@@ -68,10 +70,10 @@ export class ProductsService {
   }
 
   async update(id: number, changes: UpdateProductDTO) {
-    const productToUpdate = await this.productRepo.findOneBy({ id });
+    const productToUpdate = await this.findOne(id);
     if (changes.brandId) {
       const brand = await this.brandRepo.findOneBy({ id: changes.brandId });
-      productToUpdate.brand = brand;
+      if (brand) productToUpdate.brand = brand;
     }
     this.productRepo.merge(productToUpdate, changes);
     return this.productRepo.save(productToUpdate);
