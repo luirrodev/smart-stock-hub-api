@@ -8,7 +8,8 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
-import { Role } from 'src/roles/entities/role.entity';
+
+import { Role } from '../../roles/entities/role.entity';
 
 @Entity({
   name: 'users',

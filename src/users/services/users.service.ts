@@ -19,15 +19,12 @@ export class UsersService {
   ) {}
 
   findAll() {
-    return this.userRepo.find({
-      relations: ['customer'],
-    });
+    return this.userRepo.find();
   }
 
   async findOne(id: number) {
     const user = await this.userRepo.findOne({
       where: { id },
-      relations: ['customer'],
     });
     if (!user) {
       throw new NotFoundException('This user does not exist');
