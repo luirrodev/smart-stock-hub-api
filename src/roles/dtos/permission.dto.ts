@@ -26,5 +26,5 @@ export class UpdatePermissionDto {
     description: 'Descripción del permiso',
     example: 'Permite crear un usuario',
   })
-  readonly description?: string;
+  readonly description: string;
 }
