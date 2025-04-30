@@ -7,6 +7,7 @@ import { ProductsModule } from './products/products.module';
 import { UsersModule } from './users/users.module';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './auth/auth.module';
+import { RolesModule } from './roles/roles.module';
 import config from './config';
 
 @Module({
@@ -24,6 +25,7 @@ import config from './config';
     ProductsModule,
     DatabaseModule,
     AuthModule,
+    RolesModule,
   ],
   controllers: [],
   providers: [],

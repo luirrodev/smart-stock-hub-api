@@ -4,10 +4,11 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
-  OneToOne,
+  ManyToOne,
   JoinColumn,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
+import { Role } from 'src/roles/entities/role.entity';
 
 @Entity({
   name: 'users',
@@ -23,8 +24,9 @@ export class User {
   @Column({ type: 'varchar', length: 255 })
   password: string;
 
-  @Column({ type: 'varchar', length: 255 })
-  role: string;
+  @ManyToOne(() => Role, { eager: true })
+  @JoinColumn({ name: 'role_id' })
+  role: number;
 
   @Exclude()
   @CreateDateColumn({
