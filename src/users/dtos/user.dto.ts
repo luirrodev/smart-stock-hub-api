@@ -3,9 +3,9 @@ import {
   IsNotEmpty,
   IsEmail,
   Length,
-  IsOptional,
   IsPositive,
   ValidateIf,
+  IsNumber,
 } from 'class-validator';
 import { ApiProperty, PartialType } from '@nestjs/swagger';
 
@@ -22,6 +22,8 @@ export class CreateUserDto {
   readonly password: string;
 
   @IsNotEmpty()
+  @IsNumber()
+  @IsPositive()
   @ApiProperty()
   readonly role: number;
 
