@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Role } from '../entities/role.entity';
 import { Permission } from '../entities/permission.entity';
-import { CreateRoleDto } from '../dtos/role.dto';
+import { AssignPermissionsDto, CreateRoleDto } from '../dtos/role.dto';
 
 @Injectable()
 export class RolesService {
@@ -25,7 +25,7 @@ export class RolesService {
   async getRoleById(id: number): Promise<Role> {
     const role = await this.roleRepo.findOne({
       where: { id },
-      relations: ['permissions'],
+      // relations: ['permissions'],
     });
     if (!role) {
       throw new NotFoundException('Role not found');
@@ -33,10 +33,10 @@ export class RolesService {
     return role;
   }
 
-  async assignPermissions(roleId: number, permissionIds: number[]) {
-    const role = await this.getRoleById(roleId);
+  async assignPermissions(id: number, data: AssignPermissionsDto) {
+    const role = await this.getRoleById(id);
     const permissions = await this.permissionRepo.findBy({
-      id: In(permissionIds),
+      id: In(data.permissionIds),
     });
 
     role.permissions = [...role.permissions, ...permissions];

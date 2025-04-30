@@ -1,7 +1,15 @@
-import { Controller, Post, Body, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  UseGuards,
+  Get,
+  Param,
+  ParseIntPipe,
+} from '@nestjs/common';
 
 import { RolesService } from '../services/roles.service';
-import { CreateRoleDto } from '../dtos/role.dto';
+import { AssignPermissionsDto, CreateRoleDto } from '../dtos/role.dto';
 // import { AssignPermissionsDto } from './dto/assign-permissions.dto';
 // import { RequirePermissions } from '../decorators/permissions.decorator';
 import { PermissionsGuard } from '../guards/permissions.guard';
@@ -11,15 +19,26 @@ import { PermissionsGuard } from '../guards/permissions.guard';
 export class RolesController {
   constructor(private readonly rolesService: RolesService) {}
 
+  @Get()
+  getAllRoles() {
+    return this.rolesService.getAllRoles();
+  }
+
+  @Get(':id')
+  getRoleById(@Param('id', ParseIntPipe) id: number) {
+    return this.rolesService.getRoleById(id);
+  }
+
   @Post()
-  // @RequirePermissions('create_role')
   createRole(@Body() payload: CreateRoleDto) {
     return this.rolesService.createRole(payload);
   }
 
-  // @Post(':roleId/permissions')
-  // @RequirePermissions('manage_permissions')
-  // assignPermissions(@Body() dto: AssignPermissionsDto) {
-  //   return this.rolesService.assignPermissions(dto.roleId, dto.permissionIds);
-  // }
+  @Post(':id/permissions')
+  assignPermissions(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() payload: AssignPermissionsDto,
+  ) {
+    return this.rolesService.assignPermissions(id, payload);
+  }
 }
