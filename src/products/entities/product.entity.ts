@@ -33,7 +33,7 @@ export class Product {
   @Column({ type: 'integer' })
   stock: number;
 
-  @Column({ type: 'varchar', length: 200 })
+  @Column({ type: 'varchar', length: 200, nullable: true })
   image: string;
 
   @Exclude()
