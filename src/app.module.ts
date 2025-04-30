@@ -2,8 +2,6 @@ import { ConfigModule } from '@nestjs/config';
 import { Module } from '@nestjs/common';
 import * as Joi from 'joi';
 
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { enviroments } from './enviroments';
 import { ProductsModule } from './products/products.module';
 import { UsersModule } from './users/users.module';
@@ -27,7 +25,7 @@ import config from './config';
     DatabaseModule,
     AuthModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  controllers: [],
+  providers: [],
 })
 export class AppModule {}
