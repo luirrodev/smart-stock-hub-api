@@ -9,7 +9,6 @@ import { Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
 import { CreateUserDto, UpdateUserDto } from '../dtos/user.dto';
 import { ProductsService } from 'src/products/services/products.service';
-import { CustomersService } from './customers.service';
 import * as bcrypt from 'bcryptjs';
 
 @Injectable()
@@ -17,7 +16,6 @@ export class UsersService {
   constructor(
     @InjectRepository(User) private userRepo: Repository<User>,
     private productService: ProductsService,
-    private customerService: CustomersService,
   ) {}
 
   findAll() {
@@ -61,10 +59,6 @@ export class UsersService {
     const hashPassword = await bcrypt.hash(newUser.password, 10);
     newUser.password = hashPassword;
 
-    if (data.customerId) {
-      const customer = await this.customerService.findOne(data.customerId);
-      newUser.customer = customer;
-    }
     return this.userRepo.save(newUser);
   }
 
@@ -78,10 +72,6 @@ export class UsersService {
 
     const userToUpdate = await this.findOne(id);
 
-    if (changes.customerId) {
-      const customer = await this.customerService.findOne(changes.customerId);
-      userToUpdate.customer = customer;
-    }
     this.userRepo.merge(userToUpdate, changes);
     return this.userRepo.save(userToUpdate);
   }

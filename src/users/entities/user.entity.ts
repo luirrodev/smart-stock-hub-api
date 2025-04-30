@@ -9,8 +9,6 @@ import {
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
 
-import { Customer } from './customer.entity';
-
 @Entity({
   name: 'users',
 })
@@ -43,8 +41,4 @@ export class User {
     default: () => 'CURRENT_TIMESTAMP',
   })
   updateAt: Date;
-
-  @OneToOne(() => Customer, (customer) => customer.user, { nullable: true })
-  @JoinColumn({ name: 'customer_id' })
-  customer: Customer;
 }

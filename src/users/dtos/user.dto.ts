@@ -25,11 +25,6 @@ export class CreateUserDto {
   @ApiProperty()
   readonly role: string;
 
-  @IsOptional()
-  @IsPositive()
-  @ApiProperty()
-  customerId: number;
-
   @ValidateIf((o) => o.email && o.emailExists)
   @ApiProperty()
   emailExists?: boolean;
