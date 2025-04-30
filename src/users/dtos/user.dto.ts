@@ -23,7 +23,7 @@ export class CreateUserDto {
 
   @IsNotEmpty()
   @ApiProperty()
-  readonly role: string;
+  readonly role: number;
 
   @ValidateIf((o) => o.email && o.emailExists)
   @ApiProperty()

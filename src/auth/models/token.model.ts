@@ -1,4 +1,4 @@
 export interface PayloadToken {
-  role: string;
+  role: number;
   sub: number;
 }

@@ -4,34 +4,26 @@ import {
   Delete,
   Get,
   Param,
+  ParseIntPipe,
   Post,
   Put,
   Query,
-  // ParseIntPipe,
   UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { ProductsService } from 'src/products/services/products.service';
-import { ParseIntPipe } from 'src/shared/parse-int/parse-int.pipe';
 import {
   CreateProductDTO,
   UpdateProductDTO,
   FilterProductsDTO,
 } from '../dtos/product.dtos';
-import { Public } from 'src/auth/decorators/public.decorator';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { RolesGuard } from 'src/auth/guards/roles.guard';
-import { Roles } from 'src/auth/decorators/roles.decorator';
-import { Role } from 'src/auth/models/roles.model';
 
-@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiTags('products')
 @Controller('products')
 export class ProductsController {
   constructor(private productService: ProductsService) {}
 
-  @Public()
   @Get(':id')
   @ApiOperation({
     summary: 'Get a product by ID',
@@ -41,7 +33,6 @@ export class ProductsController {
     return this.productService.findOne(id);
   }
 
-  @Public()
   @Get()
   @ApiOperation({
     summary: 'Get all products',
@@ -51,7 +42,6 @@ export class ProductsController {
     return this.productService.findAll(params);
   }
 
-  @Roles(Role.ADMIN)
   @Post()
   @ApiOperation({
     summary: 'Create a new product',
@@ -61,7 +51,6 @@ export class ProductsController {
     return this.productService.create(payload);
   }
 
-  @Roles(Role.ADMIN)
   @Put(':id')
   @ApiOperation({
     summary: 'Update an existing product',
@@ -74,7 +63,6 @@ export class ProductsController {
     return this.productService.update(id, payload);
   }
 
-  @Roles(Role.ADMIN)
   @Delete(':id')
   @ApiOperation({
     summary: 'Delete a product',
