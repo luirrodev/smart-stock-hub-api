@@ -21,6 +21,7 @@ export class PermissionsService {
   async getPermissionById(id: number) {
     const permission = await this.permissionRepo.findOne({
       where: { id },
+      relations: ['roles'], // Cargamos los roles relacionados con este permiso
     });
     if (!permission) {
       throw new Error('Permission not found');
