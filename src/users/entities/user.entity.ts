@@ -27,7 +27,7 @@ export class User {
 
   @ManyToOne(() => Role, { eager: true })
   @JoinColumn({ name: 'role_id' })
-  role: number;
+  role: Role;
 
   @Exclude()
   @CreateDateColumn({

@@ -10,12 +10,13 @@ import { User } from '../entities/user.entity';
 import { CreateUserDto, UpdateUserDto } from '../dtos/user.dto';
 import { ProductsService } from 'src/products/services/products.service';
 import * as bcrypt from 'bcryptjs';
+import { RolesService } from 'src/roles/services/roles.service';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User) private userRepo: Repository<User>,
-    private productService: ProductsService,
+    private readonly roleService: RolesService,
   ) {}
 
   findAll() {
@@ -35,6 +36,7 @@ export class UsersService {
   async findByEmail(email: string) {
     const user = await this.userRepo.findOne({
       where: { email },
+      relations: ['role.permissions'],
     });
     if (!user) {
       throw new NotFoundException('This user does not exist');
@@ -46,12 +48,15 @@ export class UsersService {
     const existingUser = await this.userRepo.findOne({
       where: { email: data.email },
     });
-
     if (existingUser) {
       throw new ConflictException('This email is already in use');
     }
 
-    const newUser = this.userRepo.create(data);
+    const role = await this.roleService.getRoleById(data.role);
+    const { role: role_id, ...userData } = data;
+
+    const newUser = this.userRepo.create(userData);
+    newUser.role = role;
 
     const hashPassword = await bcrypt.hash(newUser.password, 10);
     newUser.password = hashPassword;
@@ -60,16 +65,26 @@ export class UsersService {
   }
 
   async update(id: number, changes: UpdateUserDto) {
-    if (changes.email) {
-      const existingUser = await this.findByEmail(changes.email);
+    const userToUpdate = await this.findOne(id);
+
+    if (changes.email && changes.email !== userToUpdate.email) {
+      const existingUser = await this.userRepo.findOne({
+        where: { email: changes.email },
+      });
       if (existingUser) {
         throw new ConflictException('This email is already in use');
       }
     }
 
-    const userToUpdate = await this.findOne(id);
-
-    this.userRepo.merge(userToUpdate, changes);
+    if (changes.role) {
+      const role = await this.roleService.getRoleById(changes.role);
+      const { role: roleId, ...otherChanges } = changes;
+      this.userRepo.merge(userToUpdate, otherChanges);
+      userToUpdate.role = role;
+    } else {
+      const { role, ...otherChanges } = changes;
+      this.userRepo.merge(userToUpdate, otherChanges);
+    }
     return this.userRepo.save(userToUpdate);
   }
 
