@@ -20,28 +20,34 @@ import { JWTAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
 @ApiTags('users')
 @Controller('users')
-// @UseGuards(JWTAuthGuard)
+@UseGuards(JWTAuthGuard, PermissionsGuard)
 export class UsersController {
   constructor(private usersService: UsersService) {}
 
   @Get()
+  @Roles('super_admin')
+  @RequirePermissions('get_all_users')
   findAll() {
     return this.usersService.findAll();
   }
 
+  @Roles('super_admin')
+  @RequirePermissions('get_one_user')
   @Get(':id')
   get(@Param('id', ParseIntPipe) id: number) {
     return this.usersService.findOne(id);
   }
 
   @Post()
-  // @Roles('super_admin')
-  // @RequirePermissions('create_user')
+  @Roles('super_admin')
+  @RequirePermissions('create_user')
   create(@Body() payload: CreateUserDto) {
     return this.usersService.create(payload);
   }
 
   @Put(':id')
+  @Roles('super_admin')
+  @RequirePermissions('update_user')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() payload: UpdateUserDto,
@@ -50,6 +56,8 @@ export class UsersController {
   }
 
   @Delete(':id')
+  @Roles('super_admin')
+  @RequirePermissions('delete_user')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.usersService.remove(+id);
   }
