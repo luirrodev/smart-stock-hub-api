@@ -7,14 +7,20 @@ import {
   Put,
   Delete,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 
 import { UsersService } from '../services/users.service';
 import { CreateUserDto, UpdateUserDto } from '../dtos/user.dto';
+import { PermissionsGuard } from 'src/roles/guards/permissions.guard';
+import { Roles } from 'src/roles/decorators/roles.decorator';
+import { RequirePermissions } from 'src/roles/decorators/permissions.decorator';
+import { JWTAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
 @ApiTags('users')
 @Controller('users')
+// @UseGuards(JWTAuthGuard)
 export class UsersController {
   constructor(private usersService: UsersService) {}
 
@@ -29,6 +35,8 @@ export class UsersController {
   }
 
   @Post()
+  // @Roles('super_admin')
+  // @RequirePermissions('create_user')
   create(@Body() payload: CreateUserDto) {
     return this.usersService.create(payload);
   }
