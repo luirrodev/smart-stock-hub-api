@@ -27,23 +27,21 @@ export class AuthService {
 
   async generateJWT(userData: User) {
     const payload: PayloadToken = {
-      role: userData.role.id,
+      role: userData.role.name,
       permissions: userData.role.permissions.map(
         (permission) => permission.name,
       ),
       sub: userData.id,
     };
-
-    console.log(userData.role.name);
-
     const access_token = await this.jwtService.sign(payload);
-    const { role, password, createdAt, updateAt, ...userWithoutRole } =
-      userData;
-    const user = { role: userData.role.name, ...userWithoutRole };
 
-    return {
-      user,
+    const response = {
+      id: userData.id,
+      email: userData.email,
+      role: userData.role.name,
       access_token,
     };
+
+    return response;
   }
 }

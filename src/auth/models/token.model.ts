@@ -1,5 +1,5 @@
 export interface PayloadToken {
-  role: number;
+  role: string;
   permissions: string[];
   sub: number;
 }
