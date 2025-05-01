@@ -34,8 +34,12 @@ export class AuthService {
       sub: userData.id,
     };
 
+    console.log(userData.role.name);
+
     const access_token = await this.jwtService.sign(payload);
-    const { role, password, createdAt, updateAt, ...user } = userData;
+    const { role, password, createdAt, updateAt, ...userWithoutRole } =
+      userData;
+    const user = { role: userData.role.name, ...userWithoutRole };
 
     return {
       user,
