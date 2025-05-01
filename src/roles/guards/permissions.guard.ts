@@ -1,4 +1,9 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { REQUIRE_PERMISSIONS_KEY } from '../decorators/permissions.decorator';
 import { ROLES_KEY } from '../decorators/roles.decorator';
@@ -24,8 +29,12 @@ export class PermissionsGuard implements CanActivate {
     const user = request.user as PayloadToken;
 
     // 4. Verificar roles (si hay)
-    if (requiredRoles && !requiredRoles.includes(user.role)) {
-      return false;
+    if (requiredRoles && requiredRoles.length > 0) {
+      if (!requiredRoles.includes(user.role)) {
+        throw new ForbiddenException(
+          `Access denied: Role required ${requiredRoles.join(' or ')}. Your current role is ${user.role}.`,
+        );
+      }
     }
 
     // 5. Verificar permisos (si hay)
@@ -33,7 +42,11 @@ export class PermissionsGuard implements CanActivate {
       const hasPermission = requiredPermissions.some((p) =>
         user.permissions.includes(p),
       );
-      if (!hasPermission) return false;
+      if (!hasPermission) {
+        throw new ForbiddenException(
+          `Access denied: you do not have access to ${requiredPermissions}`,
+        );
+      }
     }
 
     return true;
