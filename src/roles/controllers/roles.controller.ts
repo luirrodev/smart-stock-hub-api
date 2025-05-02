@@ -6,6 +6,7 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  Delete,
 } from '@nestjs/common';
 
 import { RolesService } from '../services/roles.service';
@@ -40,5 +41,10 @@ export class RolesController {
     @Body() payload: AssignPermissionsDto,
   ) {
     return this.rolesService.assignPermissions(id, payload);
+  }
+
+  @Delete(':id')
+  deleteRole(@Param('id', ParseIntPipe) id: number) {
+    return this.rolesService.deleteRole(id);
   }
 }

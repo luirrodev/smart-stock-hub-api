@@ -42,4 +42,9 @@ export class RolesService {
     role.permissions = [...role.permissions, ...permissions];
     return this.roleRepo.save(role);
   }
+
+  async deleteRole(id: number) {
+    const role = await this.getRoleById(id);
+    return this.roleRepo.remove(role);
+  }
 }
