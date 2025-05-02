@@ -43,6 +43,12 @@ export class RolesService {
     return this.roleRepo.save(role);
   }
 
+  async updateRole(id: number, data: { description: string }) {
+    const role = await this.getRoleById(id);
+    this.roleRepo.merge(role, data);
+    return this.roleRepo.save(role);
+  }
+
   async deleteRole(id: number) {
     const role = await this.getRoleById(id);
     return this.roleRepo.remove(role);
