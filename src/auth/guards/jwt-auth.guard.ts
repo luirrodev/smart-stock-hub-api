@@ -28,6 +28,12 @@ export class JWTAuthGuard extends AuthGuard('jwt') {
       throw new UnauthorizedException(errorMessage);
     }
 
+    if (!user.permissions) {
+      throw new UnauthorizedException(
+        'Invalid token type. Access token required.',
+      );
+    }
+
     return user;
   }
 }
