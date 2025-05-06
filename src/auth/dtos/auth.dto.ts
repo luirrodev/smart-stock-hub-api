@@ -20,3 +20,13 @@ export class LoginDto {
   @MinLength(6)
   password: string;
 }
+
+export class RefreshTokenDto {
+  @IsString()
+  @IsNotEmpty()
+  @ApiProperty({
+    description: 'Refresh token para obtener un nuevo access token',
+    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+  })
+  refresh_token: string;
+}
