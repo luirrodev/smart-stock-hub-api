@@ -39,7 +39,7 @@ export class AuthService {
     };
 
     const access_token = await this.jwtService.sign(payload, {
-      expiresIn: '15m',
+      expiresIn: '15min',
     });
 
     const refresh_token = await this.jwtService.sign(
@@ -48,7 +48,7 @@ export class AuthService {
         role: userData.role.name,
       },
       {
-        expiresIn: '7d',
+        expiresIn: process.env.JWT_REFRESH_EXPIRES_IN,
         secret: process.env.JWT_REFRESH_SECRET,
       },
     );
