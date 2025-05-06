@@ -45,6 +45,7 @@ export class AuthService {
       },
       {
         expiresIn: '7d',
+        secret: process.env.JWT_REFRESH_SECRET,
       },
     );
 
@@ -71,7 +72,8 @@ export class AuthService {
       };
 
       const access_token = await this.jwtService.sign(newPayload, {
-        expiresIn: '15m',
+        expiresIn: process.env.JWT_ACCESS_EXPIRES_IN,
+        secret: process.env.JWT_ACCESS_SECRET,
       });
 
       return { access_token };
