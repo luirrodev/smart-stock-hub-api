@@ -12,7 +12,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { AuthService } from '../services/auth.service';
 import { User } from 'src/users/entities/user.entity';
 import { GetUser } from '../decorators/get-user.decorator';
-import { LoginDto } from '../dtos/auth.dto';
+import { LoginDto, RefreshTokenDto } from '../dtos/auth.dto';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -37,5 +37,24 @@ export class AuthController {
   })
   login(@GetUser() user: User, @Body() loginDto: LoginDto) {
     return this.authService.generateJWT(user);
+  }
+
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Refresh access token' })
+  @ApiBody({
+    type: RefreshTokenDto,
+    description: 'Refresh token para obtener un nuevo access token',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Token refreshed successfully',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Invalid refresh token',
+  })
+  refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
+    return this.authService.refreshToken(refreshTokenDto.refresh_token);
   }
 }
