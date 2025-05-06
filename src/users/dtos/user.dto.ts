@@ -12,12 +12,18 @@ import { ApiProperty, PartialType } from '@nestjs/swagger';
 export class CreateUserDto {
   @IsString()
   @IsEmail()
+  @IsNotEmpty()
   @ApiProperty()
   readonly email: string;
 
   @IsString()
+  @ApiProperty()
   @IsNotEmpty()
-  @Length(6)
+  readonly name: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @Length(8)
   @ApiProperty()
   readonly password: string;
 
