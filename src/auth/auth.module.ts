@@ -19,9 +19,6 @@ import config from 'src/config';
       useFactory: (configService: ConfigType<typeof config>) => {
         return {
           secret: configService.jwtSecret,
-          signOptions: {
-            expiresIn: '3d',
-          },
         };
       },
     }),
