@@ -18,7 +18,10 @@ import config from 'src/config';
       inject: [config.KEY],
       useFactory: (configService: ConfigType<typeof config>) => {
         return {
-          secret: configService.jwtSecret,
+          secret: configService.jwt.accessTokenSecret,
+          signOptions: {
+            expiresIn: configService.jwt.accessTokenExpiresIn,
+          },
         };
       },
     }),
