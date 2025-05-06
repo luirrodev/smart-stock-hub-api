@@ -26,6 +26,7 @@ export class UsersService {
   async findOne(id: number) {
     const user = await this.userRepo.findOne({
       where: { id },
+      relations: ['role.permissions'],
     });
     if (!user) {
       throw new NotFoundException('This user does not exist');
