@@ -5,6 +5,7 @@ import {
   HttpCode,
   HttpStatus,
   Body,
+  Get,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
@@ -13,6 +14,7 @@ import { AuthService } from '../services/auth.service';
 import { User } from 'src/users/entities/user.entity';
 import { GetUser } from '../decorators/get-user.decorator';
 import { LoginDto, RefreshTokenDto } from '../dtos/auth.dto';
+import { JWTAuthGuard } from '../guards/jwt-auth.guard';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -56,5 +58,25 @@ export class AuthController {
   })
   refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
     return this.authService.refreshToken(refreshTokenDto.refresh_token);
+  }
+
+  @Get('profile')
+  @UseGuards(JWTAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Get user profile' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'User profile retrieved successfully',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Unauthorized access or invalid token',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'User not found',
+  })
+  async getProfile(@GetUser() user: User) {
+    return this.authService.getProfile(user);
   }
 }

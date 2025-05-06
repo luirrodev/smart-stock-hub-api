@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 
 import * as bcrypt from 'bcryptjs';
@@ -50,9 +54,6 @@ export class AuthService {
     );
 
     const response = {
-      id: userData.id,
-      email: userData.email,
-      role: userData.role.name,
       access_token,
       refresh_token,
     };
@@ -82,5 +83,21 @@ export class AuthService {
     } catch (error) {
       throw new UnauthorizedException('Invalid refresh token');
     }
+  }
+
+  async getProfile(userData: User) {
+    const user = await this.userService.findOne(userData.id);
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role.name,
+      permissions: user.role.permissions.map((permission) => permission.name),
+    };
   }
 }
