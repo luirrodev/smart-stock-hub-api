@@ -39,7 +39,8 @@ export class AuthService {
     };
 
     const access_token = await this.jwtService.sign(payload, {
-      expiresIn: '15min',
+      expiresIn: process.env.JWT_ACCESS_EXPIRES_IN,
+      secret: process.env.JWT_ACCESS_SECRET,
     });
 
     const refresh_token = await this.jwtService.sign(
@@ -79,7 +80,18 @@ export class AuthService {
         secret: process.env.JWT_ACCESS_SECRET,
       });
 
-      return { access_token };
+      const refresh_token = await this.jwtService.sign(
+        {
+          sub: user.id,
+          role: user.role.name,
+        },
+        {
+          expiresIn: process.env.JWT_REFRESH_EXPIRES_IN,
+          secret: process.env.JWT_REFRESH_SECRET,
+        },
+      );
+
+      return { access_token, refresh_token };
     } catch (error) {
       throw new UnauthorizedException('Invalid refresh token');
     }
