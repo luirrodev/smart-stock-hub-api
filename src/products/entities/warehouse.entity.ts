@@ -4,8 +4,10 @@ import {
   Column,
   ManyToOne,
   JoinColumn,
+  OneToMany,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
+import { Inventory } from './inventory.entity';
 
 @Entity('warehouses')
 export class Warehouse {
@@ -24,6 +26,9 @@ export class Warehouse {
   @ManyToOne(() => User)
   @JoinColumn({ name: 'manager_id' })
   manager: User;
+
+  @OneToMany(() => Inventory, (inventory) => inventory.warehouse)
+  inventories: Inventory[];
 
   @Column({ default: true })
   active: boolean;

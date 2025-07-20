@@ -8,11 +8,13 @@ import {
   JoinColumn,
   ManyToMany,
   JoinTable,
+  OneToMany,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
 
 import { Brand } from './brand.entity';
 import { Category } from './category.entity';
+import { Inventory } from './inventory.entity';
 
 @Entity({
   name: 'products',
@@ -86,4 +88,7 @@ export class Product {
     },
   })
   categories: Category[];
+
+  @OneToMany(() => Inventory, (inventory) => inventory.product)
+  inventories: Inventory[];
 }
