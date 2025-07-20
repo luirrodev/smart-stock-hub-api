@@ -8,7 +8,6 @@ import { Repository } from 'typeorm';
 
 import { User } from '../entities/user.entity';
 import { CreateUserDto, UpdateUserDto } from '../dtos/user.dto';
-import { ProductsService } from 'src/products/services/products.service';
 import * as bcrypt from 'bcryptjs';
 import { RolesService } from 'src/roles/services/roles.service';
 
