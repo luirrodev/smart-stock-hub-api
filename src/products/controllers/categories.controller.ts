@@ -13,7 +13,6 @@ import { ApiTags } from '@nestjs/swagger';
 
 import { CategoriesService } from '../services/categories.service';
 import { CreateCategoryDto, UpdateCategoryDto } from '../dtos/category.dtos';
-import { Roles } from 'src/roles/decorators/roles.decorator';
 import { RequirePermissions } from 'src/roles/decorators/permissions.decorator';
 import { PermissionsGuard } from 'src/roles/guards/permissions.guard';
 import { JWTAuthGuard } from 'src/auth/guards/jwt-auth.guard';
