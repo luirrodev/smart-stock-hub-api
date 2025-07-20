@@ -29,13 +29,6 @@ export class InventoryMovement {
   @Column({ name: 'movement_date', type: 'timestamp' })
   movementDate: Date;
 
-  @CreateDateColumn({
-    type: 'timestamptz',
-    name: 'created_at',
-    default: () => 'CURRENT_TIMESTAMP',
-  })
-  createdAt: Date;
-
   @Column({ name: 'approved_at', type: 'timestamp', nullable: true })
   approvedAt?: Date;
 
@@ -80,4 +73,11 @@ export class InventoryMovement {
     default: 0,
   })
   totalValue: number;
+
+  @CreateDateColumn({
+    type: 'timestamptz',
+    name: 'created_at',
+    default: () => 'CURRENT_TIMESTAMP',
+  })
+  createdAt: Date;
 }
