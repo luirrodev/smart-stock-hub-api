@@ -9,6 +9,7 @@ import {
   WarehouseResponseDto,
 } from '../dtos/warehouse.dtos';
 import { UsersService } from 'src/users/services/users.service';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class WarehousesService {
@@ -50,6 +51,7 @@ export class WarehousesService {
 
     const warehouse = this.warehouseRepository.create({
       ...data,
+      code: `ALMACEN-${data.name}-${uuidv4()}`,
       manager,
     });
 
