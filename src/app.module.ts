@@ -9,6 +9,7 @@ import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './auth/auth.module';
 import { RolesModule } from './roles/roles.module';
 import config from './config';
+import { MovementsModule } from './movements/movements.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import config from './config';
     DatabaseModule,
     AuthModule,
     RolesModule,
+    MovementsModule,
   ],
   controllers: [],
   providers: [],
