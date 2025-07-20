@@ -8,11 +8,13 @@ import {
   IsNumber,
 } from 'class-validator';
 import { ApiProperty, PartialType } from '@nestjs/swagger';
+import { EmailExists } from '../validators/email-exists.validator';
 
 export class CreateUserDto {
   @IsString()
   @IsEmail()
   @IsNotEmpty()
+  @EmailExists()
   @ApiProperty()
   readonly email: string;
 
@@ -32,10 +34,6 @@ export class CreateUserDto {
   @IsPositive()
   @ApiProperty()
   readonly role: number;
-
-  @ValidateIf((o) => o.email && o.emailExists)
-  @ApiProperty()
-  emailExists?: boolean;
 }
 
 export class UpdateUserDto extends PartialType(CreateUserDto) {}
