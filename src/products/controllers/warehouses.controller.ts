@@ -10,6 +10,7 @@ import {
   HttpStatus,
   UseGuards,
   ParseIntPipe,
+  Put,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { WarehousesService } from '../services/warehouses.service';
@@ -53,7 +54,7 @@ export class WarehousesController {
     return this.warehousesService.create(data);
   }
 
-  @Patch(':id')
+  @Put(':id')
   @RequirePermissions('warehouses:write')
   @ApiOperation({ summary: 'Actualizar un almacén' })
   async update(
@@ -65,9 +66,9 @@ export class WarehousesController {
 
   @Delete(':id')
   @RequirePermissions('warehouses:write')
-  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Eliminar un almacén' })
-  async remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
-    return this.warehousesService.remove(id);
+  @HttpCode(204)
+  async remove(@Param('id', ParseIntPipe) id: number) {
+    await this.warehousesService.remove(id);
   }
 }
