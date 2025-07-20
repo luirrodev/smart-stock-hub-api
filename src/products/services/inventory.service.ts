@@ -57,6 +57,7 @@ export class InventoryService {
       const warehouse = await this.warehousesService.findOne(data.warehouseId);
       updateData.warehouse = warehouse;
     }
+    await this.inventoryRepository.merge(updateData, data);
     await this.inventoryRepository.update(id, updateData);
     return this.findOne(id);
   }
