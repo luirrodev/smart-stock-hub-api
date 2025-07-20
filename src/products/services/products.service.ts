@@ -24,9 +24,9 @@ export class ProductsService {
     if (params) {
       const where: FindOptionsWhere<Product> = {};
       const { limit, offset } = params;
-      const { maxPrice, minPrice } = params;
-      if (maxPrice && minPrice) {
-        where.price = Between(minPrice, maxPrice);
+      const { maxSalePrice, minSalePrice } = params;
+      if (maxSalePrice && minSalePrice) {
+        where.salePrice = Between(maxSalePrice, minSalePrice);
       }
       return this.productRepo.find({
         relations: ['brand'],
