@@ -35,7 +35,7 @@ export class WarehousesService {
     return warehouses.map((w) => this.toResponseDto(w));
   }
 
-  async findOne(id: number): Promise<WarehouseResponseDto> {
+  async findOne(id: number) {
     const warehouse = await this.warehouseRepository.findOne({
       where: { id },
       relations: ['manager'],
