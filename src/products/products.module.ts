@@ -15,6 +15,8 @@ import { WarehousesService } from './services/warehouses.service';
 import { UsersModule } from 'src/users/users.module';
 import { WarehousesController } from './controllers/warehouses.controller';
 import { Inventory } from './entities/inventory.entity';
+import { InventoryController } from './controllers/inventory.controller';
+import { InventoryService } from './services/inventory.service';
 
 @Module({
   imports: [
@@ -26,12 +28,14 @@ import { Inventory } from './entities/inventory.entity';
     CategoriesController,
     BrandsController,
     WarehousesController,
+    InventoryController,
   ],
   providers: [
     ProductsService,
     CategoriesService,
     BrandsService,
     WarehousesService,
+    InventoryService,
   ],
   exports: [ProductsService, TypeOrmModule, WarehousesService],
 })
