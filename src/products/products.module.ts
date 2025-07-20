@@ -14,10 +14,11 @@ import { Warehouse } from './entities/warehouse.entity';
 import { WarehousesService } from './services/warehouses.service';
 import { UsersModule } from 'src/users/users.module';
 import { WarehousesController } from './controllers/warehouses.controller';
+import { Inventory } from './entities/inventory.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Product, Brand, Category, Warehouse]),
+    TypeOrmModule.forFeature([Product, Brand, Category, Warehouse, Inventory]),
     UsersModule,
   ],
   controllers: [
