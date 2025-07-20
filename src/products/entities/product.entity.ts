@@ -36,6 +36,25 @@ export class Product {
   @Column({ type: 'varchar', length: 200, nullable: true })
   image: string;
 
+  @Column({ type: 'varchar', length: 100, unique: true })
+  sku: string;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  barcode: string;
+
+  @Column({
+    type: 'enum',
+    enum: ['active', 'discontinued', 'out_of_stock'],
+    default: 'active',
+  })
+  status: 'active' | 'discontinued' | 'out_of_stock';
+
+  @Column({ type: 'float', nullable: true })
+  cost: number;
+
+  @Column({ type: 'text', nullable: true })
+  notes: string;
+
   @Exclude()
   @CreateDateColumn({
     type: 'timestamptz',

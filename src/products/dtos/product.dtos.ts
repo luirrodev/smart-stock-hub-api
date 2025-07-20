@@ -8,6 +8,7 @@ import {
   IsOptional,
   Min,
   ValidateIf,
+  IsEnum,
 } from 'class-validator';
 
 import { PartialType, ApiProperty } from '@nestjs/swagger';
@@ -50,6 +51,26 @@ export class CreateProductDTO {
   @IsNotEmpty()
   @ApiProperty()
   readonly categoriesId: number[];
+
+  @IsString()
+  @IsOptional()
+  sku?: string;
+
+  @IsString()
+  @IsOptional()
+  barcode?: string;
+
+  @IsEnum(['active', 'discontinued', 'out_of_stock'])
+  @IsOptional()
+  status?: 'active' | 'discontinued' | 'out_of_stock';
+
+  @IsNumber()
+  @IsOptional()
+  cost?: number;
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
 }
 
 export class UpdateProductDTO extends PartialType(CreateProductDTO) {}
