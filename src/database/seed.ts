@@ -19,6 +19,21 @@ async function seed() {
     { name: 'roles:write', description: 'Crear, actualizar y eliminar roles' },
     { name: 'permissions:read', description: 'Leer permisos' },
     { name: 'permissions:write', description: 'Crear y actualizar permisos' },
+    { name: 'brands:read', description: 'Leer marcas' },
+    {
+      name: 'brands:write',
+      description: 'Crear, actualizar o eliminar marcas',
+    },
+    { name: 'categories:read', description: 'Leer categorías' },
+    {
+      name: 'categories:write',
+      description: 'Crear, actualizar o eliminar categorías',
+    },
+    { name: 'products:read', description: 'Leer productos' },
+    {
+      name: 'products:write',
+      description: 'Crear, actualizar o eliminar productos',
+    },
   ];
 
   // Roles básicos
