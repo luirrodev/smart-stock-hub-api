@@ -23,44 +23,58 @@ export class Inventory {
   @JoinColumn({ name: 'warehouse_id' })
   warehouse: Warehouse;
 
-  @Column('decimal', { precision: 15, scale: 4, default: 0 })
-  current_quantity: number;
+  @Column('decimal', {
+    precision: 15,
+    scale: 4,
+    default: 0,
+    name: 'current_quantity',
+  })
+  currentQuantity: number;
 
-  @Column('decimal', { precision: 15, scale: 4, default: 0 })
-  reserved_quantity: number;
+  @Column('decimal', {
+    precision: 15,
+    scale: 4,
+    default: 0,
+    name: 'reserved_quantity',
+  })
+  reservedQuantity: number;
 
-  @Column('decimal', { precision: 15, scale: 4, default: 0 })
-  available_quantity: number;
+  @Column('decimal', { precision: 15, scale: 4, default: 0, name: 'min_stock' })
+  minStock: number;
 
-  @Column('decimal', { precision: 15, scale: 4, default: 0 })
-  min_stock: number;
+  @Column('decimal', { precision: 15, scale: 4, default: 0, name: 'max_stock' })
+  maxStock: number;
 
-  @Column('decimal', { precision: 15, scale: 4, default: 0 })
-  max_stock: number;
+  @Column({
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+    name: 'batch_number',
+  })
+  batchNumber: string;
 
-  @Column({ type: 'varchar', length: 100, nullable: true })
-  batch_number: string;
+  @Column({
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+    name: 'serial_number',
+  })
+  serialNumber: string;
 
-  @Column({ type: 'varchar', length: 100, nullable: true })
-  serial_number: string;
-
-  @Column({ type: 'date', nullable: true })
-  expiration_date: Date;
-
-  @Column('decimal', { precision: 15, scale: 4, default: 0 })
-  average_cost: number;
+  @Column({ type: 'date', nullable: true, name: 'expiration_date' })
+  expirationDate: Date;
 
   @CreateDateColumn({
     type: 'timestamptz',
     name: 'created_at',
     default: () => 'CURRENT_TIMESTAMP',
   })
-  created_at: Date;
+  createdAt: Date;
 
   @UpdateDateColumn({
     type: 'timestamptz',
     name: 'updated_at',
     default: () => 'CURRENT_TIMESTAMP',
   })
-  updated_at: Date;
+  updatedAt: Date;
 }
