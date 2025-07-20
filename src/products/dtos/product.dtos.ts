@@ -33,7 +33,7 @@ export class CreateProductDTO {
   @IsNotEmpty()
   @IsPositive()
   @ApiProperty()
-  readonly price: number;
+  readonly salePrice: number;
 
   @IsNumber()
   @IsNotEmpty()
@@ -65,8 +65,7 @@ export class CreateProductDTO {
   status?: 'active' | 'discontinued' | 'out_of_stock';
 
   @IsNumber()
-  @IsOptional()
-  cost?: number;
+  purchasePrice: number;
 
   @IsString()
   @IsOptional()
@@ -86,9 +85,9 @@ export class FilterProductsDTO {
 
   @IsOptional()
   @IsPositive()
-  minPrice: number;
+  minSalePrice: number;
 
-  @ValidateIf((item) => item.minPrice)
+  @ValidateIf((item) => item.minSalePrice)
   @IsPositive()
-  maxPrice: number;
+  maxSalePrice: number;
 }

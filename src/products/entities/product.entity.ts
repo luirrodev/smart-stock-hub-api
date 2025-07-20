@@ -27,8 +27,8 @@ export class Product {
   @Column({ type: 'text' })
   description: string;
 
-  @Column({ type: 'float' })
-  price: number;
+  @Column({ type: 'float', name: 'sale_price' })
+  salePrice: number;
 
   @Column({ type: 'integer' })
   stock: number;
@@ -49,8 +49,8 @@ export class Product {
   })
   status: 'active' | 'discontinued' | 'out_of_stock';
 
-  @Column({ type: 'float', nullable: true })
-  cost: number;
+  @Column({ type: 'float', name: 'purchase_price' })
+  purchasePrice: number;
 
   @Column({ type: 'text', nullable: true })
   notes: string;
