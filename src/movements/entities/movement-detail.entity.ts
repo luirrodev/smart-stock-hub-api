@@ -17,9 +17,15 @@ export class MovementDetail {
   @JoinColumn({ name: 'movement_id' })
   movement: InventoryMovement;
 
+  @Column({ name: 'movement_id' })
+  movementId: number;
+
   @ManyToOne(() => Product)
   @JoinColumn({ name: 'product_id' })
   product: Product;
+
+  @Column({ name: 'product_id' })
+  productId: number;
 
   @Column({ name: 'quantity', type: 'decimal', precision: 15, scale: 4 })
   quantity: number;
