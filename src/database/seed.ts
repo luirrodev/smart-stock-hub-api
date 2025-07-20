@@ -39,6 +39,11 @@ async function seed() {
       name: 'warehouses:write',
       description: 'Permite crear, actualizar y eliminar almacenes',
     },
+    { name: 'inventories:read', description: 'Permite leer inventarios' },
+    {
+      name: 'inventories:write',
+      description: 'Permite crear, actualizar y eliminar inventarios',
+    },
   ];
 
   // Roles básicos
