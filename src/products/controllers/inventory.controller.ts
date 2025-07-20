@@ -7,6 +7,7 @@ import {
   Param,
   Body,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { InventoryService } from '../services/inventory.service';
 import {
@@ -15,18 +16,25 @@ import {
   InventoryResponseDto,
 } from '../dtos/inventory.dtos';
 import { Inventory } from '../entities/inventory.entity';
+import { Roles } from 'src/roles/decorators/roles.decorator';
+import { RequirePermissions } from 'src/roles/decorators/permissions.decorator';
+import { JWTAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from 'src/roles/guards/permissions.guard';
 
 @Controller('inventories')
+@UseGuards(JWTAuthGuard, PermissionsGuard)
 export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
 
   @Get()
+  @RequirePermissions('inventories:read')
   async findAll(): Promise<InventoryResponseDto[]> {
     const inventories = await this.inventoryService.findAll();
     return inventories.map(this.toResponseDto);
   }
 
   @Get(':id')
+  @RequirePermissions('inventories:read')
   async findOne(
     @Param('id', ParseIntPipe) id: number,
   ): Promise<InventoryResponseDto> {
@@ -35,6 +43,7 @@ export class InventoryController {
   }
 
   @Post()
+  @RequirePermissions('inventories:write')
   async create(
     @Body() data: CreateInventoryDto,
   ): Promise<InventoryResponseDto> {
@@ -43,6 +52,7 @@ export class InventoryController {
   }
 
   @Put(':id')
+  @RequirePermissions('inventories:write')
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() data: UpdateInventoryDto,
@@ -52,6 +62,7 @@ export class InventoryController {
   }
 
   @Delete(':id')
+  @RequirePermissions('inventories:write')
   async remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
     return this.inventoryService.remove(id);
   }
