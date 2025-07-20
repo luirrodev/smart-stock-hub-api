@@ -10,11 +10,22 @@ import { CategoriesService } from './services/categories.service';
 import { Product } from './entities/product.entity';
 import { ProductsController } from './controllers/products.controller';
 import { ProductsService } from './services/products.service';
+import { Warehouse } from './entities/warehouse.entity';
+import { WarehousesService } from './services/warehouses.service';
+import { UsersModule } from 'src/users/users.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Product, Brand, Category])],
+  imports: [
+    TypeOrmModule.forFeature([Product, Brand, Category, Warehouse]),
+    UsersModule,
+  ],
   controllers: [ProductsController, CategoriesController, BrandsController],
-  providers: [ProductsService, CategoriesService, BrandsService],
-  exports: [ProductsService, TypeOrmModule],
+  providers: [
+    ProductsService,
+    CategoriesService,
+    BrandsService,
+    WarehousesService,
+  ],
+  exports: [ProductsService, TypeOrmModule, WarehousesService],
 })
 export class ProductsModule {}
