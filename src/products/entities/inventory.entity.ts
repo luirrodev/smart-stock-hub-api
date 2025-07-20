@@ -6,10 +6,12 @@ import {
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  Index,
 } from 'typeorm';
 import { Product } from './product.entity';
 import { Warehouse } from './warehouse.entity';
 
+@Index(['product', 'warehouse'], { unique: true })
 @Entity('inventories')
 export class Inventory {
   @PrimaryGeneratedColumn()
