@@ -43,8 +43,8 @@ export class UpdateInventoryDto extends PartialType(CreateInventoryDto) {}
 
 export class InventoryResponseDto {
   id: number;
-  productId: number;
-  warehouseId: number;
+  productName: string;
+  warehouseName: string;
   currentQuantity: number;
   reservedQuantity: number;
   minStock: number;

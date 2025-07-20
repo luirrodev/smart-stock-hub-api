@@ -70,8 +70,8 @@ export class InventoryController {
   private toResponseDto(entity: Inventory): InventoryResponseDto {
     return {
       id: entity.id,
-      productId: entity.product?.id,
-      warehouseId: entity.warehouse?.id,
+      productName: entity.product?.name,
+      warehouseName: entity.warehouse?.name,
       currentQuantity: entity.currentQuantity,
       reservedQuantity: entity.reservedQuantity,
       minStock: entity.minStock,
