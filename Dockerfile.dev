@@ -1,0 +1,33 @@
+# Dockerfile para desarrollo con hot reload
+FROM node:lts-alpine
+
+WORKDIR /app
+
+# Instalar pnpm globalmente
+RUN npm install -g pnpm
+
+# Configuraciones necesarias de pnpm
+RUN pnpm config set fetch-retry-mintimeout=100
+RUN pnpm config set fetch-retry-maxtimeout=100
+RUN pnpm config set fetch-retries=1000000
+
+# Copiar archivos de dependencias
+COPY package.json pnpm-lock.yaml ./
+
+# Instalar dependencias
+RUN pnpm install --frozen-lockfile
+
+# Copiar archivos de migraciones y configuración
+COPY src/database/migrations ./src/database/migrations
+COPY src/database/data-source.ts ./src/database/data-source.ts
+COPY src/config.ts ./src/config.ts
+
+# Copiar el script de entrada para desarrollo
+COPY docker-entrypoint.dev.sh ./
+RUN chmod +x ./docker-entrypoint.dev.sh
+
+# Exponer el puerto de la aplicación
+EXPOSE 3000
+
+# Comando para ejecutar el script de entrada
+ENTRYPOINT ["./docker-entrypoint.dev.sh"] 
