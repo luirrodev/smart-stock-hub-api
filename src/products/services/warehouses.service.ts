@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Warehouse } from '../entities/warehouse.entity';
@@ -41,9 +41,9 @@ export class WarehousesService {
       relations: ['manager'],
     });
     if (!warehouse) {
-      throw new Error(`El almacén con id ${id} no fue encontrado.`);
+      throw new NotFoundException(`El almacén con id ${id} no fue encontrado`);
     }
-    return this.toResponseDto(warehouse);
+    return warehouse;
   }
 
   async create(data: CreateWarehouseDto): Promise<WarehouseResponseDto> {
@@ -65,6 +65,9 @@ export class WarehousesService {
   ): Promise<WarehouseResponseDto> {
     const warehouse = await this.findOne(id);
     let manager = warehouse.manager;
+
+    console.log(manager);
+
     if (data.managerId) {
       manager = await this.userService.findOne(data.managerId);
     }
@@ -76,7 +79,10 @@ export class WarehousesService {
     return await this.findOne(id);
   }
 
-  async remove(id: number): Promise<void> {
-    await this.warehouseRepository.delete(id);
+  async remove(id: number) {
+    const result = await this.warehouseRepository.delete(id);
+    if (result.affected === 0) {
+      throw new NotFoundException(`El almacén con id ${id} no fue encontrado`);
+    }
   }
 }
