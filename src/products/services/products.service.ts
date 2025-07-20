@@ -10,6 +10,7 @@ import {
   FilterProductsDTO,
   UpdateProductDTO,
 } from '../dtos/product.dtos';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class ProductsService {
@@ -51,6 +52,10 @@ export class ProductsService {
   }
 
   async create(data: CreateProductDTO) {
+    // Generar SKU si no viene en el DTO
+    if (!data.sku) {
+      data.sku = this.generateSku();
+    }
     const newProduct = this.productRepo.create(data);
 
     if (data.brandId) {
@@ -67,6 +72,10 @@ export class ProductsService {
       newProduct.categories = categories;
     }
     return this.productRepo.save(newProduct);
+  }
+
+  private generateSku(): string {
+    return 'PROD-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
   }
 
   async update(id: number, changes: UpdateProductDTO) {
