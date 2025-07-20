@@ -4,19 +4,28 @@ import {
   ValidatorConstraint,
   ValidatorConstraintInterface,
 } from 'class-validator';
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { User } from '../entities/user.entity';
+import { DataSource } from 'typeorm';
 
-@Injectable()
 @ValidatorConstraint({ async: true })
 export class EmailExistsConstraint implements ValidatorConstraintInterface {
-  constructor(@InjectRepository(User) private userRepo: Repository<User>) {}
-
   async validate(email: string) {
-    const user = await this.userRepo.findOne({ where: { email } });
-    return !user; // Retorna true si NO existe (email disponible)
+    // Crear una conexión temporal para la validación
+    const dataSource = new DataSource({
+      type: 'postgres',
+      url: process.env.DATABASE_URL,
+      entities: ['src/**/*.entity.ts'],
+    });
+
+    try {
+      await dataSource.initialize();
+      const userRepository = dataSource.getRepository('User');
+      const user = await userRepository.findOne({ where: { email } });
+      return !user; // Retorna true si NO existe (email disponible)
+    } catch (error) {
+      return true;
+    } finally {
+      await dataSource.destroy();
+    }
   }
 
   defaultMessage() {

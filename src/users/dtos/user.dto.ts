@@ -8,13 +8,11 @@ import {
   IsNumber,
 } from 'class-validator';
 import { ApiProperty, PartialType } from '@nestjs/swagger';
-import { EmailExists } from '../validators/email-exists.validator';
 
 export class CreateUserDto {
   @IsString()
   @IsEmail()
   @IsNotEmpty()
-  @EmailExists()
   @ApiProperty()
   readonly email: string;
 
