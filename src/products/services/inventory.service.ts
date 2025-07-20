@@ -1,6 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Not } from 'typeorm';
 import { Inventory } from '../entities/inventory.entity';
 import { ProductsService } from './products.service';
 import { WarehousesService } from './warehouses.service';
@@ -32,6 +36,16 @@ export class InventoryService {
     const product = await this.productsService.findOne(data.productId);
     const warehouse = await this.warehousesService.findOne(data.warehouseId);
 
+    // Validar que no exista un inventario para este producto y almacén
+    const exists = await this.inventoryRepository.findOne({
+      where: { product: { id: product.id }, warehouse: { id: warehouse.id } },
+    });
+    if (exists) {
+      throw new ConflictException(
+        'Este producto ya se enceuntra en este almacén',
+      );
+    }
+
     const now = new Date();
     const dateStr = now.toISOString().slice(0, 10); // YYYY-MM-DD
     const batchNumber = `LOT${dateStr}-${product.sku}-${warehouse.code}`;
@@ -49,14 +63,32 @@ export class InventoryService {
   async update(id: number, data: UpdateInventoryDto): Promise<Inventory> {
     const updateData = await this.findOne(id);
 
+    let newProduct = updateData.product;
+    let newWarehouse = updateData.warehouse;
+
     if (data.productId) {
-      const product = await this.productsService.findOne(data.productId);
-      updateData.product = product;
+      newProduct = await this.productsService.findOne(data.productId);
     }
     if (data.warehouseId) {
-      const warehouse = await this.warehousesService.findOne(data.warehouseId);
-      updateData.warehouse = warehouse;
+      newWarehouse = await this.warehousesService.findOne(data.warehouseId);
     }
+
+    // Validar que no exista otro inventario con la misma combinación
+    const exists = await this.inventoryRepository.findOne({
+      where: {
+        product: { id: newProduct.id },
+        warehouse: { id: newWarehouse.id },
+        id: Not(id),
+      },
+    });
+    if (exists) {
+      throw new ConflictException(
+        'Este producto ya se encuentra en este almacén',
+      );
+    }
+
+    updateData.product = newProduct;
+    updateData.warehouse = newWarehouse;
     await this.inventoryRepository.merge(updateData, data);
     await this.inventoryRepository.update(id, updateData);
     return this.findOne(id);
