@@ -6,10 +6,12 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  OneToMany,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
 
 import { Role } from '../../roles/entities/role.entity';
+import { Warehouse } from '../../products/entities/warehouse.entity';
 
 @Entity({
   name: 'users',
@@ -31,6 +33,9 @@ export class User {
   @ManyToOne(() => Role, { eager: true })
   @JoinColumn({ name: 'role_id' })
   role: Role;
+
+  @OneToMany(() => Warehouse, (warehouse) => warehouse.manager)
+  warehouses: Warehouse[];
 
   @Exclude()
   @CreateDateColumn({
