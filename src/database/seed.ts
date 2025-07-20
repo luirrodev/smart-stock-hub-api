@@ -34,6 +34,11 @@ async function seed() {
       name: 'products:write',
       description: 'Crear, actualizar o eliminar productos',
     },
+    { name: 'warehouses:read', description: 'Permite leer almacenes' },
+    {
+      name: 'warehouses:write',
+      description: 'Permite crear, actualizar y eliminar almacenes',
+    },
   ];
 
   // Roles básicos
@@ -93,6 +98,15 @@ async function seed() {
   if (userRole) {
     userRole.permissions = [];
     await MyDataSourse.getRepository(Role).save(userRole);
+  }
+
+  // Por ejemplo, para el rol admin:
+  if (adminRole) {
+    const warehousePerms = await MyDataSourse.getRepository(Permission).find({
+      where: [{ name: 'warehouses:read' }, { name: 'warehouses:write' }],
+    });
+    adminRole.permissions = [...adminRole.permissions, ...warehousePerms];
+    await MyDataSourse.getRepository(Role).save(adminRole);
   }
 
   // Crear usuario admin inicial si no existe
