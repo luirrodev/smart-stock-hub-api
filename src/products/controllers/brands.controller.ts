@@ -13,7 +13,6 @@ import { ApiTags } from '@nestjs/swagger';
 
 import { BrandsService } from '../services/brands.service';
 import { CreateBrandDto, UpdateBrandDto } from '../dtos/brand.dtos';
-import { Roles } from '../../roles/decorators/roles.decorator';
 import { RequirePermissions } from 'src/roles/decorators/permissions.decorator';
 import { PermissionsGuard } from 'src/roles/guards/permissions.guard';
 import { JWTAuthGuard } from 'src/auth/guards/jwt-auth.guard';
