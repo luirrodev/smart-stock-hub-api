@@ -100,4 +100,24 @@ export class InventoryService {
       throw new NotFoundException(`Inventory with id ${id} not found`);
     }
   }
+
+  async reserveStock(movement: any) {
+    // Aquí deberías implementar la lógica para reservar stock por cada detalle del movimiento.
+    // Ejemplo de pasos:
+    // 1. Por cada detalle, buscar el inventario actual del producto en el almacén correspondiente.
+    // 2. Verificar que haya suficiente stock disponible.
+    // 3. Sumar la cantidad reservada en el registro de inventario (campo reserved_stock).
+    // 4. Guardar los cambios en la base de datos.
+    // Puedes lanzar un error si no hay suficiente stock disponible para reservar.
+    //
+    // Ejemplo de pseudocódigo:
+    // for (const detail of movement.details) {
+    //   const inventory = await this.findByProductAndWarehouse(detail.productId, movement.originWarehouseId);
+    //   if (inventory.stock - inventory.reservedStock < detail.quantity) {
+    //     throw new Error('No hay suficiente stock disponible para reservar.');
+    //   }
+    //   inventory.reservedStock += detail.quantity;
+    //   await this.inventoryRepository.save(inventory);
+    // }
+  }
 }
