@@ -5,7 +5,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { REQUIRE_PERMISSIONS_KEY } from '../decorators/permissions.decorator';
+import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 import { PayloadToken } from 'src/auth/models/token.model';
 
@@ -16,7 +16,7 @@ export class PermissionsGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     // 1. Obtener los permisos y roles requeridos
     const requiredPermissions = this.reflector.get<string[]>(
-      REQUIRE_PERMISSIONS_KEY,
+      PERMISSIONS_KEY,
       context.getHandler(),
     );
     const requiredRoles = this.reflector.get<string[]>(
