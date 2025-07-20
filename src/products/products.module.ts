@@ -13,13 +13,19 @@ import { ProductsService } from './services/products.service';
 import { Warehouse } from './entities/warehouse.entity';
 import { WarehousesService } from './services/warehouses.service';
 import { UsersModule } from 'src/users/users.module';
+import { WarehousesController } from './controllers/warehouses.controller';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Product, Brand, Category, Warehouse]),
     UsersModule,
   ],
-  controllers: [ProductsController, CategoriesController, BrandsController],
+  controllers: [
+    ProductsController,
+    CategoriesController,
+    BrandsController,
+    WarehousesController,
+  ],
   providers: [
     ProductsService,
     CategoriesService,
