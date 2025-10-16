@@ -1,61 +1,44 @@
-# Etapa de construcción
-FROM node:lts-alpine AS builder
+# Stage 1: Base image for dependencies
+FROM node:22-alpine AS deps
 
 WORKDIR /usr/src/app
 
-COPY package.json pnpm-lock.yaml ./
-
+# Install pnpm
 RUN npm install -g pnpm
 
-#Configuraciones necesarias de pnpm
-RUN pnpm config set fetch-retry-mintimeout=100
-RUN pnpm config set fetch-retry-maxtimeout=100
-RUN pnpm config set fetch-retries=1000000
+# Copy dependency definition files
+COPY package.json pnpm-lock.yaml ./
 
-# Instalar dependencias con pnpm
-RUN pnpm install --frozen-lockfile
+# Install ALL dependencies (including devDependencies)
+RUN pnpm install
 
-# Copiar el resto del código de la aplicación
+# Stage 2: Builder for production
+FROM deps AS builder
+WORKDIR /usr/src/app
 COPY . .
-
-# Construir la aplicación NestJS
 RUN pnpm run build
 
-# Etapa de producción
-FROM node:lts-alpine AS production
-
-# Establecer NODE_ENV a producción
-ENV NODE_ENV=prod
-
-# Establecer directorio de trabajo
+# Stage 3: Production Image
+FROM node:22-alpine AS production
 WORKDIR /usr/src/app
 
-# Copiar archivos de paquetes
-COPY package.json pnpm-lock.yaml ./
+# Establecer NODE_ENV para producción
+ENV NODE_ENV=prod
 
-# Instalar pnpm globalmente
 RUN npm install -g pnpm
-
-#Configuraciones necesarias de pnpm
-RUN pnpm config set fetch-retry-mintimeout=100
-RUN pnpm config set fetch-retry-maxtimeout=100
-RUN pnpm config set fetch-retries=1000000
-
-# Instalar solo dependencias de producción
-RUN pnpm install --frozen-lockfile --prod
-
-# Copiar la aplicación construida desde la etapa de builder
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --prod
 COPY --from=builder /usr/src/app/dist ./dist
-
-# Exponer el puerto de la aplicación
+COPY entrypoint.sh .
+RUN chmod +x ./entrypoint.sh
 EXPOSE 3000
+ENTRYPOINT ["./entrypoint.sh"]
 
-# Comando para ejecutar la aplicación
-# Las variables de entorno se pasarán al ejecutar el contenedor con:
-# docker run -e DATABASE_URL=xxx -e JWT_SECRET=yyy ...
-# Copiar el script de entrada
-COPY docker-entrypoint.sh ./
-RUN chmod +x ./docker-entrypoint.sh
-
-# Comando para ejecutar el script de entrada
-ENTRYPOINT ["./docker-entrypoint.sh"]
+# Stage 4: Development Image
+FROM deps AS development
+WORKDIR /usr/src/app
+COPY . .
+COPY entrypoint.dev.sh .
+RUN chmod +x ./entrypoint.dev.sh
+EXPOSE 3000
+CMD ["sh", "./entrypoint.dev.sh"]
