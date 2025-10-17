@@ -1,12 +1,11 @@
 #!/bin/sh
 
-# Esperar a que la base de datos esté lista
-echo "Waiting for database to be ready..."
-sleep 5
-
 # Ejecutar migraciones en modo desarrollo
 echo "Running database migrations..."
-npm run migration:run
+npx typeorm migration:run -d src/database/data-source.ts
+
+echo "Ejecutando seeder inicial..."
+npx run seed:dev
 
 # Iniciar aplicación en modo debug
 echo "Starting application in debug mode..."
