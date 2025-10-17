@@ -27,7 +27,7 @@ jobs:
           docker push $IMAGE
 
       - name: Deploy to Render
-        if: success() && github.ref == 'refs/heads/main'
+        if: success() && github.ref == 'refs/heads/dev'
         run: |
           echo "Triggering deployment to Render..."
           response=$(curl -s -o /dev/null -w "%{http_code}" -X GET "${{ secrets.RENDER_DEPLOY_HOOK }}")

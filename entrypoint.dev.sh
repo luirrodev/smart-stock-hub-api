@@ -2,10 +2,10 @@
 
 # Ejecutar migraciones en modo desarrollo
 echo "Running database migrations..."
-npx typeorm migration:run -d src/database/data-source.ts
+npx typeorm migration:run -d dist/database/data-source.js
 
 echo "Ejecutando seeder inicial..."
-npx run seed:dev
+node dist/database/seed.js
 
 # Iniciar aplicación en modo debug
 echo "Starting application in debug mode..."

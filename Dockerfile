@@ -37,8 +37,19 @@ ENTRYPOINT ["./entrypoint.sh"]
 # Stage 4: Development Image
 FROM deps AS development
 WORKDIR /usr/src/app
+
+# Establecer NODE_ENV para desarrollo
+ENV NODE_ENV=development
+
+# Copiar todo el código fuente
 COPY . .
+
+# Construir la aplicación para desarrollo (necesario para migraciones)
+RUN pnpm run build
+
+# Dar permisos de ejecución al entrypoint
 COPY entrypoint.dev.sh .
 RUN chmod +x ./entrypoint.dev.sh
+
 EXPOSE 3000
 CMD ["sh", "./entrypoint.dev.sh"]

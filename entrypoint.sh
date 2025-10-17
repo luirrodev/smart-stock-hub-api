@@ -2,7 +2,7 @@
 
 # Ejecutar migraciones
 echo "Running database migrations..."
-npx typeorm migration:run -d dist/database/typeorm.config.js
+npx typeorm migration:run -d dist/database/data-source.js
 
 # Iniciar aplicación
 echo "Starting application..."
