@@ -10,6 +10,7 @@ import { AuthModule } from './auth/auth.module';
 import { RolesModule } from './roles/roles.module';
 import config from './config';
 import { MovementsModule } from './movements/movements.module';
+import { AppController } from './app.controller';
 
 @Module({
   imports: [
@@ -32,7 +33,7 @@ import { MovementsModule } from './movements/movements.module';
     RolesModule,
     MovementsModule,
   ],
-  controllers: [],
+  controllers: [AppController],
   providers: [],
 })
 export class AppModule {}
