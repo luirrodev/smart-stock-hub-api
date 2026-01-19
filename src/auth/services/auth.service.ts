@@ -97,8 +97,8 @@ export class AuthService {
     }
   }
 
-  async getProfile(userData: User) {
-    const user = await this.userService.findOne(userData.id);
+  async getProfile(userData: PayloadToken) {
+    const user = await this.userService.findOne(userData.sub);
 
     if (!user) {
       throw new NotFoundException('User not found');
