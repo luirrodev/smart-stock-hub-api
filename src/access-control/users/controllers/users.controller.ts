@@ -16,7 +16,6 @@ import { CreateUserDto, UpdateUserDto } from '../dtos/user.dto';
 
 import { PermissionsGuard } from 'src/access-control/permissions/guards/permissions.guard';
 import { JWTAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { Roles } from 'src/access-control/roles/decorators/roles.decorator';
 import { RequirePermissions } from 'src/access-control/permissions/decorators/permissions.decorator';
 
 @ApiTags('users')
@@ -26,28 +25,24 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  @Roles('admin', 'manager')
   @RequirePermissions('users:read')
   async findAll(): Promise<User[]> {
     return this.usersService.findAll();
   }
 
   @Get(':id')
-  @Roles('admin', 'manager')
   @RequirePermissions('users:read')
   async findOne(@Param('id') id: string): Promise<User> {
     return this.usersService.findOne(+id);
   }
 
   @Post()
-  @Roles('admin')
   @RequirePermissions('users:write')
   async create(@Body() createUserDto: CreateUserDto): Promise<User> {
     return this.usersService.create(createUserDto);
   }
 
   @Put(':id')
-  @Roles('admin')
   @RequirePermissions('users:write')
   async update(
     @Param('id') id: string,
@@ -57,7 +52,6 @@ export class UsersController {
   }
 
   @Delete(':id')
-  @Roles('admin')
   @RequirePermissions('users:write')
   async remove(@Param('id') id: string): Promise<void> {
     await this.usersService.remove(+id);
