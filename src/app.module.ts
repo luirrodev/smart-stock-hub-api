@@ -3,13 +3,12 @@ import { Module } from '@nestjs/common';
 import * as Joi from 'joi';
 
 import { enviroments } from './enviroments';
-import { ProductsModule } from './products/products.module';
-import { UsersModule } from './users/users.module';
-import { DatabaseModule } from './database/database.module';
-import { AuthModule } from './auth/auth.module';
-import { RolesModule } from './roles/roles.module';
 import config from './config';
-import { MovementsModule } from './movements/movements.module';
+
+import { AccessControlModule } from './access-control/access-control.module';
+import { AuthModule } from './auth/auth.module';
+import { DatabaseModule } from './database/database.module';
+
 import { AppController } from './app.controller';
 
 @Module({
@@ -26,12 +25,9 @@ import { AppController } from './app.controller';
         JWT_REFRESH_EXPIRES_IN: Joi.string().required(),
       }),
     }),
-    UsersModule,
-    ProductsModule,
-    DatabaseModule,
+    AccessControlModule,
     AuthModule,
-    RolesModule,
-    MovementsModule,
+    DatabaseModule,
   ],
   controllers: [AppController],
   providers: [],
