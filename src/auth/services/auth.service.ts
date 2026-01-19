@@ -32,9 +32,8 @@ export class AuthService {
   async generateJWT(userData: User) {
     const payload: PayloadToken = {
       role: userData.role.name,
-      permissions: userData.role.permissions.map(
-        (permission) => permission.name,
-      ),
+      roleId: userData.role.id,
+      roleVersion: userData.role.version,
       sub: userData.id,
     };
 
@@ -71,7 +70,8 @@ export class AuthService {
 
       const newPayload: PayloadToken = {
         role: user.role.name,
-        permissions: user.role.permissions.map((permission) => permission.name),
+        roleId: user.role.id,
+        roleVersion: user.role.version,
         sub: user.id,
       };
 
