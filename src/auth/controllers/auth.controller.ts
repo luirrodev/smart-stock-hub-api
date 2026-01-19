@@ -15,6 +15,7 @@ import { User } from 'src/access-control/users/entities/user.entity';
 import { GetUser } from '../decorators/get-user.decorator';
 import { LoginDto, RefreshTokenDto } from '../dtos/auth.dto';
 import { JWTAuthGuard } from '../guards/jwt-auth.guard';
+import { PayloadToken } from '../models/token.model';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -76,7 +77,7 @@ export class AuthController {
     status: HttpStatus.NOT_FOUND,
     description: 'User not found',
   })
-  async getProfile(@GetUser() user: User) {
+  async getProfile(@GetUser() user: PayloadToken) {
     return this.authService.getProfile(user);
   }
 }
