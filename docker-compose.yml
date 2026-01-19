@@ -22,8 +22,8 @@ services:
       target: development
     container_name: smart-stock-api
     ports:
-      - '3000:3000'
-      - '9229:9229'
+      - '3010:3000'
+      - '9230:9229'
     env_file:
       - ./.env
     volumes:
@@ -37,9 +37,9 @@ services:
       - redis
   redis:
     image: 'redis:alpine'
-    container_name: simco-stats-redis
+    container_name: smart-stock-redis
     ports:
-      - '6379:6379'
+      - '6380:6379'
     restart: unless-stopped
     networks:
       - smart-stock-network
