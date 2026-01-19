@@ -1,0 +1,50 @@
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
+import { Exclude } from 'class-transformer';
+
+import { Role } from 'src/access-control/roles/entities/role.entity';
+
+@Entity({
+  name: 'users',
+})
+export class User {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ type: 'varchar', length: 255, unique: true })
+  email: string;
+
+  @Column({ type: 'varchar', length: 255, default: null })
+  name: string;
+
+  @Exclude()
+  @Column({ type: 'varchar', length: 255 })
+  password: string;
+
+  @ManyToOne(() => Role, { eager: true })
+  @JoinColumn({ name: 'role_id' })
+  role: Role;
+
+  @Exclude()
+  @CreateDateColumn({
+    type: 'timestamptz',
+    name: 'created_at',
+    default: () => 'CURRENT_TIMESTAMP',
+  })
+  createdAt: Date;
+
+  @Exclude()
+  @UpdateDateColumn({
+    type: 'timestamptz',
+    name: 'updated_at',
+    default: () => 'CURRENT_TIMESTAMP',
+  })
+  updateAt: Date;
+}
