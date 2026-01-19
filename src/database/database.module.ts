@@ -1,6 +1,8 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { CacheModule } from '@nestjs/cache-manager';
+import { redisStore } from 'cache-manager-ioredis-yet';
 
 import config from 'src/config';
 
@@ -18,7 +20,24 @@ import config from 'src/config';
         };
       },
     }),
+    CacheModule.registerAsync({
+      inject: [config.KEY],
+      isGlobal: true,
+      useFactory: async (configService: ConfigType<typeof config>) => {
+        const store = await redisStore({
+          host: configService.redis.host,
+          port: configService.redis.port,
+          password: configService.redis.password,
+          db: configService.redis.db,
+          ttl: 3600 * 1000, // 1 hora por defecto
+        });
+
+        return {
+          store,
+        };
+      },
+    }),
   ],
-  exports: [TypeOrmModule],
+  exports: [TypeOrmModule, CacheModule],
 })
 export class DatabaseModule {}
