@@ -11,7 +11,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 
 import { AuthService } from '../services/auth.service';
-import { User } from 'src/users/entities/user.entity';
+import { User } from 'src/access-control/users/entities/user.entity';
 import { GetUser } from '../decorators/get-user.decorator';
 import { LoginDto, RefreshTokenDto } from '../dtos/auth.dto';
 import { JWTAuthGuard } from '../guards/jwt-auth.guard';

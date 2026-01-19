@@ -3,7 +3,7 @@ import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigType } from '@nestjs/config';
 
-import { UsersModule } from 'src/users/users.module';
+import { AccessControlModule } from 'src/access-control/access-control.module';
 import { AuthService } from './services/auth.service';
 import { LocalStrategyService } from './strategies/local-strategy.service';
 import { JwtStrategyService } from './strategies/jwt-strategy.service';
@@ -12,7 +12,7 @@ import config from 'src/config';
 
 @Module({
   imports: [
-    UsersModule,
+    AccessControlModule,
     PassportModule,
     JwtModule.registerAsync({
       inject: [config.KEY],
