@@ -159,8 +159,14 @@ export class UsersService {
 
   async remove(id: number) {
     const user = await this.findOne(id);
+
+    // Soft delete: marca como eliminado sin borrar físicamente
+    await this.userRepo.softDelete(id);
+
+    // Invalidar caché del usuario
     await this.invalidateUserCache(id, user.email);
-    return this.userRepo.delete(id);
+
+    return { message: 'User deleted successfully' };
   }
 
   async updateLastLogin(userId: number): Promise<void> {
@@ -170,6 +176,21 @@ export class UsersService {
 
     // Invalidar caché del usuario
     await this.cacheManager.del(this.getCacheKey(userId));
+  }
+
+  /**
+   * Restaurar usuario eliminado (soft delete)
+   */
+  async restore(id: number): Promise<void> {
+    await this.userRepo.restore(id);
+    await this.invalidateUserCache(id);
+  }
+
+  /**
+   * Obtener todos los usuarios incluyendo eliminados
+   */
+  async findAllWithDeleted() {
+    return this.userRepo.find({ withDeleted: true });
   }
 
   private async invalidateUserCache(id: number, email?: string): Promise<void> {
