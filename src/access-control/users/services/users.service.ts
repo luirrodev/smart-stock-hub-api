@@ -163,6 +163,15 @@ export class UsersService {
     return this.userRepo.delete(id);
   }
 
+  async updateLastLogin(userId: number): Promise<void> {
+    await this.userRepo.update(userId, {
+      lastLoginAt: new Date(),
+    });
+
+    // Invalidar caché del usuario
+    await this.cacheManager.del(this.getCacheKey(userId));
+  }
+
   private async invalidateUserCache(id: number, email?: string): Promise<void> {
     await this.cacheManager.del(this.getCacheKey(id));
     await this.cacheManager.del(this.getPermissionsCacheKey(id));

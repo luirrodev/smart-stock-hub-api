@@ -30,6 +30,9 @@ export class AuthService {
   }
 
   async generateJWT(userData: User) {
+    // Actualizar lastLoginAt (solo en login con credenciales)
+    await this.userService.updateLastLogin(userData.id);
+
     const payload: PayloadToken = {
       role: userData.role.name,
       roleId: userData.role.id,
