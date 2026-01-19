@@ -26,15 +26,16 @@ export class PermissionsGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    // 1. Obtener los permisos y roles requeridos
+    // 1. Obtener los permisos requeridos
     const requiredPermissions = this.reflector.get<string[]>(
       PERMISSIONS_KEY,
       context.getHandler(),
     );
-    const requiredRoles = this.reflector.get<string[]>(
-      ROLES_KEY,
-      context.getHandler(),
-    );
+
+    // Si no hay permisos requeridos, permitir acceso (solo autenticación)
+    if (!requiredPermissions || requiredPermissions.length === 0) {
+      return true;
+    }
 
     // 2. Obtener el usuario del request (desde JWT)
     const request = context.switchToHttp().getRequest();
@@ -46,25 +47,15 @@ export class PermissionsGuard implements CanActivate {
     // 4. Validar versión del rol (protección contra permisos obsoletos)
     await this.validateRoleVersion(user, userPermissions.roleVersion);
 
-    // 5. Verificar roles (si hay)
-    if (requiredRoles && requiredRoles.length > 0) {
-      if (!requiredRoles.includes(user.role)) {
-        throw new ForbiddenException(
-          `Access denied: Role required ${requiredRoles.join(' or ')}. Your current role is ${user.role}.`,
-        );
-      }
-    }
+    // 5. Verificar permisos
+    const hasPermission = requiredPermissions.some((p) =>
+      userPermissions.permissions.includes(p),
+    );
 
-    // 6. Verificar permisos (si hay)
-    if (requiredPermissions && requiredPermissions.length > 0) {
-      const hasPermission = requiredPermissions.some((p) =>
-        userPermissions.permissions.includes(p),
+    if (!hasPermission) {
+      throw new ForbiddenException(
+        `Access denied: You do not have the required permissions to access this resource.`,
       );
-      if (!hasPermission) {
-        throw new ForbiddenException(
-          `Access denied: you do not have the required permissions: ${requiredPermissions.join(', ')}`,
-        );
-      }
     }
 
     return true;
