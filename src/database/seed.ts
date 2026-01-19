@@ -1,8 +1,8 @@
 import { DataSource } from 'typeorm';
 import MyDataSourse from '../database/data-source';
-import { Role } from '../roles/entities/role.entity';
-import { Permission } from '../roles/entities/permission.entity';
-import { User } from '../users/entities/user.entity';
+import { Role } from '../access-control/roles/entities/role.entity';
+import { Permission } from '../access-control/permissions/entities/permission.entity';
+import { User } from '../access-control/users/entities/user.entity';
 import * as bcrypt from 'bcryptjs';
 
 async function seed() {
