@@ -32,6 +32,29 @@ export class User {
   @JoinColumn({ name: 'role_id' })
   role: Role;
 
+  @Column({ type: 'boolean', default: true })
+  isActive: boolean;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  lastLoginAt: Date;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  phone: string;
+
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  avatar: string;
+
+  @Column({ type: 'jsonb', nullable: true })
+  preferences: object;
+
+  @ManyToOne(() => User, { nullable: true })
+  @JoinColumn({ name: 'created_by' })
+  createdBy: User;
+
+  @ManyToOne(() => User, { nullable: true })
+  @JoinColumn({ name: 'updated_by' })
+  updatedBy: User;
+
   @Exclude()
   @CreateDateColumn({
     type: 'timestamptz',
@@ -46,5 +69,5 @@ export class User {
     name: 'updated_at',
     default: () => 'CURRENT_TIMESTAMP',
   })
-  updateAt: Date;
+  updatedAt: Date;
 }
