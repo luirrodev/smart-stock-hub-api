@@ -49,7 +49,7 @@ async function seed() {
   // Roles básicos
   const roles = [
     { name: 'admin', description: 'Administrador del sistema' },
-    { name: 'manager', description: 'Gestor de recursos' },
+    { name: 'customer', description: 'Cliente' },
     { name: 'user', description: 'Usuario básico' },
   ];
 
