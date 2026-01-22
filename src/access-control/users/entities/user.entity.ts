@@ -35,10 +35,10 @@ export class User {
   @JoinColumn({ name: 'role_id' })
   role: Role;
 
-  @Column({ type: 'boolean', default: true })
+  @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive: boolean;
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ name: 'last_login_at', type: 'timestamptz', nullable: true })
   lastLoginAt: Date;
 
   @Column({ type: 'varchar', length: 20, nullable: true })
@@ -52,6 +52,7 @@ export class User {
 
   // Relación inversa con Customer
   @OneToOne(() => Customer, (customer) => customer.user, { nullable: true })
+  @JoinColumn({ name: 'customer_id' })
   customer?: Customer;
 
   @ManyToOne(() => User, { nullable: true })

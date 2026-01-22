@@ -41,13 +41,19 @@ export class Customer {
   shippingAddresses: ShippingAddress[];
 
   // Campos específicos de clientes
-  @Column({ type: 'int', default: 0 })
+  @Column({ name: 'purchase_count', type: 'int', default: 0 })
   purchaseCount: number;
 
-  @Column({ type: 'numeric', precision: 14, scale: 2, default: 0 })
+  @Column({
+    name: 'total_spent',
+    type: 'numeric',
+    precision: 14,
+    scale: 2,
+    default: 0,
+  })
   totalSpent: number;
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ name: 'last_purchase_at', type: 'timestamptz', nullable: true })
   lastPurchaseAt: Date | null;
 
   @Column({ type: 'text', nullable: true })
