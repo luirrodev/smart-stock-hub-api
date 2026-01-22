@@ -73,36 +73,15 @@ async function seed() {
     }
   }
 
-  // Asignar permisos a roles
+  // Asignar permisos al rol admin
   const allPermissions = await MyDataSourse.getRepository(Permission).find();
   const adminRole = await MyDataSourse.getRepository(Role).findOne({
     where: { name: 'admin' },
     relations: ['permissions'],
   });
-  const managerRole = await MyDataSourse.getRepository(Role).findOne({
-    where: { name: 'manager' },
-    relations: ['permissions'],
-  });
-  const userRole = await MyDataSourse.getRepository(Role).findOne({
-    where: { name: 'user' },
-    relations: ['permissions'],
-  });
-
   if (adminRole) {
     adminRole.permissions = allPermissions;
     await MyDataSourse.getRepository(Role).save(adminRole);
-  }
-
-  if (managerRole) {
-    managerRole.permissions = allPermissions.filter((p) =>
-      ['users:read', 'roles:read', 'permissions:read'].includes(p.name),
-    );
-    await MyDataSourse.getRepository(Role).save(managerRole);
-  }
-
-  if (userRole) {
-    userRole.permissions = [];
-    await MyDataSourse.getRepository(Role).save(userRole);
   }
 
   // Por ejemplo, para el rol admin:
