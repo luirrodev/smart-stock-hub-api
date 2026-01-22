@@ -8,9 +8,15 @@ import {
   CreatePermissionDto,
   UpdatePermissionDto,
 } from '../dtos/permission.dto';
+import {
+  PaginationDto,
+  PaginatedResponse,
+} from 'src/common/dtos/pagination.dto';
 
 @Injectable()
 export class PermissionsService {
+  private permissionsVersion = 0;
+
   constructor(
     @InjectRepository(Permission)
     private permissionRepo: Repository<Permission>,
@@ -25,17 +31,47 @@ export class PermissionsService {
     return 'permissions:all';
   }
 
-  async getAllPermissions() {
-    const cacheKey = this.getAllCacheKey();
-    const cached = await this.cacheManager.get<Permission[]>(cacheKey);
+  private getPaginatedCacheKey(page: number, limit: number): string {
+    return `permissions:paginated:v${this.permissionsVersion}:${page}:${limit}`;
+  }
+
+  private async invalidateAllPermissionsCache(): Promise<void> {
+    this.permissionsVersion++;
+    await this.cacheManager.del(this.getAllCacheKey());
+  }
+
+  async getAllPermissions(
+    paginationDto: PaginationDto,
+  ): Promise<PaginatedResponse<Permission>> {
+    const { page = 1, limit = 10 } = paginationDto;
+    const skip = (page - 1) * limit;
+
+    const cacheKey = this.getPaginatedCacheKey(page, limit);
+    const cached =
+      await this.cacheManager.get<PaginatedResponse<Permission>>(cacheKey);
 
     if (cached) {
       return cached;
     }
 
-    const permissions = await this.permissionRepo.find();
-    await this.cacheManager.set(cacheKey, permissions, 3600000); // 1 hora
-    return permissions;
+    const [permissions, total] = await this.permissionRepo.findAndCount({
+      skip,
+      take: limit,
+    });
+
+    const totalPages = Math.ceil(total / limit);
+    const response: PaginatedResponse<Permission> = {
+      data: permissions,
+      page,
+      limit,
+      total,
+      totalPages,
+      hasPrevious: page > 1,
+      hasNext: page < totalPages,
+    };
+
+    await this.cacheManager.set(cacheKey, response, 3600000); // 1 hora
+    return response;
   }
 
   async findByIds(ids: number[]) {
@@ -69,7 +105,7 @@ export class PermissionsService {
     const saved = await this.permissionRepo.save(permission);
 
     // Invalidar caché de todos los permisos
-    await this.cacheManager.del(this.getAllCacheKey());
+    await this.invalidateAllPermissionsCache();
 
     return saved;
   }
@@ -81,7 +117,7 @@ export class PermissionsService {
 
     // Invalidar caché
     await this.cacheManager.del(this.getCacheKey(id));
-    await this.cacheManager.del(this.getAllCacheKey());
+    await this.invalidateAllPermissionsCache();
 
     return updated;
   }

@@ -6,6 +6,7 @@ import {
   ParseIntPipe,
   Post,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { PermissionsService } from '../services/permissions.service';
@@ -16,6 +17,7 @@ import {
 import { RequirePermissions } from '../decorators/permissions.decorator';
 import { JWTAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../guards/permissions.guard';
+import { PaginationDto } from 'src/common/dtos/pagination.dto';
 
 @Controller('permissions')
 @UseGuards(JWTAuthGuard, PermissionsGuard)
@@ -24,8 +26,8 @@ export class PermissionsController {
 
   @Get()
   @RequirePermissions('permissions:read')
-  async getAllPermissions() {
-    return this.permissionsService.getAllPermissions();
+  async getAllPermissions(@Query() paginationDto: PaginationDto) {
+    return this.permissionsService.getAllPermissions(paginationDto);
   }
 
   @Get(':id')
