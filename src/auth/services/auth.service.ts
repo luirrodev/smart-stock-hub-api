@@ -11,12 +11,14 @@ import { UsersService } from '../../access-control/users/services/users.service'
 import { User } from '../../access-control/users/entities/user.entity';
 import { RegisterDto } from '../dtos/register.dto';
 import { PayloadToken } from '../models/token.model';
+import { CustomersService } from 'src/customers/services/customers.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private userService: UsersService,
     private jwtService: JwtService,
+    private customersService: CustomersService,
   ) {}
 
   async validateUser(email: string, password: string) {
@@ -36,15 +38,21 @@ export class AuthService {
    * @returns El JWT generado para el usuario registrado
    */
   async register(dto: RegisterDto) {
-    const createUser = await this.userService.create({
+    // Crear usuario usando UsersService (incluye hashing y validación de email)
+    const createdUser = await this.userService.create({
       email: dto.email,
       name: `${dto.firstName} ${dto.lastName}`,
       password: dto.password,
-      role: 2,
+      role: 2, // rol 'customer' por defecto (seed)
+    });
+
+    // Crear customer asociado
+    await this.customersService.create({
+      userId: createdUser.id,
     });
 
     // Generar JWT para el usuario creado
-    return this.generateJWT(createUser);
+    return this.generateJWT(createdUser);
   }
 
   async generateJWT(userData: User) {
