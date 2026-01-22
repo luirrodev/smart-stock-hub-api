@@ -94,7 +94,9 @@ export class UsersService {
       .getOne();
 
     if (!user) {
-      throw new NotFoundException('This user does not exist');
+      throw new NotFoundException(
+        'La dirección de correo electrónico ingresada no está registrada. Para continuar, por favor crea una cuenta.',
+      );
     }
 
     await this.cacheManager.set(cacheKey, user, 1800000);
@@ -110,9 +112,12 @@ export class UsersService {
   async create(data: CreateUserDto) {
     const existingUser = await this.userRepo.findOne({
       where: { email: data.email },
+      withDeleted: true,
     });
     if (existingUser) {
-      throw new ConflictException('This email is already in use');
+      throw new ConflictException(
+        'Ya existe una cuenta registrada con este correo electrónico',
+      );
     }
 
     const role = await this.roleService.getRoleById(data.role);
