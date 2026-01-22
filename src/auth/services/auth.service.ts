@@ -9,6 +9,7 @@ import * as bcrypt from 'bcryptjs';
 
 import { UsersService } from '../../access-control/users/services/users.service';
 import { User } from '../../access-control/users/entities/user.entity';
+import { RegisterDto } from '../dtos/register.dto';
 import { PayloadToken } from '../models/token.model';
 
 @Injectable()
@@ -27,6 +28,23 @@ export class AuthService {
     }
 
     return null;
+  }
+
+  /**
+   * Registra un nuevo usuario siempre con el rol 'customer' (id: 2)
+   * @param {RegisterDto} dto - Los datos de registro
+   * @returns El JWT generado para el usuario registrado
+   */
+  async register(dto: RegisterDto) {
+    const createUser = await this.userService.create({
+      email: dto.email,
+      name: `${dto.firstName} ${dto.lastName}`,
+      password: dto.password,
+      role: 2,
+    });
+
+    // Generar JWT para el usuario creado
+    return this.generateJWT(createUser);
   }
 
   async generateJWT(userData: User) {
