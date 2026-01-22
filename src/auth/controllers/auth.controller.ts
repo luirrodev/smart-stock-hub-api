@@ -14,6 +14,7 @@ import { AuthService } from '../services/auth.service';
 import { User } from 'src/access-control/users/entities/user.entity';
 import { GetUser } from '../decorators/get-user.decorator';
 import { LoginDto, RefreshTokenDto } from '../dtos/auth.dto';
+import { RegisterDto } from '../dtos/register.dto';
 import { JWTAuthGuard } from '../guards/jwt-auth.guard';
 import { PayloadToken } from '../models/token.model';
 
@@ -59,6 +60,31 @@ export class AuthController {
   })
   refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
     return this.authService.refreshToken(refreshTokenDto.refresh_token);
+  }
+
+  @Post('register')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Register a new customer' })
+  @ApiBody({ type: RegisterDto })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description:
+      'User registered successfully; returns access and refresh tokens',
+    schema: {
+      example: {
+        access_token:
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsImV4cCI6MTYw...',
+        refresh_token:
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsImV4cCI6MjAw...',
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.CONFLICT,
+    description: 'Email already in use',
+  })
+  async register(@Body() registerDto: RegisterDto) {
+    return this.authService.register(registerDto);
   }
 
   @Get('profile')
