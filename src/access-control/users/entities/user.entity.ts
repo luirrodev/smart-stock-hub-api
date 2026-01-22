@@ -7,10 +7,12 @@ import {
   DeleteDateColumn,
   ManyToOne,
   JoinColumn,
+  OneToOne,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
 
 import { Role } from '../../roles/entities/role.entity';
+import { Customer } from '../../../customers/entities/customer.entity';
 
 @Entity({
   name: 'users',
@@ -47,6 +49,10 @@ export class User {
 
   @Column({ type: 'jsonb', nullable: true })
   preferences: object;
+
+  // Relación inversa con Customer
+  @OneToOne(() => Customer, (customer) => customer.user, { nullable: true })
+  customer?: Customer;
 
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'created_by' })
