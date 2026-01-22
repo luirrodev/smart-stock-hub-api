@@ -8,10 +8,12 @@ import {
   DeleteDateColumn,
   UpdateDateColumn,
   Unique,
+  OneToMany,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
 
 import { User } from '../../access-control/users/entities/user.entity';
+import { ShippingAddress } from './shipping-address.entity';
 
 @Entity({ name: 'customers' })
 @Unique(['user'])
@@ -26,6 +28,17 @@ export class Customer {
   })
   @JoinColumn({ name: 'user_id' })
   user: User;
+
+  // Relación uno a muchos con ShippingAddress
+  @OneToMany(
+    () => ShippingAddress,
+    (shippingAddress) => shippingAddress.customer,
+    {
+      cascade: true, // Permite que las operaciones en Customer se propaguen a las direcciones de envío relacionadas
+    },
+  )
+  @JoinColumn({ name: 'shipping_addresses' }) // Define el nombre de la columna
+  shippingAddresses: ShippingAddress[];
 
   // Campos específicos de clientes
   @Column({ type: 'int', default: 0 })
