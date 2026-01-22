@@ -5,6 +5,7 @@ import { Customer } from './entities/customer.entity';
 import { CustomersService } from './services/customers.service';
 import { AccessControlModule } from '../access-control/access-control.module';
 import { ShippingAddress } from './entities/shipping-address.entity';
+import { ShippingAddressesService } from './services/shipping-addresses.service';
 
 @Module({
   imports: [
@@ -12,7 +13,7 @@ import { ShippingAddress } from './entities/shipping-address.entity';
     AccessControlModule,
   ],
   controllers: [],
-  providers: [CustomersService],
-  exports: [CustomersService],
+  providers: [CustomersService, ShippingAddressesService],
+  exports: [CustomersService, ShippingAddressesService],
 })
 export class CustomersModule {}
