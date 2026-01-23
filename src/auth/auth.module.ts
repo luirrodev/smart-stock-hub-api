@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigType } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { AccessControlModule } from 'src/access-control/access-control.module';
 import { CustomersModule } from 'src/customers/customers.module';
@@ -10,11 +11,13 @@ import { LocalStrategyService } from './strategies/local-strategy.service';
 import { JwtStrategyService } from './strategies/jwt-strategy.service';
 import { AuthController } from './controllers/auth.controller';
 import config from 'src/config';
+import { PasswordResetToken } from './entities/password-reset-token.entity';
 
 @Module({
   imports: [
     AccessControlModule,
     CustomersModule,
+    TypeOrmModule.forFeature([PasswordResetToken]),
     PassportModule,
     JwtModule.registerAsync({
       inject: [config.KEY],
