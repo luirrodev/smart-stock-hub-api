@@ -38,7 +38,7 @@ export class Product {
 
   // Campos de mapeo desde la API externa
   @Index()
-  @Column({ name: 'external_id', type: 'bigint', nullable: true, unique: true })
+  @Column({ name: 'external_id', type: 'bigint', unique: true })
   externalId: number | null; // xarticulo_id (ID externo)
 
   @Column({ type: 'text', nullable: true })
