@@ -9,6 +9,7 @@ import { AccessControlModule } from './access-control/access-control.module';
 import { AuthModule } from './auth/auth.module';
 import { DatabaseModule } from './database/database.module';
 import { CustomersModule } from './customers/customers.module';
+import { ProductsModule } from './products/products.module';
 
 import { AppController } from './app.controller';
 
@@ -30,6 +31,7 @@ import { AppController } from './app.controller';
     AuthModule,
     DatabaseModule,
     CustomersModule,
+    ProductsModule,
   ],
   controllers: [AppController],
   providers: [],
