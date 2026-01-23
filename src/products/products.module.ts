@@ -5,6 +5,7 @@ import { HttpModule } from '@nestjs/axios';
 import { Product } from './entities/product.entity';
 import { AccessControlModule } from '../access-control/access-control.module';
 import { ProductsService } from './services/products.service';
+import { ProductsController } from './controllers/products.controller';
 
 @Module({
   imports: [
@@ -12,7 +13,7 @@ import { ProductsService } from './services/products.service';
     AccessControlModule,
     HttpModule,
   ],
-  controllers: [],
+  controllers: [ProductsController],
   providers: [ProductsService],
   exports: [ProductsService],
 })
