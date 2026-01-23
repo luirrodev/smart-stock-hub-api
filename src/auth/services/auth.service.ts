@@ -4,14 +4,19 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 
 import * as bcrypt from 'bcryptjs';
+import * as crypto from 'crypto';
 
 import { UsersService } from '../../access-control/users/services/users.service';
 import { User } from '../../access-control/users/entities/user.entity';
 import { RegisterDto } from '../dtos/register.dto';
+import { ForgotPasswordDto } from '../dtos/forgot-password.dto';
 import { PayloadToken } from '../models/token.model';
 import { CustomersService } from 'src/customers/services/customers.service';
+import { PasswordResetToken } from '../entities/password-reset-token.entity';
 
 @Injectable()
 export class AuthService {
@@ -19,17 +24,16 @@ export class AuthService {
     private userService: UsersService,
     private jwtService: JwtService,
     private customersService: CustomersService,
+    @InjectRepository(PasswordResetToken)
+    private passwordResetRepo: Repository<PasswordResetToken>,
   ) {}
 
-  async validateUser(email: string, password: string) {
+  async validateUser(email: string, password: string): Promise<User | null> {
     const user = await this.userService.findByEmail(email);
+    if (!user) return null;
+
     const isMatch = await bcrypt.compare(password, user.password);
-
-    if (user && isMatch) {
-      return user;
-    }
-
-    return null;
+    return isMatch ? user : null;
   }
 
   /**
@@ -53,6 +57,52 @@ export class AuthService {
 
     // Generar JWT para el usuario creado
     return this.generateJWT(createdUser);
+  }
+
+  /**
+   * Genera y guarda un token para restablecimiento de contraseña.
+   * Devuelve void; la respuesta al cliente es siempre genérica por seguridad.
+   * NOTA: el token se guarda hasheado. El token en claro debe enviarse por email
+   * por otro sistema (ej. servicio de correo). Aquí se deja un TODO para ello.
+   */
+  async forgotPassword(email: string, ipAddress?: string, userAgent?: string) {
+    try {
+      const user = await this.userService.findByEmail(email);
+
+      // Si el usuario no está activo, no informar al cliente; retornar genérico
+      if (!user || !user.isActive) return;
+
+      // Generar token aleatorio en claro y su versión hasheada para guardar
+      const rawToken = crypto.randomBytes(32).toString('hex');
+      const hashedToken = await bcrypt.hash(rawToken, 10);
+
+      const expiresInMs = process.env.PASSWORD_RESET_EXPIRES_IN
+        ? Number(process.env.PASSWORD_RESET_EXPIRES_IN) * 1000
+        : 3600_000; // 1 hora por defecto
+
+      const expiresAt = new Date(Date.now() + expiresInMs);
+
+      const tokenEntity = this.passwordResetRepo.create({
+        token: hashedToken,
+        user: user,
+        expiresAt,
+        sentAt: new Date(),
+        ipAddress,
+        userAgent,
+      } as Partial<PasswordResetToken>);
+
+      await this.passwordResetRepo.save(tokenEntity);
+
+      // TODO: Enviar correo con `rawToken` mediante servicio de email. Ej:
+      // const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${rawToken}&id=${user.id}`;
+      // await this.mailerService.sendPasswordResetEmail(user.email, resetLink);
+
+      // No devolver el token ni detalles: la respuesta al cliente será genérica
+      return;
+    } catch (error) {
+      // Si ocurre un error inesperado, no diferenciamos la respuesta: devolver genérico igualmente
+      return;
+    }
   }
 
   async generateJWT(userData: User) {
