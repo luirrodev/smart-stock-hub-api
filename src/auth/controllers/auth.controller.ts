@@ -11,6 +11,7 @@ import {
 import { Request } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+import { ThrottlerGuard } from '@nestjs/throttler';
 
 import { AuthService } from '../services/auth.service';
 import { User } from 'src/access-control/users/entities/user.entity';
@@ -118,6 +119,8 @@ export class AuthController {
     };
   }
 
+  // configuracion de rate limiter para 3 intentos por minuto
+  @UseGuards(ThrottlerGuard)
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reset user password using token' })
