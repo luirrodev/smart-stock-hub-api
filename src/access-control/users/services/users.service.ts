@@ -160,6 +160,25 @@ export class UsersService {
     return updated;
   }
 
+  /**
+   * Cambia la contraseña de un usuario (hasheando antes de guardar)
+   * @param userId - id del usuario
+   * @param newPassword - nueva contraseña en claro
+   */
+  async changePassword(userId: number, newPassword: string) {
+    const user = await this.findOne(userId);
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    user.password = hashed;
+
+    const updated = await this.userRepo.save(user);
+
+    // Invalidar caché del usuario
+    await this.invalidateUserCache(userId, user.email);
+
+    return updated;
+  }
+
   async remove(id: number) {
     const user = await this.findOne(id);
 
