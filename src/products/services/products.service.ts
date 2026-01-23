@@ -1,12 +1,18 @@
-import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  Logger,
+  Inject,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-import { ConfigService } from '@nestjs/config';
+import { ConfigService, ConfigType } from '@nestjs/config';
 
 import { Product } from '../entities/product.entity';
 import { ExternalProductDto } from '../dtos/external-product.dto';
+import config from 'src/config';
 
 @Injectable()
 export class ProductsService {
@@ -15,19 +21,18 @@ export class ProductsService {
   constructor(
     @InjectRepository(Product) private productRepo: Repository<Product>,
     private readonly httpService: HttpService,
-    private readonly configService: ConfigService,
+    @Inject(config.KEY) private configService: ConfigType<typeof config>,
   ) {}
 
   /**
    * Sincroniza productos desde una API externa.
    */
   async syncFromExternal() {
+    const url = this.configService.mandasaldoAPI.url;
+    const apiKey = this.configService.mandasaldoAPI.api_key;
     const source = 'external';
 
-    const url = this.configService.get<string>('EXTERNAL_PRODUCTS_URL');
-    const apiKey = this.configService.get<string>('EXTERNAL_PRODUCTS_APIKEY');
-
-    // La API de vendedor.growsolutions.biz espera POST con { apikey, action }
+    // La API de espera POST con { apikey, action }
     const body = { apikey: apiKey, action: 'get-products' };
 
     this.logger.log(`Solicitando productos a ${url})`);
