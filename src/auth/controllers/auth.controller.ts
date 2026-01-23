@@ -20,6 +20,7 @@ import { RegisterDto } from '../dtos/register.dto';
 import { JWTAuthGuard } from '../guards/jwt-auth.guard';
 import { PayloadToken } from '../models/token.model';
 import { ForgotPasswordDto } from '../dtos/forgot-password.dto';
+import { ResetPasswordDto } from '../dtos/reset-password.dto';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -115,6 +116,31 @@ export class AuthController {
       message:
         'Si existe una cuenta con ese correo, se enviarán instrucciones para restablecer la contraseña.',
     };
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reset user password using token' })
+  @ApiBody({ type: ResetPasswordDto })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Password updated' })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid token or request',
+  })
+  async resetPassword(@Body() dto: ResetPasswordDto, @Req() req: Request) {
+    const ip = (req.ip ||
+      (req.headers['x-forwarded-for'] as string) ||
+      '') as string;
+    const userAgent = (req.headers['user-agent'] || '') as string;
+
+    await this.authService.resetPassword(
+      dto.token,
+      dto.newPassword,
+      ip,
+      userAgent,
+    );
+
+    return { message: 'Contraseña actualizada correctamente' };
   }
 
   @Get('profile')
