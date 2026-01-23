@@ -6,7 +6,9 @@ import {
   HttpStatus,
   Body,
   Get,
+  Req,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 
@@ -17,6 +19,7 @@ import { LoginDto, RefreshTokenDto } from '../dtos/auth.dto';
 import { RegisterDto } from '../dtos/register.dto';
 import { JWTAuthGuard } from '../guards/jwt-auth.guard';
 import { PayloadToken } from '../models/token.model';
+import { ForgotPasswordDto } from '../dtos/forgot-password.dto';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -85,6 +88,33 @@ export class AuthController {
   })
   async register(@Body() registerDto: RegisterDto) {
     return this.authService.register(registerDto);
+  }
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Request password reset' })
+  @ApiBody({ type: ForgotPasswordDto })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description:
+      'Si existe una cuenta con ese correo, se enviarán instrucciones para restablecer la contraseña. (respuesta genérica por seguridad)',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'El correo electrónico no tiene un formato válido',
+  })
+  async forgotPassword(@Body() dto: ForgotPasswordDto, @Req() req: Request) {
+    const ip = (req.ip ||
+      (req.headers['x-forwarded-for'] as string) ||
+      '') as string;
+    const userAgent = (req.headers['user-agent'] || '') as string;
+
+    await this.authService.forgotPassword(dto.email, ip, userAgent);
+
+    return {
+      message:
+        'Si existe una cuenta con ese correo, se enviarán instrucciones para restablecer la contraseña.',
+    };
   }
 
   @Get('profile')
