@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
@@ -81,6 +81,20 @@ export class AuthService {
         : 3600_000; // 1 hora por defecto
 
       const expiresAt = new Date(Date.now() + expiresInMs);
+
+      // Invalidar tokens previos del usuario: marcarlos como usados y registrar revocado
+      const prevTokens = await this.passwordResetRepo.find({
+        where: { user: { id: user.id }, used: false, revokedAt: IsNull() },
+      });
+
+      if (prevTokens && prevTokens.length) {
+        const now = new Date();
+        prevTokens.forEach((t) => {
+          t.used = true;
+          t.revokedAt = now;
+        });
+        await this.passwordResetRepo.save(prevTokens);
+      }
 
       const tokenEntity = this.passwordResetRepo.create({
         token: hashedToken,
