@@ -33,7 +33,7 @@ export class ProductsService {
     const source = 'external';
 
     // La API de espera POST con { apikey, action }
-    const body = { apikey: apiKey, action: 'get-products' };
+    const body = { apikey: apiKey, action: 'get-products-allnovu' };
 
     this.logger.log(`Solicitando productos a ${url})`);
 
