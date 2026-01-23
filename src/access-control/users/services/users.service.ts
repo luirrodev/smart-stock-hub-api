@@ -78,7 +78,7 @@ export class UsersService {
     return user;
   }
 
-  async findByEmail(email: string) {
+  async findByEmail(email: string): Promise<User | null> {
     const cacheKey = this.getEmailCacheKey(email);
     const cached = await this.cacheManager.get<User>(cacheKey);
 
@@ -94,9 +94,7 @@ export class UsersService {
       .getOne();
 
     if (!user) {
-      throw new NotFoundException(
-        'La dirección de correo electrónico ingresada no está registrada. Para continuar, por favor crea una cuenta.',
-      );
+      return null;
     }
 
     await this.cacheManager.set(cacheKey, user, 1800000);
