@@ -5,12 +5,17 @@ import {
   PrimaryGeneratedColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
 
 import { User } from '../../access-control/users/entities/user.entity';
 
 @Entity({ name: 'password_reset_tokens' })
+@Index('ux_password_reset_active_per_user', ['user'], {
+  unique: true,
+  where: 'used = false AND revoked_at IS NULL',
+})
 export class PasswordResetToken {
   @PrimaryGeneratedColumn()
   id: number;
