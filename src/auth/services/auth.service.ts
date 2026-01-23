@@ -2,6 +2,8 @@ import {
   Injectable,
   NotFoundException,
   UnauthorizedException,
+  BadRequestException,
+  GoneException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -117,6 +119,103 @@ export class AuthService {
       // Si ocurre un error inesperado, no diferenciamos la respuesta: devolver genérico igualmente
       return;
     }
+  }
+
+  /**
+   * Valida un token de restablecimiento de contraseña (en claro).
+   * - Busca tokens no usados y no revocados del usuario.
+   * - Compara el token en claro con los hashes almacenados (bcrypt).
+   * - Verifica expiración y estado del usuario.
+   * - Incrementa intentos y revoca tokens si se supera el límite.
+   */
+  async validatePasswordResetToken(
+    rawToken: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<PasswordResetToken> {
+    // Buscar tokens candidatos (no usados y no revocados), ordenados por más reciente
+    const candidates = await this.passwordResetRepo.find({
+      where: { used: false, revokedAt: IsNull() },
+      relations: ['user'],
+      order: { createdAt: 'DESC' },
+    });
+
+    if (!candidates || candidates.length === 0) {
+      throw new BadRequestException('Token inválido');
+    }
+
+    const now = new Date();
+
+    for (const t of candidates) {
+      const match = await bcrypt.compare(rawToken, t.token);
+      if (match) {
+        // Token coincide — validar estado y expiración
+        if (t.used) {
+          throw new BadRequestException('Token ya fue usado');
+        }
+        if (t.expiresAt && t.expiresAt <= now) {
+          throw new GoneException('Token expirado');
+        }
+
+        // Registrar IP/UserAgent del intento exitoso
+        if (ipAddress) t.ipAddress = ipAddress;
+        if (userAgent) t.userAgent = userAgent;
+        await this.passwordResetRepo.save(t);
+
+        return t;
+      }
+    }
+
+    // No hay coincidencias entre tokens activos
+    // Nota: con token hasheado no podemos identificar a qué usuario se apuntó, por
+    // lo que no incrementamos attempts globalmente (evita ataques de denegación).
+    throw new BadRequestException('Token inválido');
+  }
+
+  /**
+   * Consume un token de restablecimiento y actualiza la contraseña del usuario.
+   */
+  async resetPassword(
+    rawToken: string,
+    newPassword: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    // Validar token y obtener la entidad
+    const tokenEntity = await this.validatePasswordResetToken(
+      rawToken,
+      ipAddress,
+      userAgent,
+    );
+
+    const userId = tokenEntity.user.id;
+
+    // Cambiar contraseña (UsersService se encarga del hash)
+    await this.userService.changePassword(userId, newPassword);
+
+    // Marcar token como usado y registrar usadoAt/revocado
+    tokenEntity.used = true;
+    tokenEntity.usedAt = new Date();
+    tokenEntity.revokedAt = new Date();
+    if (ipAddress) tokenEntity.ipAddress = ipAddress;
+    if (userAgent) tokenEntity.userAgent = userAgent;
+
+    await this.passwordResetRepo.save(tokenEntity);
+
+    // Invalidar otros tokens activos para ese usuario
+    const otherTokens = await this.passwordResetRepo.find({
+      where: { user: { id: userId }, used: false, revokedAt: IsNull() },
+    });
+    if (otherTokens && otherTokens.length) {
+      const now = new Date();
+      otherTokens.forEach((t) => {
+        t.used = true;
+        t.revokedAt = now;
+      });
+      await this.passwordResetRepo.save(otherTokens);
+    }
+
+    return { message: 'Contraseña actualizada correctamente' };
   }
 
   async generateJWT(userData: User) {
