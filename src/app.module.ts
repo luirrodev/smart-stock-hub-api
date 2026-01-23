@@ -25,6 +25,8 @@ import { AppController } from './app.controller';
         JWT_REFRESH_SECRET: Joi.string().required(),
         JWT_ACCESS_EXPIRES_IN: Joi.string().required(),
         JWT_REFRESH_EXPIRES_IN: Joi.string().required(),
+        API_URL_GET_PRODUCTS: Joi.string().required(),
+        API_KEY_GET_PRODUCTS: Joi.string().required(),
       }),
     }),
     AccessControlModule,

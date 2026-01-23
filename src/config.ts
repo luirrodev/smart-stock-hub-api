@@ -17,5 +17,9 @@ export default registerAs('config', () => {
       accessTokenExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN,
       refreshTokenExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN,
     },
+    mandasaldoAPI: {
+      url: process.env.API_URL_GET_PRODUCTS,
+      api_key: process.env.API_KEY_GET_PRODUCTS,
+    },
   };
 });
