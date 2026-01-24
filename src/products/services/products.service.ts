@@ -5,13 +5,18 @@ import {
   Inject,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, ILike, FindOptionsWhere } from 'typeorm';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-import { ConfigService, ConfigType } from '@nestjs/config';
+import { ConfigType } from '@nestjs/config';
+import { QueryBuilderUtil } from 'src/common/utils/query-builder.util';
 
 import { Product } from '../entities/product.entity';
 import { ExternalProductDto } from '../dtos/external-product.dto';
+import {
+  PaginationDto,
+  PaginatedResponse,
+} from 'src/common/dtos/pagination.dto';
 import config from 'src/config';
 
 @Injectable()
@@ -109,5 +114,43 @@ export class ProductsService {
 
     this.logger.log(`Sincronización finalizada: ${JSON.stringify(results)}`);
     return results;
+  }
+
+  /**
+   * Obtiene productos paginados de acuerdo a `PaginationDto` y permite buscar por `search`.
+   */
+  async getAllProducts(
+    paginationDto: PaginationDto,
+  ): Promise<PaginatedResponse<Product>> {
+    const { page = 1, limit = 10, search } = paginationDto;
+    const skip = (page - 1) * limit;
+
+    let where = QueryBuilderUtil.buildSearchConditions<Product>(search, [
+      'name',
+      'summary',
+      'observations',
+      'sku',
+    ]);
+
+    const [data, total] = await this.productRepo.findAndCount({
+      where,
+      skip,
+      take: limit,
+      order: { name: 'ASC' },
+    });
+
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+
+    const response: PaginatedResponse<Product> = {
+      data,
+      page,
+      limit,
+      total,
+      totalPages,
+      hasPrevious: page > 1,
+      hasNext: page < totalPages,
+    };
+
+    return response;
   }
 }
