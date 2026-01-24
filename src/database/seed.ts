@@ -26,7 +26,10 @@ async function seed() {
   ];
 
   // Roles básicos
-  const roles = [{ name: 'admin', description: 'Administrador del sistema' }];
+  const roles = [
+    { name: 'admin', description: 'Administrador del sistema' },
+    { name: 'customer', description: 'Cliente' },
+  ];
 
   // Insertar permisos si no existen
   for (const perm of permissions) {
