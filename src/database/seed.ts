@@ -1,4 +1,3 @@
-import { DataSource } from 'typeorm';
 import MyDataSourse from '../database/data-source';
 import { Role } from '../access-control/roles/entities/role.entity';
 import { Permission } from '../access-control/permissions/entities/permission.entity';
@@ -19,39 +18,15 @@ async function seed() {
     { name: 'roles:write', description: 'Crear, actualizar y eliminar roles' },
     { name: 'permissions:read', description: 'Leer permisos' },
     { name: 'permissions:write', description: 'Crear y actualizar permisos' },
-    { name: 'brands:read', description: 'Leer marcas' },
-    {
-      name: 'brands:write',
-      description: 'Crear, actualizar o eliminar marcas',
-    },
-    { name: 'categories:read', description: 'Leer categorías' },
-    {
-      name: 'categories:write',
-      description: 'Crear, actualizar o eliminar categorías',
-    },
     { name: 'products:read', description: 'Leer productos' },
     {
       name: 'products:write',
       description: 'Crear, actualizar o eliminar productos',
     },
-    { name: 'warehouses:read', description: 'Permite leer almacenes' },
-    {
-      name: 'warehouses:write',
-      description: 'Permite crear, actualizar y eliminar almacenes',
-    },
-    { name: 'inventories:read', description: 'Permite leer inventarios' },
-    {
-      name: 'inventories:write',
-      description: 'Permite crear, actualizar y eliminar inventarios',
-    },
   ];
 
   // Roles básicos
-  const roles = [
-    { name: 'admin', description: 'Administrador del sistema' },
-    { name: 'customer', description: 'Cliente' },
-    { name: 'user', description: 'Usuario básico' },
-  ];
+  const roles = [{ name: 'admin', description: 'Administrador del sistema' }];
 
   // Insertar permisos si no existen
   for (const perm of permissions) {
@@ -84,18 +59,9 @@ async function seed() {
     await MyDataSourse.getRepository(Role).save(adminRole);
   }
 
-  // Por ejemplo, para el rol admin:
-  if (adminRole) {
-    const warehousePerms = await MyDataSourse.getRepository(Permission).find({
-      where: [{ name: 'warehouses:read' }, { name: 'warehouses:write' }],
-    });
-    adminRole.permissions = [...adminRole.permissions, ...warehousePerms];
-    await MyDataSourse.getRepository(Role).save(adminRole);
-  }
-
   // Crear usuario admin inicial si no existe
   const adminEmail = 'admin@admin.com';
-  const adminPassword = 'admin123'; // Cambia esto en producción
+  const adminPassword = 'admin123';
 
   let adminUser = await MyDataSourse.getRepository(User).findOneBy({
     email: adminEmail,
