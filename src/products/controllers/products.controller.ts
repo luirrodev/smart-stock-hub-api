@@ -27,6 +27,7 @@ import { RequirePermissions } from 'src/access-control/permissions/decorators/pe
 import { ProductDto } from '../dtos/product-response.dto';
 import { Public } from 'src/auth/decorators/public.decorator';
 import { OptionalAuthGuard } from 'src/auth/guards/optional-auth.guard';
+import { Serialize } from 'src/common/decorators/serialize.decorator';
 
 @ApiTags('products')
 @UseGuards(PermissionsGuard)
@@ -57,8 +58,8 @@ export class ProductsController {
   }
 
   @Get(':id')
-  @Public()
   @UseGuards(OptionalAuthGuard)
+  @Serialize(ProductDto)
   @ApiOperation({ summary: 'Obtener un producto por su id' })
   @ApiOkResponse({ description: 'Producto encontrado', type: ProductDto })
   async getOne(@Param('id') id: string): Promise<Product> {
