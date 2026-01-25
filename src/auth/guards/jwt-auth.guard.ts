@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { IS_OPTIONAL_KEY } from '../decorators/optional-auth.decorator';
 import { Reflector } from '@nestjs/core';
 
 @Injectable()
@@ -19,12 +20,18 @@ export class JWTAuthGuard extends AuthGuard('jwt') {
       context.getClass(),
     ]);
 
-    // Si es pública, permitir acceso sin validar JWT
-    if (isPublic) {
+    // Si es pública o es 'optional auth', permitir acceso y dejar que
+    // un guard opcional maneje la autenticación si se desea.
+    const isOptional = this.reflector.getAllAndOverride<boolean>(
+      IS_OPTIONAL_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+
+    if (isPublic || isOptional) {
       return true;
     }
 
-    // Si no es pública, aplicar validación JWT normal
+    // Si no es pública ni opcional, aplicar validación JWT normal
     return super.canActivate(context);
   }
   handleRequest(err, user, info) {
