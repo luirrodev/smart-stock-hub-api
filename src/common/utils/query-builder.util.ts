@@ -20,10 +20,20 @@ export class QueryBuilderUtil {
     }
 
     const searchPattern = this.buildSearchPattern(search);
+    const isInteger = /^-?\d+$/.test(search!.trim());
 
-    return fields.map((field) => ({
-      [field]: ILike(searchPattern),
-    })) as FindOptionsWhere<T>[];
+    return fields.map((field) => {
+      const fieldName = String(field);
+
+      // Evitar aplicar ILike sobre columnas numéricas (p. ej. id) cuando la búsqueda es un número
+      if (isInteger && fieldName === 'id') {
+        return {
+          [field]: Equal(Number(search!.trim())),
+        } as FindOptionsWhere<T>;
+      }
+
+      return { [field]: ILike(searchPattern) } as FindOptionsWhere<T>;
+    });
   }
 
   /**
