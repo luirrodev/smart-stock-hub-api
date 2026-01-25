@@ -22,18 +22,28 @@ export class QueryBuilderUtil {
     const searchPattern = this.buildSearchPattern(search);
     const isInteger = /^-?\d+$/.test(search!.trim());
 
-    return fields.map((field) => {
+    const conditions: FindOptionsWhere<T>[] = [];
+
+    for (const field of fields) {
       const fieldName = String(field);
 
-      // Evitar aplicar ILike sobre columnas numéricas (p. ej. id) cuando la búsqueda es un número
-      if (isInteger && fieldName === 'id') {
-        return {
-          [field]: Equal(Number(search!.trim())),
-        } as FindOptionsWhere<T>;
+      // Si es el campo `id` y la búsqueda es numérica, hacemos match exacto.
+      // Si la búsqueda no es numérica, omitimos `id` porque es una columna integer.
+      if (fieldName === 'id') {
+        if (isInteger) {
+          conditions.push({
+            [field]: Equal(Number(search!.trim())),
+          } as FindOptionsWhere<T>);
+        }
+        continue;
       }
 
-      return { [field]: ILike(searchPattern) } as FindOptionsWhere<T>;
-    });
+      conditions.push({ [field]: ILike(searchPattern) } as FindOptionsWhere<T>);
+    }
+
+    return conditions.length
+      ? (conditions as FindOptionsWhere<T>[])
+      : ({} as FindOptionsWhere<T>);
   }
 
   /**
