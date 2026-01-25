@@ -15,14 +15,15 @@ import { PaginationDto } from 'src/common/dtos/pagination.dto';
 import { PermissionsGuard } from 'src/access-control/permissions/guards/permissions.guard';
 import { JWTAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { RequirePermissions } from 'src/access-control/permissions/decorators/permissions.decorator';
+import { ProductPaginationDto } from '../dtos/product-pagination.dto';
 
 @ApiTags('products')
 @Controller('products')
-@UseGuards(JWTAuthGuard, PermissionsGuard)
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Post('sync')
+  @UseGuards(JWTAuthGuard, PermissionsGuard)
   @HttpCode(HttpStatus.OK)
   @RequirePermissions('products:write')
   @ApiOperation({
@@ -33,9 +34,8 @@ export class ProductsController {
   }
 
   @Get()
-  @RequirePermissions('products:read')
-  @ApiOperation({ summary: 'Obtener productos paginados' })
-  async getAll(@Query() paginationDto: PaginationDto) {
-    return await this.productsService.getAllProducts(paginationDto);
+  @ApiOperation({ summary: 'Obtener todos los productos paginados' })
+  async getAll(@Query() query: ProductPaginationDto) {
+    return await this.productsService.getAllProducts(query);
   }
 }
