@@ -5,6 +5,7 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { redisStore } from 'cache-manager-ioredis-yet';
 
 import config from 'src/config';
+import { SnakeNamingStrategy } from './typeorm-naming-strategy';
 
 @Global()
 @Module({
@@ -17,6 +18,7 @@ import config from 'src/config';
           url: configService.database.url,
           synchronize: false,
           autoLoadEntities: true,
+          namingStrategy: new SnakeNamingStrategy(),
         };
       },
     }),
