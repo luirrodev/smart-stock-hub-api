@@ -5,7 +5,7 @@ import {
   Inject,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike, FindOptionsWhere } from 'typeorm';
+import { Repository } from 'typeorm';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { ConfigType } from '@nestjs/config';
@@ -13,11 +13,9 @@ import { QueryBuilderUtil } from 'src/common/utils/query-builder.util';
 
 import { Product } from '../entities/product.entity';
 import { ExternalProductDto } from '../dtos/external-product.dto';
-import {
-  PaginationDto,
-  PaginatedResponse,
-} from 'src/common/dtos/pagination.dto';
+import { PaginatedResponse } from 'src/common/dtos/pagination.dto';
 import config from 'src/config';
+import { ProductPaginationDto } from '../dtos/product-pagination.dto';
 
 @Injectable()
 export class ProductsService {
@@ -117,13 +115,23 @@ export class ProductsService {
   }
 
   /**
-   * Obtiene productos paginados de acuerdo a `PaginationDto` y permite buscar por `search`.
+   * Obtiene productos paginados
    */
   async getAllProducts(
-    paginationDto: PaginationDto,
+    query: ProductPaginationDto,
   ): Promise<PaginatedResponse<Product>> {
-    const { page = 1, limit = 10, search } = paginationDto;
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      sortBy = 'id',
+      sortDir = 'ASC',
+    } = query;
     const skip = (page - 1) * limit;
+    const dir = (sortDir ?? 'ASC').toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
+
+    // Type assertion para que TypeScript sepa que es válido
+    const order = { [sortBy]: dir } as Record<string, 'ASC' | 'DESC'>;
 
     let where = QueryBuilderUtil.buildSearchConditions<Product>(search, [
       'name',
@@ -136,7 +144,7 @@ export class ProductsService {
       where,
       skip,
       take: limit,
-      order: { name: 'ASC' },
+      order,
     });
 
     const totalPages = Math.max(1, Math.ceil(total / limit));
