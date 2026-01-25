@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Get,
   Query,
+  Param,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -15,6 +16,7 @@ import {
 } from '@nestjs/swagger';
 
 import { ProductsService } from '../services/products.service';
+import { Product } from '../entities/product.entity';
 
 import { ProductPaginatedResponse } from '../dtos/product-paginated-response.dto';
 import { ProductPaginationDto } from '../dtos/product-pagination.dto';
@@ -22,6 +24,7 @@ import { ProductPaginationDto } from '../dtos/product-pagination.dto';
 import { PermissionsGuard } from 'src/access-control/permissions/guards/permissions.guard';
 import { JWTAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { RequirePermissions } from 'src/access-control/permissions/decorators/permissions.decorator';
+import { ProductDto } from '../dtos/product-response.dto';
 
 @ApiTags('products')
 @ApiExtraModels(ProductPaginatedResponse)
@@ -31,8 +34,8 @@ export class ProductsController {
 
   @Post('sync')
   @UseGuards(JWTAuthGuard, PermissionsGuard)
-  @HttpCode(HttpStatus.OK)
   @RequirePermissions('products:write')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Sincronizar productos usando la API externa',
   })
@@ -48,5 +51,12 @@ export class ProductsController {
   })
   async getAll(@Query() query: ProductPaginationDto) {
     return await this.productsService.getAllProducts(query);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Obtener un producto por su id' })
+  @ApiOkResponse({ description: 'Producto encontrado', type: ProductDto })
+  async getOne(@Param('id') id: string): Promise<Product> {
+    return await this.productsService.findOne(+id);
   }
 }
