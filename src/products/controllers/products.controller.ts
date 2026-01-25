@@ -28,7 +28,7 @@ import { ProductDto } from '../dtos/product-response.dto';
 import { Public } from 'src/auth/decorators/public.decorator';
 
 @ApiTags('products')
-@UseGuards(JWTAuthGuard, PermissionsGuard)
+@UseGuards(PermissionsGuard)
 @ApiExtraModels(ProductPaginatedResponse)
 @Controller('products')
 export class ProductsController {
