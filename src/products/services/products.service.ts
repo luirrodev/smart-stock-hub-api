@@ -77,7 +77,7 @@ export class ProductsService {
       try {
         // Mapear campos
         const mapped: Partial<Product> = {
-          name: item.xarticulo,
+          name: item.xarticulo?.trim(),
           salePrice: item.xprecio_coste,
           externalId: item.xarticulo_id,
           summary: item.xresumen,
