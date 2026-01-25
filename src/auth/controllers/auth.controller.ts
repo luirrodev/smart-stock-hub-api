@@ -22,6 +22,7 @@ import { JWTAuthGuard } from '../guards/jwt-auth.guard';
 import { PayloadToken } from '../models/token.model';
 import { ForgotPasswordDto } from '../dtos/forgot-password.dto';
 import { ResetPasswordDto } from '../dtos/reset-password.dto';
+import { Public } from '../decorators/public.decorator';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -29,6 +30,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
+  @Public()
   @UseGuards(AuthGuard('local'))
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'User login' })
@@ -49,6 +51,7 @@ export class AuthController {
   }
 
   @Post('refresh')
+  @Public()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Refresh access token' })
   @ApiBody({
@@ -68,6 +71,7 @@ export class AuthController {
   }
 
   @Post('register')
+  @Public()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Register a new customer' })
   @ApiBody({ type: RegisterDto })
@@ -93,6 +97,7 @@ export class AuthController {
   }
 
   @Post('forgot-password')
+  @Public()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request password reset' })
   @ApiBody({ type: ForgotPasswordDto })
@@ -121,6 +126,7 @@ export class AuthController {
 
   // configuracion de rate limiter para 3 intentos por minuto
   @UseGuards(ThrottlerGuard)
+  @Public()
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reset user password using token' })
@@ -147,7 +153,6 @@ export class AuthController {
   }
 
   @Get('profile')
-  @UseGuards(JWTAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get user profile' })
   @ApiResponse({
