@@ -25,15 +25,16 @@ import { PermissionsGuard } from 'src/access-control/permissions/guards/permissi
 import { JWTAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { RequirePermissions } from 'src/access-control/permissions/decorators/permissions.decorator';
 import { ProductDto } from '../dtos/product-response.dto';
+import { Public } from 'src/auth/decorators/public.decorator';
 
 @ApiTags('products')
+@UseGuards(JWTAuthGuard, PermissionsGuard)
 @ApiExtraModels(ProductPaginatedResponse)
 @Controller('products')
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Post('sync')
-  @UseGuards(JWTAuthGuard, PermissionsGuard)
   @RequirePermissions('products:write')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -44,6 +45,7 @@ export class ProductsController {
   }
 
   @Get()
+  @Public()
   @ApiOperation({ summary: 'Obtener todos los productos paginados' })
   @ApiOkResponse({
     description: 'Respuesta paginada de productos',
@@ -54,6 +56,7 @@ export class ProductsController {
   }
 
   @Get(':id')
+  @Public()
   @ApiOperation({ summary: 'Obtener un producto por su id' })
   @ApiOkResponse({ description: 'Producto encontrado', type: ProductDto })
   async getOne(@Param('id') id: string): Promise<Product> {
