@@ -10,6 +10,7 @@ import { AuthModule } from './auth/auth.module';
 import { DatabaseModule } from './database/database.module';
 import { CustomersModule } from './customers/customers.module';
 import { ProductsModule } from './products/products.module';
+import { CartsModule } from './carts/carts.module';
 
 import { AppController } from './app.controller';
 import { APP_GUARD } from '@nestjs/core';
@@ -36,6 +37,7 @@ import { JWTAuthGuard } from './auth/guards/jwt-auth.guard';
     DatabaseModule,
     CustomersModule,
     ProductsModule,
+    CartsModule,
   ],
   controllers: [AppController],
   providers: [
