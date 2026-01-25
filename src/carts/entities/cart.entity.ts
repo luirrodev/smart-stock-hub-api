@@ -35,7 +35,7 @@ export class Cart {
   user?: User | null;
 
   // Para usuarios invitados
-  @Column({ name: 'session_id', type: 'uuid', length: 255, nullable: true })
+  @Column({ name: 'session_id', type: 'uuid', nullable: true })
   sessionId: string | null;
 
   // Estado del carrito: 'active', 'abandoned', 'converted', 'expired'
