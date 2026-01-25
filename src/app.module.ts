@@ -12,6 +12,8 @@ import { CustomersModule } from './customers/customers.module';
 import { ProductsModule } from './products/products.module';
 
 import { AppController } from './app.controller';
+import { APP_GUARD } from '@nestjs/core';
+import { JWTAuthGuard } from './auth/guards/jwt-auth.guard';
 
 @Module({
   imports: [
@@ -36,6 +38,11 @@ import { AppController } from './app.controller';
     ProductsModule,
   ],
   controllers: [AppController],
-  providers: [],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: JWTAuthGuard,
+    },
+  ],
 })
 export class AppModule {}
