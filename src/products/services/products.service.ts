@@ -1,6 +1,7 @@
 import {
   Injectable,
   BadRequestException,
+  NotFoundException,
   Logger,
   Inject,
 } from '@nestjs/common';
@@ -164,5 +165,20 @@ export class ProductsService {
     };
 
     return response;
+  }
+
+  /**
+   * Obtiene un producto por su id interno.
+   */
+  async findOne(id: number): Promise<Product> {
+    const product = await this.productRepo.findOne({
+      where: { id },
+    });
+
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    return product;
   }
 }
