@@ -26,6 +26,7 @@ import { JWTAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { RequirePermissions } from 'src/access-control/permissions/decorators/permissions.decorator';
 import { ProductDto } from '../dtos/product-response.dto';
 import { Public } from 'src/auth/decorators/public.decorator';
+import { OptionalAuthGuard } from 'src/auth/guards/optional-auth.guard';
 
 @ApiTags('products')
 @UseGuards(PermissionsGuard)
@@ -57,6 +58,7 @@ export class ProductsController {
 
   @Get(':id')
   @Public()
+  @UseGuards(OptionalAuthGuard)
   @ApiOperation({ summary: 'Obtener un producto por su id' })
   @ApiOkResponse({ description: 'Producto encontrado', type: ProductDto })
   async getOne(@Param('id') id: string): Promise<Product> {
