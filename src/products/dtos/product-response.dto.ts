@@ -82,3 +82,15 @@ export class ProductListDto extends PickType(ProductDto, [
   'name',
   'salePrice',
 ] as const) {}
+
+// DTO para la vista pública (los campos visibles para usuarios anónimos/cliente)
+export class ProductPublicDto extends PickType(ProductDto, [
+  'id',
+  'name',
+  'salePrice',
+  'summary',
+  'observations',
+] as const) {}
+
+// DTO para la vista admin (extiende ProductDto — incluye todos los campos ya documentados)
+export class ProductAdminDto extends ProductDto {}
