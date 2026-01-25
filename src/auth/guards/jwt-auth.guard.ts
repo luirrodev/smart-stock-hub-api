@@ -4,11 +4,27 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { Reflector } from '@nestjs/core';
 
 @Injectable()
 export class JWTAuthGuard extends AuthGuard('jwt') {
+  constructor(private reflector: Reflector) {
+    super();
+  }
   canActivate(context: ExecutionContext) {
-    // Podemos añadir lógica personalizada aquí si es necesario
+    // Verificar si la ruta está marcada como pública
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    // Si es pública, permitir acceso sin validar JWT
+    if (isPublic) {
+      return true;
+    }
+
+    // Si no es pública, aplicar validación JWT normal
     return super.canActivate(context);
   }
   handleRequest(err, user, info) {
