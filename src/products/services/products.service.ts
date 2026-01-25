@@ -142,7 +142,6 @@ export class ProductsService {
     const [data, total] = await this.productRepo.findAndCount({
       select: {
         id: true,
-        externalId: true,
         name: true,
         salePrice: true,
       },
