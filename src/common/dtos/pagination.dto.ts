@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsPositive, Min, IsString } from 'class-validator';
+import { IsOptional, IsPositive, Min, IsString, IsIn } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class PaginationDto {
@@ -31,6 +31,25 @@ export class PaginationDto {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @ApiProperty({
+    description: 'Campo por el que ordenar',
+    example: 'name',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  sortBy?: string;
+
+  @ApiProperty({
+    description: 'Dirección de orden: ASC o DESC',
+    example: 'ASC',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @IsIn(['ASC', 'DESC'])
+  sortDir?: 'ASC' | 'DESC' = 'ASC';
 }
 
 export class PaginatedResponse<T> {
