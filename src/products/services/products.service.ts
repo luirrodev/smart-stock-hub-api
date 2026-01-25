@@ -134,13 +134,18 @@ export class ProductsService {
     const order = { [sortBy]: dir } as Record<string, 'ASC' | 'DESC'>;
 
     let where = QueryBuilderUtil.buildSearchConditions<Product>(search, [
+      'id',
       'name',
-      'summary',
-      'observations',
       'sku',
     ]);
 
     const [data, total] = await this.productRepo.findAndCount({
+      select: {
+        id: true,
+        externalId: true,
+        name: true,
+        salePrice: true,
+      },
       where,
       skip,
       take: limit,
