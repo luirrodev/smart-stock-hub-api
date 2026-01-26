@@ -270,10 +270,9 @@ export class CartService {
 
       // Ambos existen: fusionar items
       for (const guestItem of guestCart.items) {
-        // Validar que el producto siga activo y respetar reglas de negocio
-        let product;
+        // Validar que el producto siga activo
         try {
-          product = await this.validateProduct(guestItem.productId);
+          await this.validateProduct(guestItem.productId);
         } catch (err) {
           // Si el producto ya no está activo o no existe, omitirlo
           console.warn(
@@ -288,19 +287,19 @@ export class CartService {
         );
 
         if (existingUserItem) {
-          const requestedQuantity =
+          // Sumamos cantidades
+          existingUserItem.quantity =
             existingUserItem.quantity + guestItem.quantity;
-          existingUserItem.quantity = Math.min(
-            requestedQuantity,
-            product.stock,
-          );
           await cartItemRepo.save(existingUserItem);
         } else {
-          // Ajustar cantidad al stock disponible
-          guestItem.quantity = Math.min(guestItem.quantity, product.stock);
-          // Mantener el price snapshot del item invitado (coherente con que el item ya existía)
-          guestItem.cartId = userCart.id;
-          await cartItemRepo.save(guestItem);
+          // Crear nuevo item en el carrito del usuario con los datos del item invitado
+          const newItem = cartItemRepo.create({
+            cartId: userCart.id,
+            productId: guestItem.productId,
+            quantity: guestItem.quantity,
+            price: guestItem.price,
+          });
+          await cartItemRepo.save(newItem);
         }
       }
 
@@ -310,10 +309,25 @@ export class CartService {
       guestCart.expiresAt = null;
       await cartRepo.save(guestCart);
 
-      // Actualizar actividad del carrito de usuario
-      await this.updateCartActivity(userCart.id);
+      // Actualizar actividad del carrito de usuario (dentro de la transacción)
+      await cartRepo.update(userCart.id, { lastActivityAt: new Date() });
 
-      return this.getCartById(userCart.id);
+      // Obtener el carrito fusionado actualizado usando el mismo EntityManager
+      const mergedCart = await cartRepo
+        .createQueryBuilder('cart')
+        .leftJoinAndSelect('cart.items', 'items', 'items.deletedAt IS NULL')
+        .leftJoinAndSelect('items.product', 'product')
+        .leftJoinAndSelect('cart.user', 'user')
+        .where('cart.id = :cartId', { cartId: userCart.id })
+        .getOne();
+
+      if (!mergedCart) {
+        throw new NotFoundException(
+          `Cart with ID ${userCart.id} not found after merge`,
+        );
+      }
+
+      return mergedCart;
     });
   }
 
@@ -453,10 +467,13 @@ export class CartService {
    * Obtiene un carrito por su ID con todas sus relaciones
    */
   private async getCartById(cartId: string): Promise<Cart> {
-    const cart = await this.cartRepository.findOne({
-      where: { id: cartId },
-      relations: ['items', 'items.product', 'user'],
-    });
+    const cart = await this.cartRepository
+      .createQueryBuilder('cart')
+      .leftJoinAndSelect('cart.items', 'items', 'items.deletedAt IS NULL')
+      .leftJoinAndSelect('items.product', 'product')
+      .leftJoinAndSelect('cart.user', 'user')
+      .where('cart.id = :cartId', { cartId })
+      .getOne();
 
     if (!cart) {
       throw new NotFoundException(`Cart with ID ${cartId} not found`);
