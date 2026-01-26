@@ -10,6 +10,8 @@ import {
   UsePipes,
   ValidationPipe,
   HttpCode,
+  UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -33,6 +35,7 @@ import {
 import { OptionalAuth } from 'src/auth/decorators/optional-auth.decorator';
 import { GetUser } from 'src/auth/decorators/get-user.decorator';
 import { PayloadToken } from 'src/auth/models/token.model';
+import { JWTAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
 @ApiTags('Carts')
 @Controller('carts')
@@ -208,5 +211,41 @@ export class CartsController {
   ): Promise<void> {
     const userId = user?.sub ?? null;
     await this.cartsService.clearCart(userId, query.sessionId ?? null);
+  }
+
+  @Post('merge')
+  @UseGuards(JWTAuthGuard)
+  @ApiOperation({
+    summary:
+      'Fusionar carrito de invitado con el carrito del usuario (se usa en login)',
+  })
+  @ApiQuery({
+    name: 'sessionId',
+    required: true,
+    description:
+      'ID de sesión del carrito de invitado (UUID). Debe viajar en query string.',
+  })
+  @ApiOkResponse({ description: 'Carrito fusionado', type: CartResponseDto })
+  async mergeGuestCart(
+    @Query() query: CartQueryDto,
+    @GetUser() user: PayloadToken,
+  ): Promise<CartResponseDto> {
+    const userId = user.sub;
+    const sessionId = query.sessionId ?? null;
+
+    if (!sessionId) {
+      throw new BadRequestException(
+        'sessionId es requerido para fusionar carritos',
+      );
+    }
+
+    const cart = await this.cartsService.mergeGuestCartWithUserCart(
+      userId,
+      sessionId,
+    );
+
+    return plainToInstance(CartResponseDto, cart, {
+      excludeExtraneousValues: true,
+    });
   }
 }
