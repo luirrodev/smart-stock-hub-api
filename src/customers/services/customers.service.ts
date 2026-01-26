@@ -56,4 +56,17 @@ export class CustomersService {
 
     return customer;
   }
+
+  async findByUserId(userId: number) {
+    const customer = await this.customerRepo.findOne({
+      where: { user: { id: userId } },
+      relations: ['user', 'shippingAddresses'],
+    });
+
+    if (!customer) {
+      throw new NotFoundException('Customer not found for this user');
+    }
+
+    return customer;
+  }
 }
