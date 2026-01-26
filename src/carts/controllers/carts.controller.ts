@@ -6,6 +6,9 @@ import {
   Query,
   Delete,
   Param,
+  Patch,
+  UsePipes,
+  ValidationPipe,
   HttpCode,
 } from '@nestjs/common';
 import {
@@ -22,6 +25,7 @@ import { CartService } from '../services/carts.service';
 import { plainToInstance } from 'class-transformer';
 import { CartResponseDto } from '../dtos/cart-response.dto';
 import { AddToCartDto } from '../dtos/add-to-cart.dto';
+import { UpdateCartItemQuantityDto } from '../dtos/update-cart-item-quantity.dto';
 import { OptionalAuth } from 'src/auth/decorators/optional-auth.decorator';
 import { GetUser } from 'src/auth/decorators/get-user.decorator';
 import { PayloadToken } from 'src/auth/models/token.model';
@@ -107,6 +111,43 @@ export class CartsController {
     };
 
     const cart = await this.cartsService.addToCart(payload);
+    return plainToInstance(CartResponseDto, cart, {
+      excludeExtraneousValues: true,
+    });
+  }
+
+  @Patch('items/:itemId/quantity')
+  @OptionalAuth()
+  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
+  @ApiOperation({ summary: 'Actualizar cantidad de un item del carrito' })
+  @ApiParam({
+    name: 'itemId',
+    required: true,
+    description: 'ID del item a actualizar',
+  })
+  @ApiQuery({
+    name: 'sessionId',
+    required: false,
+    description:
+      'ID de sesión para usuarios invitados (UUID). Debe viajar en query string.',
+  })
+  @ApiOkResponse({ description: 'Carrito actualizado', type: CartResponseDto })
+  async updateCartItemQuantity(
+    @Param('itemId') itemId: string,
+    @Body() dto: UpdateCartItemQuantityDto,
+    @Query('sessionId') sessionId?: string,
+    @GetUser() user?: PayloadToken,
+  ): Promise<CartResponseDto> {
+    const userId = user?.sub ?? null;
+    const session = sessionId ?? null;
+
+    const cart = await this.cartsService.updateCartItemQuantity(
+      itemId,
+      dto.quantity,
+      userId,
+      session,
+    );
+
     return plainToInstance(CartResponseDto, cart, {
       excludeExtraneousValues: true,
     });
