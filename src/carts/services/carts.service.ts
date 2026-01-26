@@ -13,7 +13,7 @@ import { Product } from 'src/products/entities/product.entity';
 
 import { ProductsService } from 'src/products/services/products.service';
 import { AddToCartDto } from '../dtos/add-to-cart.dto';
-import { v4 as uuidv4 } from 'uuid';
+import { v6 as uuidv4 } from 'uuid';
 
 /**
  * Servicio para la gestión del carrito de compras
