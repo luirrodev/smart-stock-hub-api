@@ -4,6 +4,7 @@ import {
   ApiOperation,
   ApiOkResponse,
   ApiCreatedResponse,
+  ApiQuery,
 } from '@nestjs/swagger';
 
 import { CartService } from '../services/carts.service';
@@ -36,6 +37,12 @@ export class CartsController {
   @Get()
   @OptionalAuth()
   @ApiOperation({ summary: 'Obtener carrito activo del usuario o invitado' })
+  @ApiQuery({
+    name: 'sessionId',
+    required: false,
+    description:
+      'ID de sesión para usuarios invitados (UUID). Debe viajar en query string.',
+  })
   @ApiOkResponse({
     description: 'Carrito activo (si existe)',
     type: CartResponseDto,
@@ -56,18 +63,36 @@ export class CartsController {
   @Post()
   @OptionalAuth()
   @ApiOperation({ summary: 'Añadir un producto al carrito' })
+  @ApiQuery({
+    name: 'sessionId',
+    required: false,
+    description:
+      'ID de sesión para usuarios invitados (UUID). Debe viajar en query string. Si se omite, el backend lo generará y lo devolverá en el cuerpo de la respuesta; el frontend debe almacenarlo y reenviarlo en futuras peticiones para mantener el mismo carrito.',
+  })
   @ApiCreatedResponse({
-    description: 'Carrito actualizado',
+    description:
+      'Carrito actualizado. Si la petición es de invitado y no incluye `sessionId` en la query, el backend generará un `sessionId` (UUID) y lo devolverá en el cuerpo de la respuesta en el campo `sessionId`. El frontend es responsable de guardarlo y enviarlo en futuras solicitudes.',
     type: CartResponseDto,
+    schema: {
+      example: {
+        id: 'a3f8e9d2-...',
+        sessionId: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+        items: [],
+        totalItems: 0,
+        subtotal: 0,
+      },
+    },
   })
   async addToCart(
     @Body() dto: AddToCartDto,
+    @Query('sessionId') sessionId?: string,
     @GetUser() user?: PayloadToken,
   ): Promise<CartResponseDto> {
-    // Si el request viene autenticado, usamos el user.sub sobre el body
+    // Si el request viene autenticado, usamos el user.sub sobre el body y la query
     const payload: AddToCartDto = {
       ...dto,
       userId: user?.sub ?? null,
+      sessionId: sessionId ?? null,
     };
 
     const cart = await this.cartsService.addToCart(payload);
