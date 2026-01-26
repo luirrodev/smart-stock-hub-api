@@ -13,6 +13,7 @@ import { Product } from 'src/products/entities/product.entity';
 
 import { ProductsService } from 'src/products/services/products.service';
 import { AddToCartDto } from '../dtos/add-to-cart.dto';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Servicio para la gestión del carrito de compras
@@ -38,12 +39,12 @@ export class CartService {
    *
    */
   async addToCart(data: AddToCartDto): Promise<Cart> {
-    const { productId, quantity, sessionId, userId } = data;
+    let { productId, quantity, sessionId, userId } = data;
 
+    // Si el request es de invitado y no viene sessionId, lo generamos aquí y lo colocamos en `data`
     if (!userId && !sessionId) {
-      throw new BadRequestException(
-        'Debe proporcionar al menos uno de los siguientes: userId o sessionId',
-      );
+      sessionId = uuidv4();
+      data.sessionId = sessionId;
     }
 
     // 1. Buscar y validar el producto
