@@ -70,46 +70,42 @@ export class CartService {
     return this.getCartById(cart.id);
   }
 
-  // /**
-  //  * Obtiene el carrito activo del usuario/invitado
-  //  *
-  //  * @param userId - ID del usuario autenticado (opcional)
-  //  * @param sessionId - ID de sesión para invitados (opcional)
-  //  * @returns El carrito con todos sus items o null si no existe
-  //  */
-  // async getCart(
-  //   userId: string | null,
-  //   sessionId: string | null,
-  // ): Promise<Cart | null> {
-  //   this.logger.log(
-  //     `Getting cart for userId: ${userId}, sessionId: ${sessionId}`,
-  //   );
+  /**
+   * Obtiene el carrito activo del usuario/invitado
+   *
+   * @param userId - ID del usuario autenticado (opcional)
+   * @param sessionId - ID de sesión para invitados (opcional)
+   * @returns El carrito con todos sus items o null si no existe
+   */
+  async getCart(
+    userId: string | null,
+    sessionId: string | null,
+  ): Promise<Cart | null> {
+    if (!userId && !sessionId) {
+      throw new BadRequestException(
+        'Debe proporcionar al menos uno de los siguientes: userId o sessionId',
+      );
+    }
 
-  //   if (!userId && !sessionId) {
-  //     throw new BadRequestException(
-  //       'Either userId or sessionId must be provided',
-  //     );
-  //   }
+    // Construir condiciones de búsqueda
+    const whereCondition: any = {
+      status: CartStatus.ACTIVE,
+    };
 
-  //   // Construir condiciones de búsqueda
-  //   const whereCondition: any = {
-  //     status: CartStatus.ACTIVE,
-  //   };
+    if (userId) {
+      whereCondition.user = { id: userId };
+    } else {
+      whereCondition.sessionId = sessionId;
+    }
 
-  //   if (userId) {
-  //     whereCondition.user = { id: userId };
-  //   } else {
-  //     whereCondition.sessionId = sessionId;
-  //   }
+    // Buscar el carrito con sus items y productos relacionados
+    const cart = await this.cartRepository.findOne({
+      where: whereCondition,
+      relations: ['items', 'items.product', 'user'],
+    });
 
-  //   // Buscar el carrito con sus items y productos relacionados
-  //   const cart = await this.cartRepository.findOne({
-  //     where: whereCondition,
-  //     relations: ['items', 'items.product', 'user'],
-  //   });
-
-  //   return cart;
-  // }
+    return cart;
+  }
 
   // /**
   //  * Actualiza la cantidad de un item específico en el carrito
