@@ -5,6 +5,7 @@ import {
   ParseIntPipe,
   Post,
   Body,
+  Query,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -36,9 +37,27 @@ export class CartsController {
   // @Get(':id')
   // @ApiOperation({ summary: 'Obtener un carrito por id' })
   // @ApiOkResponse({ description: 'Carrito encontrado' })
-  // async getOne(@Param('id', ParseIntPipe) id: number): Promise<Cart> {
-  //   return await this.cartsService.findOne(id);
+  // async getOne(@Param('id') id: string): Promise<Cart> {
+  //   return await this.cartsService.getCart(id);
   // }
+
+  @Get()
+  @OptionalAuth()
+  @ApiOperation({ summary: 'Obtener carrito activo del usuario o invitado' })
+  @ApiOkResponse({
+    description: 'Carrito activo (si existe)',
+    type: Cart,
+  })
+  async getActiveCart(
+    @Query('sessionId') sessionId?: string,
+    @GetUser() user?: PayloadToken,
+  ): Promise<Cart | null> {
+    const userId = user?.sub ?? null;
+    return await this.cartsService.getCart(
+      userId ? String(userId) : null,
+      sessionId ?? null,
+    );
+  }
 
   @Post()
   @OptionalAuth()
