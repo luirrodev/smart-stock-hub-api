@@ -224,27 +224,6 @@ export class CartService {
   // }
 
   // /**
-  //  * Obtiene el conteo total de items en el carrito
-  //  * Útil para mostrar el badge/contador en el frontend
-  //  *
-  //  * @param userId - ID del usuario
-  //  * @param sessionId - ID de sesión
-  //  * @returns Número total de items
-  //  */
-  // async getCartItemCount(
-  //   userId: string | null,
-  //   sessionId: string | null,
-  // ): Promise<number> {
-  //   const cart = await this.getCart(userId, sessionId);
-
-  //   if (!cart || !cart.items) {
-  //     return 0;
-  //   }
-
-  //   return cart.items.reduce((total, item) => total + item.quantity, 0);
-  // }
-
-  // /**
   //  * Fusiona un carrito de invitado con el carrito del usuario autenticado
   //  * Se ejecuta cuando un usuario invitado hace login
   //  *
