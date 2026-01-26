@@ -20,5 +20,5 @@ export class AddToCartDto extends PickType(CartQueryDto, ['sessionId']) {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  userId?: number | null;
+  customerId?: number | null;
 }
