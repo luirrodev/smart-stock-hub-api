@@ -9,6 +9,8 @@ export class CartResponseDto {
   id: string;
 
   @ApiProperty({
+    description:
+      'ID de sesión del carrito (UUID). Devuelto por el backend cuando se genera para un invitado.',
     example: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
     required: false,
   })
