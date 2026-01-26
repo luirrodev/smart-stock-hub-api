@@ -53,10 +53,7 @@ export class CartsController {
     @GetUser() user?: PayloadToken,
   ): Promise<Cart | null> {
     const userId = user?.sub ?? null;
-    return await this.cartsService.getCart(
-      userId ? String(userId) : null,
-      sessionId ?? null,
-    );
+    return await this.cartsService.getCart(userId, sessionId ?? null);
   }
 
   @Post()
