@@ -13,7 +13,7 @@ import {
 import { Exclude } from 'class-transformer';
 
 import { CartItem } from './cart-item.entity';
-import { Customer } from 'src/customers/entities/customer.entity';
+import { Customer } from '../../customers/entities/customer.entity';
 
 export enum CartStatus {
   ACTIVE = 'active',
@@ -40,7 +40,6 @@ export class Cart {
   @JoinColumn({ name: 'customer_id' })
   customer?: Customer | null;
 
-  @Index()
   @Column({ name: 'customer_id', type: 'int', nullable: true })
   customerId: number | null;
 
