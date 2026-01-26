@@ -55,6 +55,9 @@ export class User {
   @JoinColumn({ name: 'customer_id' })
   customer?: Customer;
 
+  @Column({ name: 'customer_id', type: 'int', nullable: true })
+  customerId: number | null;
+
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'created_by' })
   createdBy: User;
