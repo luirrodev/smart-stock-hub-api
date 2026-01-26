@@ -78,7 +78,7 @@ export class CartService {
    * @returns El carrito con todos sus items o null si no existe
    */
   async getCart(
-    userId: string | null,
+    userId: number | null,
     sessionId: string | null,
   ): Promise<Cart | null> {
     if (!userId && !sessionId) {
