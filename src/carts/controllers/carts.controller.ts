@@ -24,9 +24,12 @@ import {
 import { CartService } from '../services/carts.service';
 import { plainToInstance } from 'class-transformer';
 import { CartResponseDto } from '../dtos/cart-response.dto';
-import { AddToCartDto } from '../dtos/add-to-cart.dto';
-import { GetActiveCartDto } from '../dtos/get-active-cart.dto';
-import { UpdateCartItemQuantityDto } from '../dtos/update-cart-item-quantity.dto';
+import {
+  AddToCartDto,
+  CartQueryDto,
+  UpdateCartItemQuantityDto,
+  ItemParamDto,
+} from '../dtos';
 import { OptionalAuth } from 'src/auth/decorators/optional-auth.decorator';
 import { GetUser } from 'src/auth/decorators/get-user.decorator';
 import { PayloadToken } from 'src/auth/models/token.model';
@@ -65,7 +68,7 @@ export class CartsController {
     type: CartResponseDto,
   })
   async getActiveCart(
-    @Query() query: GetActiveCartDto,
+    @Query() query: CartQueryDto,
     @GetUser() user?: PayloadToken,
   ): Promise<CartResponseDto | null> {
     const userId = user?.sub ?? null;
@@ -105,7 +108,7 @@ export class CartsController {
   })
   async addToCart(
     @Body() dto: AddToCartDto,
-    @Query() query: GetActiveCartDto,
+    @Query() query: CartQueryDto,
     @GetUser() user?: PayloadToken,
   ): Promise<CartResponseDto> {
     // Si el request viene autenticado, usamos el user.sub sobre el body y la query
@@ -138,15 +141,15 @@ export class CartsController {
   })
   @ApiOkResponse({ description: 'Carrito actualizado', type: CartResponseDto })
   async updateCartItemQuantity(
-    @Param('itemId') itemId: string,
+    @Param() params: ItemParamDto,
     @Body() dto: UpdateCartItemQuantityDto,
-    @Query() query: GetActiveCartDto,
+    @Query() query: CartQueryDto,
     @GetUser() user?: PayloadToken,
   ): Promise<CartResponseDto> {
     const userId = user?.sub ?? null;
     const session = query.sessionId ?? null;
     const cart = await this.cartsService.updateCartItemQuantity(
-      itemId,
+      params.itemId,
       dto.quantity,
       userId,
       session,
@@ -159,6 +162,7 @@ export class CartsController {
 
   @Delete('items/:itemId')
   @OptionalAuth()
+  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
   @ApiOperation({ summary: 'Eliminar un item del carrito' })
   @ApiParam({
     name: 'itemId',
@@ -174,11 +178,15 @@ export class CartsController {
   @ApiNoContentResponse({ description: 'Item eliminado correctamente' })
   @HttpCode(204)
   async removeCartItem(
-    @Param('itemId') itemId: string,
-    @Query('sessionId') sessionId?: string,
+    @Param() params: ItemParamDto,
+    @Query() query: CartQueryDto,
     @GetUser() user?: PayloadToken,
   ): Promise<void> {
     const userId = user?.sub ?? null;
-    await this.cartsService.removeCartItem(itemId, userId, sessionId ?? null);
+    await this.cartsService.removeCartItem(
+      params.itemId,
+      userId,
+      query.sessionId ?? null,
+    );
   }
 }
