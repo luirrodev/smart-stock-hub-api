@@ -59,12 +59,12 @@ export class CartsController {
   @Get()
   @OptionalAuth()
   @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
-  @ApiOperation({ summary: 'Obtener carrito activo del usuario o invitado' })
+  @ApiOperation({ summary: 'Obtener carrito activo del cliente o invitado' })
   @ApiQuery({
     name: 'sessionId',
     required: false,
     description:
-      'ID de sesión para usuarios invitados (UUID). Debe viajar en query string.',
+      'ID de sesión para clientes invitados (UUID). Debe viajar en query string.',
   })
   @ApiOkResponse({
     description: 'Carrito activo (si existe)',
@@ -93,7 +93,7 @@ export class CartsController {
     name: 'sessionId',
     required: false,
     description:
-      'ID de sesión para usuarios invitados (UUID). Debe viajar en query string. Si se omite, el backend lo generará y lo devolverá en el cuerpo de la respuesta; el frontend debe almacenarlo y reenviarlo en futuras peticiones para mantener el mismo carrito.',
+      'ID de sesión para clientes invitados (UUID). Debe viajar en query string. Si se omite, el backend lo generará y lo devolverá en el cuerpo de la respuesta; el frontend debe almacenarlo y reenviarlo en futuras peticiones para mantener el mismo carrito.',
   })
   @ApiCreatedResponse({
     description:
@@ -140,7 +140,7 @@ export class CartsController {
     name: 'sessionId',
     required: false,
     description:
-      'ID de sesión para usuarios invitados (UUID). Debe viajar en query string.',
+      'ID de sesión para clientes invitados (UUID). Debe viajar en query string.',
   })
   @ApiOkResponse({ description: 'Carrito actualizado', type: CartResponseDto })
   async updateCartItemQuantity(
@@ -176,7 +176,7 @@ export class CartsController {
     name: 'sessionId',
     required: false,
     description:
-      'ID de sesión para usuarios invitados (UUID). Debe viajar en query string.',
+      'ID de sesión para clientes invitados (UUID). Debe viajar en query string.',
   })
   @ApiNoContentResponse({ description: 'Item eliminado correctamente' })
   @HttpCode(204)
@@ -196,12 +196,12 @@ export class CartsController {
   @Delete()
   @OptionalAuth()
   @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
-  @ApiOperation({ summary: 'Vaciar el carrito del usuario o invitado' })
+  @ApiOperation({ summary: 'Vaciar el carrito del cliente o invitado' })
   @ApiQuery({
     name: 'sessionId',
     required: false,
     description:
-      'ID de sesión para usuarios invitados (UUID). Debe viajar en query string.',
+      'ID de sesión para clientes invitados (UUID). Debe viajar en query string.',
   })
   @ApiNoContentResponse({ description: 'Carrito vaciado correctamente' })
   @HttpCode(204)
@@ -217,7 +217,7 @@ export class CartsController {
   @UseGuards(JWTAuthGuard)
   @ApiOperation({
     summary:
-      'Fusionar carrito de invitado con el carrito del usuario (se usa en login)',
+      'Fusionar carrito de invitado con el carrito del cliente (se usa en login)',
   })
   @ApiQuery({
     name: 'sessionId',
