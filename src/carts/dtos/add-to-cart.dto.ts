@@ -1,8 +1,9 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, Min, IsOptional, IsUUID } from 'class-validator';
+import { ApiProperty, PickType } from '@nestjs/swagger';
+import { IsInt, Min, IsOptional } from 'class-validator';
 import { Type } from 'class-transformer';
+import { CartQueryDto } from './cart-query.dto';
 
-export class AddToCartDto {
+export class AddToCartDto extends PickType(CartQueryDto, ['sessionId']) {
   @ApiProperty({ description: 'ID interno del producto', example: 123 })
   @Type(() => Number)
   @IsInt()
@@ -14,10 +15,6 @@ export class AddToCartDto {
   @IsInt()
   @Min(1)
   quantity: number;
-
-  @IsOptional()
-  @IsUUID()
-  sessionId?: string | null;
 
   @IsOptional()
   @Type(() => Number)

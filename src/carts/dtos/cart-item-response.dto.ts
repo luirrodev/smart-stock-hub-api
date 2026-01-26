@@ -1,6 +1,5 @@
 import { Expose, Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
-import { ProductListDto } from 'src/products/dtos/product-response.dto';
 import { ProductInCartDto } from './product-in-cart-dto';
 
 export class CartItemResponseDto {
