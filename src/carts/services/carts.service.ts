@@ -210,119 +210,118 @@ export class CartService {
     await this.updateCartActivity(cart.id);
   }
 
-  // /**
-  //  * Fusiona un carrito de invitado con el carrito del usuario autenticado
-  //  * Se ejecuta cuando un usuario invitado hace login
-  //  *
-  //  * @param userId - ID del usuario que acaba de autenticarse
-  //  * @param sessionId - ID de sesión del carrito de invitado
-  //  * @returns El carrito fusionado
-  //  *
-  //  * Estrategia de fusión:
-  //  * 1. Obtiene carrito de invitado (sessionId)
-  //  * 2. Obtiene carrito de usuario (userId)
-  //  * 3. Si ambos existen, fusiona los items (suma cantidades de duplicados)
-  //  * 4. Si solo existe uno, lo vincula al usuario
-  //  * 5. Marca el carrito de invitado como convertido
-  //  */
-  // async mergeGuestCartWithUserCart(
-  //   userId: string,
-  //   sessionId: string,
-  // ): Promise<Cart> {
-  //   this.logger.log(
-  //     `Merging guest cart (session: ${sessionId}) with user cart (user: ${userId})`,
-  //   );
+  /**
+   * Fusiona un carrito de invitado con el carrito del usuario autenticado
+   * Se ejecuta cuando un usuario invitado hace login
+   *
+   * @param userId - ID del usuario que acaba de autenticarse
+   * @param sessionId - ID de sesión del carrito de invitado
+   * @returns El carrito fusionado
+   *
+   * Estrategia de fusión:
+   * 1. Obtiene carrito de invitado (sessionId)
+   * 2. Obtiene carrito de usuario (userId)
+   * 3. Si ambos existen, fusiona los items (suma cantidades de duplicados)
+   * 4. Si solo existe uno, lo vincula al usuario
+   * 5. Marca el carrito de invitado como convertido
+   */
+  async mergeGuestCartWithUserCart(
+    userId: number,
+    sessionId: string,
+  ): Promise<Cart> {
+    if (!sessionId) {
+      throw new BadRequestException(
+        'sessionId es requerido para fusionar carritos',
+      );
+    }
 
-  //   // 1. Obtener carrito de invitado
-  //   const guestCart = await this.cartRepository.findOne({
-  //     where: {
-  //       sessionId,
-  //       status: CartStatus.ACTIVE,
-  //     },
-  //     relations: ['items', 'items.product'],
-  //   });
+    // Reusar helpers y ejecutar en transacción para consistencia
+    return await this.cartRepository.manager.transaction(async (manager) => {
+      const cartRepo = manager.getRepository(Cart);
+      const cartItemRepo = manager.getRepository(CartItem);
 
-  //   // 2. Obtener carrito de usuario autenticado
-  //   const userCart = await this.cartRepository.findOne({
-  //     where: {
-  //       user: { id: userId },
-  //       status: CartStatus.ACTIVE,
-  //     },
-  //     relations: ['items', 'items.product'],
-  //   });
+      // Obtener carrito de invitado y de usuario con sus items
+      const guestCart = await cartRepo.findOne({
+        where: {
+          sessionId,
+          status: CartStatus.ACTIVE,
+        },
+        relations: ['items', 'items.product'],
+      });
 
-  //   // Caso 1: Solo existe el carrito de invitado
-  //   if (guestCart && !userCart) {
-  //     this.logger.log('Only guest cart exists, converting to user cart');
+      let userCart = await cartRepo.findOne({
+        where: {
+          userId,
+          status: CartStatus.ACTIVE,
+        },
+        relations: ['items', 'items.product'],
+      });
 
-  //     guestCart.user = { id: userId } as any;
-  //     guestCart.sessionId = null;
-  //     guestCart.lastActivityAt = new Date();
+      // Si no hay carrito de invitado
+      if (!guestCart) {
+        if (userCart) return userCart;
+        return this.createCart(userId, null);
+      }
 
-  //     await this.cartRepository.save(guestCart);
-  //     return this.getCartById(guestCart.id);
-  //   }
+      // Si existe invitado pero no usuario -> vincular
+      if (!userCart) {
+        guestCart.user = { id: userId } as any;
+        guestCart.sessionId = null;
+        guestCart.expiresAt = null;
+        guestCart.lastActivityAt = new Date();
 
-  //   // Caso 2: Solo existe el carrito de usuario (o ninguno existe)
-  //   if (!guestCart) {
-  //     this.logger.log(
-  //       'No guest cart found, using user cart or creating new one',
-  //     );
+        await cartRepo.save(guestCart);
+        return this.getCartById(guestCart.id);
+      }
 
-  //     if (userCart) {
-  //       return userCart;
-  //     }
+      // Ambos existen: fusionar items
+      for (const guestItem of guestCart.items) {
+        // Validar que el producto siga activo y respetar reglas de negocio
+        let product;
+        try {
+          product = await this.validateProduct(guestItem.productId);
+        } catch (err) {
+          // Si el producto ya no está activo o no existe, omitirlo
+          console.warn(
+            `Skipping merge of product ${guestItem.productId}: ${err.message}`,
+          );
+          continue;
+        }
 
-  //     // Crear nuevo carrito para el usuario
-  //     return this.createCart(userId, null);
-  //   }
+        const existingUserItem = this.findExistingItem(
+          userCart,
+          guestItem.productId,
+        );
 
-  //   // Caso 3: Ambos carritos existen, fusionar
-  //   this.logger.log('Both carts exist, merging items');
+        if (existingUserItem) {
+          const requestedQuantity =
+            existingUserItem.quantity + guestItem.quantity;
+          existingUserItem.quantity = Math.min(
+            requestedQuantity,
+            product.stock,
+          );
+          await cartItemRepo.save(existingUserItem);
+        } else {
+          // Ajustar cantidad al stock disponible
+          guestItem.quantity = Math.min(guestItem.quantity, product.stock);
+          // Mantener el price snapshot del item invitado (coherente con que el item ya existía)
+          guestItem.cartId = userCart.id;
+          await cartItemRepo.save(guestItem);
+        }
+      }
 
-  //   // Fusionar items del carrito de invitado al carrito de usuario
-  //   for (const guestItem of guestCart.items) {
-  //     // Buscar si el producto ya existe en el carrito de usuario
-  //     const existingUserItem = userCart.items.find(
-  //       (item) =>
-  //         item.productId === guestItem.productId &&
-  //         JSON.stringify(item.variant) === JSON.stringify(guestItem.variant),
-  //     );
+      // Marcar carrito invitado como convertido y limpiar session/expiración
+      guestCart.status = CartStatus.CONVERTED;
+      guestCart.sessionId = null;
+      guestCart.expiresAt = null;
+      await cartRepo.save(guestCart);
 
-  //     if (existingUserItem) {
-  //       // El producto ya existe, sumar cantidades
-  //       const newQuantity = existingUserItem.quantity + guestItem.quantity;
+      // Actualizar actividad del carrito de usuario
+      await this.updateCartActivity(userCart.id);
 
-  //       // Validar stock
-  //       if (newQuantity > guestItem.product.stock) {
-  //         this.logger.warn(
-  //           `Cannot merge item ${guestItem.productId}: insufficient stock`,
-  //         );
-  //         // Usar la cantidad máxima disponible
-  //         existingUserItem.quantity = guestItem.product.stock;
-  //       } else {
-  //         existingUserItem.quantity = newQuantity;
-  //       }
-
-  //       await this.cartItemRepository.save(existingUserItem);
-  //     } else {
-  //       // El producto no existe, mover el item al carrito de usuario
-  //       guestItem.cartId = userCart.id;
-  //       await this.cartItemRepository.save(guestItem);
-  //     }
-  //   }
-
-  //   // Marcar el carrito de invitado como convertido
-  //   guestCart.status = CartStatus.CONVERTED;
-  //   await this.cartRepository.save(guestCart);
-
-  //   // Actualizar actividad del carrito de usuario
-  //   await this.updateCartActivity(userCart.id);
-
-  //   this.logger.log('Cart merge completed successfully');
-
-  //   return this.getCartById(userCart.id);
-  // }
+      return this.getCartById(userCart.id);
+    });
+  }
 
   // ========================================================================
   // MÉTODOS PRIVADOS / HELPERS
