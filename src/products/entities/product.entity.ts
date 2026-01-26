@@ -62,6 +62,9 @@ export class Product {
   @Column({ name: 'is_imported', type: 'boolean', default: false })
   isImported: boolean;
 
+  @Column({ name: 'is_active', type: 'boolean', default: true })
+  isActive: boolean;
+
   // Marcas de tiempo / borrado lógico
   @Exclude()
   @CreateDateColumn({
