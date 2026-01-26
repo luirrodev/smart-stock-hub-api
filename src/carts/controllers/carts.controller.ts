@@ -34,7 +34,7 @@ import { OptionalAuth } from 'src/auth/decorators/optional-auth.decorator';
 import { GetUser } from 'src/auth/decorators/get-user.decorator';
 import { PayloadToken } from 'src/auth/models/token.model';
 
-@ApiTags('carts')
+@ApiTags('Carts')
 @Controller('carts')
 export class CartsController {
   constructor(private readonly cartsService: CartService) {}
