@@ -123,8 +123,6 @@ export class CartService {
   //   userId: string | null,
   //   sessionId: string | null,
   // ): Promise<Cart> {
-  //   this.logger.log(`Updating item ${itemId} quantity to ${quantity}`);
-
   //   // Validar cantidad mínima
   //   if (quantity < 1) {
   //     throw new BadRequestException('Quantity must be at least 1');
@@ -162,40 +160,38 @@ export class CartService {
   //   return this.getCartById(cartItem.cartId);
   // }
 
-  // /**
-  //  * Elimina un item específico del carrito
-  //  *
-  //  * @param itemId - ID del item a eliminar
-  //  * @param userId - ID del usuario (para validar permisos)
-  //  * @param sessionId - ID de sesión (para validar permisos)
-  //  */
-  // async removeCartItem(
-  //   itemId: string,
-  //   userId: string | null,
-  //   sessionId: string | null,
-  // ): Promise<void> {
-  //   this.logger.log(`Removing item ${itemId} from cart`);
+  /**
+   * Elimina un item específico del carrito
+   *
+   * @param itemId - ID del item a eliminar
+   * @param userId - ID del usuario (para validar permisos)
+   * @param sessionId - ID de sesión (para validar permisos)
+   */
+  async removeCartItem(
+    itemId: string,
+    userId: number | null,
+    sessionId: string | null,
+  ): Promise<void> {
+    const cartItem = await this.cartItemRepository.findOne({
+      where: { id: itemId },
+      relations: ['cart', 'cart.user'],
+    });
 
-  //   const cartItem = await this.cartItemRepository.findOne({
-  //     where: { id: itemId },
-  //     relations: ['cart', 'cart.user'],
-  //   });
+    if (!cartItem) {
+      throw new NotFoundException(
+        `No se encontró el item de carrito con ID ${itemId}`,
+      );
+    }
 
-  //   if (!cartItem) {
-  //     throw new NotFoundException(`Cart item with ID ${itemId} not found`);
-  //   }
+    // Verificar propiedad del carrito
+    this.validateCartOwnership(cartItem.cart, userId, sessionId);
 
-  //   // Verificar propiedad del carrito
-  //   this.validateCartOwnership(cartItem.cart, userId, sessionId);
+    // Soft delete del item
+    await this.cartItemRepository.softRemove(cartItem);
 
-  //   // Soft delete del item
-  //   await this.cartItemRepository.softRemove(cartItem);
-
-  //   // Actualizar última actividad
-  //   await this.updateCartActivity(cartItem.cartId);
-
-  //   this.logger.log(`Item ${itemId} removed successfully`);
-  // }
+    // Actualizar última actividad
+    await this.updateCartActivity(cartItem.cartId);
+  }
 
   // /**
   //  * Vacía completamente el carrito (elimina todos los items)
@@ -510,67 +506,57 @@ export class CartService {
     return cart;
   }
 
-  // /**
-  //  * Valida que un carrito pertenece al usuario/sesión especificado
-  //  * Lanza excepción si no coincide
-  //  */
-  // private validateCartOwnership(
-  //   cart: Cart,
-  //   userId: string | null,
-  //   sessionId: string | null,
-  // ): void {
-  //   const ownsCart = userId
-  //     ? cart.user?.id === userId
-  //     : cart.sessionId === sessionId;
+  /**
+   * Valida que un carrito pertenece al usuario/sesión especificado
+   * Lanza excepción si no coincide
+   */
+  private validateCartOwnership(
+    cart: Cart,
+    userId: number | null,
+    sessionId: string | null,
+  ): void {
+    const ownsCart = userId
+      ? cart.user?.id === userId
+      : cart.sessionId === sessionId;
 
-  //   if (!ownsCart) {
-  //     throw new BadRequestException(
-  //       'This cart does not belong to the current user/session',
-  //     );
-  //   }
-  // }
+    if (!ownsCart) {
+      throw new BadRequestException(
+        'Este carrito no pertenece al usuario/sesión actual',
+      );
+    }
+  }
 
-  // /**
-  //  * Marca carritos expirados como EXPIRED
-  //  * Este método debería ejecutarse periódicamente (cron job)
-  //  */
-  // async expireOldCarts(): Promise<void> {
-  //   this.logger.log('Running cart expiration job');
+  /**
+   * Marca carritos expirados como EXPIRED
+   * Este método debería ejecutarse periódicamente (cron job)
+   */
+  async expireOldCarts(): Promise<void> {
+    const now = new Date();
 
-  //   const now = new Date();
+    const result = await this.cartRepository
+      .createQueryBuilder()
+      .update(Cart)
+      .set({ status: CartStatus.EXPIRED })
+      .where('status = :status', { status: CartStatus.ACTIVE })
+      .andWhere('expires_at IS NOT NULL')
+      .andWhere('expires_at < :now', { now })
+      .execute();
+  }
 
-  //   const result = await this.cartRepository
-  //     .createQueryBuilder()
-  //     .update(Cart)
-  //     .set({ status: CartStatus.EXPIRED })
-  //     .where('status = :status', { status: CartStatus.ACTIVE })
-  //     .andWhere('expires_at IS NOT NULL')
-  //     .andWhere('expires_at < :now', { now })
-  //     .execute();
+  /**
+   * Marca carritos como abandonados si no han tenido actividad en X días
+   * Este método debería ejecutarse periódicamente (cron job)
+   */
+  async markAbandonedCarts(daysInactive: number = 7): Promise<void> {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysInactive);
 
-  //   this.logger.log(`Expired ${result.affected} carts`);
-  // }
-
-  // /**
-  //  * Marca carritos como abandonados si no han tenido actividad en X días
-  //  * Este método debería ejecutarse periódicamente (cron job)
-  //  */
-  // async markAbandonedCarts(daysInactive: number = 7): Promise<void> {
-  //   this.logger.log(
-  //     `Marking carts abandoned after ${daysInactive} days of inactivity`,
-  //   );
-
-  //   const cutoffDate = new Date();
-  //   cutoffDate.setDate(cutoffDate.getDate() - daysInactive);
-
-  //   const result = await this.cartRepository
-  //     .createQueryBuilder()
-  //     .update(Cart)
-  //     .set({ status: CartStatus.ABANDONED })
-  //     .where('status = :status', { status: CartStatus.ACTIVE })
-  //     .andWhere('last_activity_at < :cutoffDate', { cutoffDate })
-  //     .execute();
-
-  //   this.logger.log(`Marked ${result.affected} carts as abandoned`);
-  // }
+    const result = await this.cartRepository
+      .createQueryBuilder()
+      .update(Cart)
+      .set({ status: CartStatus.ABANDONED })
+      .where('status = :status', { status: CartStatus.ACTIVE })
+      .andWhere('last_activity_at < :cutoffDate', { cutoffDate })
+      .execute();
+  }
 }
