@@ -222,12 +222,16 @@ export class AuthService {
     // Actualizar lastLoginAt (solo en login con credenciales)
     await this.userService.updateLastLogin(userData.id);
 
+    const { id: customerId } = await this.customersService.findByUserId(
+      userData.id,
+    );
+
     const payload: PayloadToken = {
       role: userData.role.name,
       roleId: userData.role.id,
       roleVersion: userData.role.version,
       sub: userData.id,
-      customerId: userData.customer ? userData.customer.id : null,
+      customerId: customerId,
     };
 
     const access_token = await this.jwtService.sign(payload, {
