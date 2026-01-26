@@ -1,12 +1,4 @@
-import {
-  Controller,
-  Get,
-  Param,
-  ParseIntPipe,
-  Post,
-  Body,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, Post, Body, Query } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -20,7 +12,6 @@ import { CartResponseDto } from '../dtos/cart-response.dto';
 import { AddToCartDto } from '../dtos/add-to-cart.dto';
 import { OptionalAuth } from 'src/auth/decorators/optional-auth.decorator';
 import { GetUser } from 'src/auth/decorators/get-user.decorator';
-import { User } from 'src/access-control/users/entities/user.entity';
 import { PayloadToken } from 'src/auth/models/token.model';
 
 @ApiTags('carts')
