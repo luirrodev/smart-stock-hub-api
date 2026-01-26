@@ -3,6 +3,7 @@ export interface PayloadToken {
   roleId: number;
   roleVersion: number;
   sub: number;
+  customerId?: number | null;
 }
 
 export interface UserPermissionsCache {

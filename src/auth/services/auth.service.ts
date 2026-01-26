@@ -227,6 +227,7 @@ export class AuthService {
       roleId: userData.role.id,
       roleVersion: userData.role.version,
       sub: userData.id,
+      customerId: userData.customer ? userData.customer.id : null,
     };
 
     const access_token = await this.jwtService.sign(payload, {
