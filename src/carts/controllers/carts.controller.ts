@@ -74,9 +74,9 @@ export class CartsController {
     @Query() query: CartQueryDto,
     @GetUser() user?: PayloadToken,
   ): Promise<CartResponseDto | null> {
-    const userId = user?.sub ?? null;
+    const customerId = user?.customerId ?? null;
     const cart = await this.cartsService.getCart(
-      userId,
+      customerId,
       query.sessionId ?? null,
     );
     return cart
@@ -117,7 +117,7 @@ export class CartsController {
     // Si el request viene autenticado, usamos el user.sub sobre el body y la query
     const payload: AddToCartDto = {
       ...dto,
-      userId: user?.sub ?? null,
+      customerId: user?.customerId ?? null,
       sessionId: query.sessionId ?? null,
     };
 
@@ -149,12 +149,12 @@ export class CartsController {
     @Query() query: CartQueryDto,
     @GetUser() user?: PayloadToken,
   ): Promise<CartResponseDto> {
-    const userId = user?.sub ?? null;
+    const customerId = user?.customerId ?? null;
     const session = query.sessionId ?? null;
     const cart = await this.cartsService.updateCartItemQuantity(
       params.itemId,
       dto.quantity,
-      userId,
+      customerId,
       session,
     );
 
@@ -185,10 +185,10 @@ export class CartsController {
     @Query() query: CartQueryDto,
     @GetUser() user?: PayloadToken,
   ): Promise<void> {
-    const userId = user?.sub ?? null;
+    const customerId = user?.customerId ?? null;
     await this.cartsService.removeCartItem(
       params.itemId,
-      userId,
+      customerId,
       query.sessionId ?? null,
     );
   }
@@ -209,8 +209,8 @@ export class CartsController {
     @Query() query: CartQueryDto,
     @GetUser() user?: PayloadToken,
   ): Promise<void> {
-    const userId = user?.sub ?? null;
-    await this.cartsService.clearCart(userId, query.sessionId ?? null);
+    const customerId = user?.customerId ?? null;
+    await this.cartsService.clearCart(customerId, query.sessionId ?? null);
   }
 
   @Post('merge')
@@ -230,7 +230,7 @@ export class CartsController {
     @Query() query: CartQueryDto,
     @GetUser() user: PayloadToken,
   ): Promise<CartResponseDto> {
-    const userId = user.sub;
+    const customerId = user.customerId;
     const sessionId = query.sessionId ?? null;
 
     if (!sessionId) {
@@ -239,8 +239,14 @@ export class CartsController {
       );
     }
 
+    if (!customerId) {
+      throw new BadRequestException(
+        'customerId es requerido para fusionar carritos',
+      );
+    }
+
     const cart = await this.cartsService.mergeGuestCartWithUserCart(
-      userId,
+      customerId,
       sessionId,
     );
 
