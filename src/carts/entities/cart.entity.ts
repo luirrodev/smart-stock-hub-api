@@ -12,8 +12,8 @@ import {
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
 
-import { User } from '../../access-control/users/entities/user.entity';
 import { CartItem } from './cart-item.entity';
+import { Customer } from 'src/customers/entities/customer.entity';
 
 export enum CartStatus {
   ACTIVE = 'active',
@@ -34,15 +34,15 @@ export class Cart {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  // Usuario asociado, NULLABLE para carritos de invitados
+  // Cliente asociado, NULLABLE para carritos de invitados
   @Index()
-  @ManyToOne(() => User, { nullable: true })
-  @JoinColumn({ name: 'user_id' })
-  user?: User | null;
+  @ManyToOne(() => Customer, { nullable: true })
+  @JoinColumn({ name: 'customer_id' })
+  customer?: Customer | null;
 
   @Index()
-  @Column({ name: 'user_id', type: 'int', nullable: true })
-  userId: number | null;
+  @Column({ name: 'customer_id', type: 'int', nullable: true })
+  customerId: number | null;
 
   @Index()
   @Column({ name: 'session_id', type: 'uuid', nullable: true })
