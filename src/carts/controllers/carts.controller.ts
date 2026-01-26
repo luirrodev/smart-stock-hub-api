@@ -189,4 +189,24 @@ export class CartsController {
       query.sessionId ?? null,
     );
   }
+
+  @Delete()
+  @OptionalAuth()
+  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
+  @ApiOperation({ summary: 'Vaciar el carrito del usuario o invitado' })
+  @ApiQuery({
+    name: 'sessionId',
+    required: false,
+    description:
+      'ID de sesión para usuarios invitados (UUID). Debe viajar en query string.',
+  })
+  @ApiNoContentResponse({ description: 'Carrito vaciado correctamente' })
+  @HttpCode(204)
+  async clearCart(
+    @Query() query: CartQueryDto,
+    @GetUser() user?: PayloadToken,
+  ): Promise<void> {
+    const userId = user?.sub ?? null;
+    await this.cartsService.clearCart(userId, query.sessionId ?? null);
+  }
 }
