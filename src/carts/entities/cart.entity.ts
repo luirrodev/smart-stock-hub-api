@@ -41,6 +41,10 @@ export class Cart {
   user?: User | null;
 
   @Index()
+  @Column({ name: 'user_id', type: 'int', nullable: true })
+  userId: number | null;
+
+  @Index()
   @Column({ name: 'session_id', type: 'uuid', nullable: true })
   sessionId: string | null;
 
