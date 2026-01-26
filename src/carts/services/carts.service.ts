@@ -187,35 +187,28 @@ export class CartService {
     await this.updateCartActivity(cartItem.cartId);
   }
 
-  // /**
-  //  * Vacía completamente el carrito (elimina todos los items)
-  //  *
-  //  * @param userId - ID del usuario
-  //  * @param sessionId - ID de sesión
-  //  */
-  // async clearCart(
-  //   userId: string | null,
-  //   sessionId: string | null,
-  // ): Promise<void> {
-  //   this.logger.log(
-  //     `Clearing cart for userId: ${userId}, sessionId: ${sessionId}`,
-  //   );
+  /**
+   * Vacía completamente el carrito (elimina todos los items)
+   *
+   * @param userId - ID del usuario
+   * @param sessionId - ID de sesión
+   */
+  async clearCart(
+    userId: number | null,
+    sessionId: string | null,
+  ): Promise<void> {
+    const cart = await this.getCart(userId, sessionId);
 
-  //   const cart = await this.getCart(userId, sessionId);
+    if (!cart || !cart.items || cart.items.length === 0) {
+      return; // No hay nada que hacer
+    }
 
-  //   if (!cart || !cart.items || cart.items.length === 0) {
-  //     this.logger.log('Cart is already empty or does not exist');
-  //     return; // No hay nada que hacer
-  //   }
+    // Soft delete de todos los items
+    await this.cartItemRepository.softRemove(cart.items);
 
-  //   // Soft delete de todos los items
-  //   await this.cartItemRepository.softRemove(cart.items);
-
-  //   // Actualizar última actividad
-  //   await this.updateCartActivity(cart.id);
-
-  //   this.logger.log('Cart cleared successfully');
-  // }
+    // Actualizar última actividad
+    await this.updateCartActivity(cart.id);
+  }
 
   // /**
   //  * Fusiona un carrito de invitado con el carrito del usuario autenticado
