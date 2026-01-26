@@ -59,6 +59,13 @@ export class Cart {
   })
   items: CartItem[];
 
+  @Column({
+    name: 'last_activity_at',
+    type: 'timestamptz',
+    default: () => 'CURRENT_TIMESTAMP',
+  })
+  lastActivityAt: Date;
+
   // Marcas de tiempo
   @Exclude()
   @CreateDateColumn({
