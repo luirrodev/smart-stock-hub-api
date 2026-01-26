@@ -27,8 +27,8 @@ export class CartItem {
   cart: Cart;
 
   // Producto añadido
-  @Column({ name: 'product_id', type: 'uuid' })
-  productId: string;
+  @Column({ name: 'product_id' })
+  productId: number;
 
   @ManyToOne(() => Product, { eager: true }) // eager para cargar info del producto
   @JoinColumn({ name: 'product_id' })
