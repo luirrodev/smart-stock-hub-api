@@ -114,7 +114,7 @@ export class CartsController {
     @Query() query: CartQueryDto,
     @GetUser() user?: PayloadToken,
   ): Promise<CartResponseDto> {
-    // Si el request viene autenticado, usamos el user.sub sobre el body y la query
+    // Si el request viene autenticado, usamos el user.customerId sobre el body y la query
     const payload: AddToCartDto = {
       ...dto,
       customerId: user?.customerId ?? null,

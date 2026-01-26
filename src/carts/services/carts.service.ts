@@ -223,7 +223,7 @@ export class CartService {
    *
    * Estrategia de fusión:
    * 1. Obtiene carrito de invitado (sessionId)
-   * 2. Obtiene carrito de usuario (userId)
+   * 2. Obtiene carrito de customer (customerId)
    * 3. Si ambos existen, fusiona los items (suma cantidades de duplicados)
    * 4. Si solo existe uno, lo vincula al usuario
    * 5. Marca el carrito de invitado como convertido
