@@ -39,10 +39,10 @@ export class CartService {
    *
    */
   async addToCart(data: AddToCartDto): Promise<Cart> {
-    let { productId, quantity, sessionId, userId } = data;
+    let { productId, quantity, sessionId, customerId } = data;
 
     // Si el request es de invitado y no viene sessionId, lo generamos aquí y lo colocamos en `data`
-    if (!userId && !sessionId) {
+    if (!customerId && !sessionId) {
       sessionId = uuidv4();
       data.sessionId = sessionId;
     }
@@ -51,7 +51,10 @@ export class CartService {
     const product = await this.validateProduct(productId);
 
     // 2. Buscar o crear el carrito
-    let cart = await this.findOrCreateCart(userId ?? null, sessionId ?? null);
+    let cart = await this.findOrCreateCart(
+      customerId ?? null,
+      sessionId ?? null,
+    );
 
     // 3. Verificar si el producto ya está en el carrito
     const existingItem = this.findExistingItem(cart, productId);
@@ -74,17 +77,17 @@ export class CartService {
   /**
    * Obtiene el carrito activo del usuario/invitado
    *
-   * @param userId - ID del usuario autenticado (opcional)
+   * @param customerId - ID del usuario autenticado (opcional)
    * @param sessionId - ID de sesión para invitados (opcional)
    * @returns El carrito con todos sus items o null si no existe
    */
   async getCart(
-    userId: number | null,
+    customerId: number | null,
     sessionId: string | null,
   ): Promise<Cart | null> {
-    if (!userId && !sessionId) {
+    if (!customerId && !sessionId) {
       throw new BadRequestException(
-        'Debe proporcionar al menos uno de los siguientes: userId o sessionId',
+        'Debe proporcionar al menos uno de los siguientes: customerId o sessionId',
       );
     }
 
@@ -93,8 +96,8 @@ export class CartService {
       status: CartStatus.ACTIVE,
     };
 
-    if (userId) {
-      whereCondition.user = { id: userId };
+    if (customerId) {
+      whereCondition.customer = { id: customerId };
     } else if (sessionId) {
       whereCondition.sessionId = sessionId;
     }
@@ -102,7 +105,7 @@ export class CartService {
     // Buscar el carrito con sus items y productos relacionados
     const cart = await this.cartRepository.findOne({
       where: whereCondition,
-      relations: ['items', 'items.product', 'user'],
+      relations: ['items', 'items.product', 'customer'],
     });
 
     return cart;
@@ -113,26 +116,26 @@ export class CartService {
    *
    * @param itemId - ID del item a actualizar
    * @param quantity - Nueva cantidad
-   * @param userId - ID del usuario (para validar permisos)
+   * @param customerId - ID del usuario (para validar permisos)
    * @param sessionId - ID de sesión (para validar permisos)
    * @returns El carrito actualizado
    */
   async updateCartItemQuantity(
     itemId: string,
     quantity: number,
-    userId: number | null,
+    customerId: number | null,
     sessionId: string | null,
   ): Promise<Cart> {
-    if (userId === null && sessionId === null) {
+    if (customerId === null && sessionId === null) {
       throw new BadRequestException(
-        'Debe proporcionar al menos uno de los siguientes: userId o sessionId',
+        'Debe proporcionar al menos uno de los siguientes: customerId o sessionId',
       );
     }
 
     // Buscar el item con sus relaciones
     const cartItem = await this.cartItemRepository.findOne({
       where: { id: itemId },
-      relations: ['cart', 'cart.user', 'product'],
+      relations: ['cart', 'cart.customer', 'product'],
     });
 
     if (!cartItem) {
@@ -142,7 +145,7 @@ export class CartService {
     }
 
     // Verificar que el item pertenece al carrito del usuario/invitado
-    this.validateCartOwnership(cartItem.cart, userId, sessionId);
+    this.validateCartOwnership(cartItem.cart, customerId, sessionId);
 
     // Actualizar cantidad
     cartItem.quantity = quantity;
@@ -158,17 +161,17 @@ export class CartService {
    * Elimina un item específico del carrito
    *
    * @param itemId - ID del item a eliminar
-   * @param userId - ID del usuario (para validar permisos)
+   * @param customerId - ID del usuario (para validar permisos)
    * @param sessionId - ID de sesión (para validar permisos)
    */
   async removeCartItem(
     itemId: string,
-    userId: number | null,
+    customerId: number | null,
     sessionId: string | null,
   ): Promise<void> {
     const cartItem = await this.cartItemRepository.findOne({
       where: { id: itemId },
-      relations: ['cart', 'cart.user'],
+      relations: ['cart', 'cart.customer'],
     });
 
     if (!cartItem) {
@@ -178,7 +181,7 @@ export class CartService {
     }
 
     // Verificar propiedad del carrito
-    this.validateCartOwnership(cartItem.cart, userId, sessionId);
+    this.validateCartOwnership(cartItem.cart, customerId, sessionId);
 
     // Soft delete del item
     await this.cartItemRepository.softRemove(cartItem);
@@ -190,14 +193,14 @@ export class CartService {
   /**
    * Vacía completamente el carrito (elimina todos los items)
    *
-   * @param userId - ID del usuario
+   * @param customerId - ID del usuario
    * @param sessionId - ID de sesión
    */
   async clearCart(
-    userId: number | null,
+    customerId: number | null,
     sessionId: string | null,
   ): Promise<void> {
-    const cart = await this.getCart(userId, sessionId);
+    const cart = await this.getCart(customerId, sessionId);
 
     if (!cart || !cart.items || cart.items.length === 0) {
       return; // No hay nada que hacer
@@ -214,7 +217,7 @@ export class CartService {
    * Fusiona un carrito de invitado con el carrito del usuario autenticado
    * Se ejecuta cuando un usuario invitado hace login
    *
-   * @param userId - ID del usuario que acaba de autenticarse
+   * @param customerId - ID del usuario que acaba de autenticarse
    * @param sessionId - ID de sesión del carrito de invitado
    * @returns El carrito fusionado
    *
@@ -226,7 +229,7 @@ export class CartService {
    * 5. Marca el carrito de invitado como convertido
    */
   async mergeGuestCartWithUserCart(
-    userId: number,
+    customerId: number,
     sessionId: string,
   ): Promise<Cart> {
     // Reusar helpers y ejecutar en transacción para consistencia
@@ -245,7 +248,7 @@ export class CartService {
 
       let userCart = await cartRepo.findOne({
         where: {
-          userId,
+          customerId,
           status: CartStatus.ACTIVE,
         },
         relations: ['items', 'items.product'],
@@ -254,12 +257,12 @@ export class CartService {
       // Si no hay carrito de invitado
       if (!guestCart) {
         if (userCart) return userCart;
-        return this.createCart(userId, null);
+        return this.createCart(customerId, null);
       }
 
       // Si existe invitado pero no usuario -> vincular
       if (!userCart) {
-        guestCart.user = { id: userId } as any;
+        guestCart.customer = { id: customerId } as any;
         guestCart.sessionId = null;
         guestCart.expiresAt = null;
         guestCart.lastActivityAt = new Date();
@@ -317,7 +320,7 @@ export class CartService {
         .createQueryBuilder('cart')
         .leftJoinAndSelect('cart.items', 'items', 'items.deletedAt IS NULL')
         .leftJoinAndSelect('items.product', 'product')
-        .leftJoinAndSelect('cart.user', 'user')
+        .leftJoinAndSelect('cart.customer', 'customer')
         .where('cart.id = :cartId', { cartId: userCart.id })
         .getOne();
 
@@ -354,7 +357,7 @@ export class CartService {
    * Busca un carrito activo existente o crea uno nuevo
    */
   private async findOrCreateCart(
-    userId: number | null,
+    customerId: number | null,
     sessionId: string | null,
   ): Promise<Cart> {
     // Construir condiciones de búsqueda
@@ -362,8 +365,8 @@ export class CartService {
       status: CartStatus.ACTIVE,
     };
 
-    if (userId) {
-      whereCondition.userId = userId;
+    if (customerId) {
+      whereCondition.customerId = customerId;
     } else if (sessionId) {
       whereCondition.sessionId = sessionId;
     }
@@ -376,7 +379,7 @@ export class CartService {
 
     // Si no existe, crear uno nuevo
     if (!cart) {
-      cart = await this.createCart(userId, sessionId);
+      cart = await this.createCart(customerId, sessionId);
     }
 
     return cart;
@@ -386,17 +389,17 @@ export class CartService {
    * Crea un nuevo carrito
    */
   private async createCart(
-    userId: number | null,
+    customerId: number | null,
     sessionId: string | null,
   ): Promise<Cart> {
     // Calcular fecha de expiración (30 días para invitados)
     const expiresAt =
-      sessionId && !userId
+      sessionId && !customerId
         ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 días
         : null; // NULL para usuarios logueados (no expira)
 
     const cart = this.cartRepository.create({
-      user: userId ? ({ id: userId } as any) : null,
+      customer: customerId ? ({ id: customerId } as any) : null,
       sessionId,
       status: CartStatus.ACTIVE,
       expiresAt,
@@ -471,7 +474,7 @@ export class CartService {
       .createQueryBuilder('cart')
       .leftJoinAndSelect('cart.items', 'items', 'items.deletedAt IS NULL')
       .leftJoinAndSelect('items.product', 'product')
-      .leftJoinAndSelect('cart.user', 'user')
+      .leftJoinAndSelect('cart.customer', 'customer')
       .where('cart.id = :cartId', { cartId })
       .getOne();
 
@@ -488,11 +491,11 @@ export class CartService {
    */
   private validateCartOwnership(
     cart: Cart,
-    userId: number | null,
+    customerId: number | null,
     sessionId: string | null,
   ): void {
-    const ownsCart = userId
-      ? cart.user?.id === userId
+    const ownsCart = customerId
+      ? cart.customer?.id === customerId
       : cart.sessionId === sessionId;
 
     if (!ownsCart) {
