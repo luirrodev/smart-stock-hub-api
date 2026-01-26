@@ -108,57 +108,51 @@ export class CartService {
     return cart;
   }
 
-  // /**
-  //  * Actualiza la cantidad de un item específico en el carrito
-  //  *
-  //  * @param itemId - ID del item a actualizar
-  //  * @param quantity - Nueva cantidad (debe ser >= 1)
-  //  * @param userId - ID del usuario (para validar permisos)
-  //  * @param sessionId - ID de sesión (para validar permisos)
-  //  * @returns El carrito actualizado
-  //  */
-  // async updateCartItemQuantity(
-  //   itemId: string,
-  //   quantity: number,
-  //   userId: string | null,
-  //   sessionId: string | null,
-  // ): Promise<Cart> {
-  //   // Validar cantidad mínima
-  //   if (quantity < 1) {
-  //     throw new BadRequestException('Quantity must be at least 1');
-  //   }
+  /**
+   * Actualiza la cantidad de un item específico en el carrito
+   *
+   * @param itemId - ID del item a actualizar
+   * @param quantity - Nueva cantidad
+   * @param userId - ID del usuario (para validar permisos)
+   * @param sessionId - ID de sesión (para validar permisos)
+   * @returns El carrito actualizado
+   */
+  async updateCartItemQuantity(
+    itemId: string,
+    quantity: number,
+    userId: number | null,
+    sessionId: string | null,
+  ): Promise<Cart> {
+    if (userId === null && sessionId === null) {
+      throw new BadRequestException(
+        'Debe proporcionar al menos uno de los siguientes: userId o sessionId',
+      );
+    }
 
-  //   // Buscar el item con sus relaciones
-  //   const cartItem = await this.cartItemRepository.findOne({
-  //     where: { id: itemId },
-  //     relations: ['cart', 'cart.user', 'product'],
-  //   });
+    // Buscar el item con sus relaciones
+    const cartItem = await this.cartItemRepository.findOne({
+      where: { id: itemId },
+      relations: ['cart', 'cart.user', 'product'],
+    });
 
-  //   if (!cartItem) {
-  //     throw new NotFoundException(`Cart item with ID ${itemId} not found`);
-  //   }
+    if (!cartItem) {
+      throw new NotFoundException(
+        `No se encontró el item del carrito con ID ${itemId}`,
+      );
+    }
 
-  //   // Verificar que el item pertenece al carrito del usuario/invitado
-  //   this.validateCartOwnership(cartItem.cart, userId, sessionId);
+    // Verificar que el item pertenece al carrito del usuario/invitado
+    this.validateCartOwnership(cartItem.cart, userId, sessionId);
 
-  //   // Validar stock disponible
-  //   if (quantity > cartItem.product.stock) {
-  //     throw new BadRequestException(
-  //       `Insufficient stock. Available: ${cartItem.product.stock}, requested: ${quantity}`,
-  //     );
-  //   }
+    // Actualizar cantidad
+    cartItem.quantity = quantity;
+    await this.cartItemRepository.save(cartItem);
 
-  //   // Actualizar cantidad
-  //   cartItem.quantity = quantity;
-  //   await this.cartItemRepository.save(cartItem);
+    // Actualizar última actividad del carrito
+    await this.updateCartActivity(cartItem.cartId);
 
-  //   // Actualizar última actividad del carrito
-  //   await this.updateCartActivity(cartItem.cartId);
-
-  //   this.logger.log(`Item ${itemId} quantity updated successfully`);
-
-  //   return this.getCartById(cartItem.cartId);
-  // }
+    return this.getCartById(cartItem.cartId);
+  }
 
   /**
    * Elimina un item específico del carrito
