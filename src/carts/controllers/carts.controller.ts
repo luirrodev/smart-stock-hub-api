@@ -1,10 +1,21 @@
-import { Controller, Get, Post, Body, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Query,
+  Delete,
+  Param,
+  HttpCode,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiOkResponse,
   ApiCreatedResponse,
   ApiQuery,
+  ApiParam,
+  ApiNoContentResponse,
 } from '@nestjs/swagger';
 
 import { CartService } from '../services/carts.service';
@@ -99,5 +110,30 @@ export class CartsController {
     return plainToInstance(CartResponseDto, cart, {
       excludeExtraneousValues: true,
     });
+  }
+
+  @Delete('items/:itemId')
+  @OptionalAuth()
+  @ApiOperation({ summary: 'Eliminar un item del carrito' })
+  @ApiParam({
+    name: 'itemId',
+    required: true,
+    description: 'ID del item a eliminar',
+  })
+  @ApiQuery({
+    name: 'sessionId',
+    required: false,
+    description:
+      'ID de sesión para usuarios invitados (UUID). Debe viajar en query string.',
+  })
+  @ApiNoContentResponse({ description: 'Item eliminado correctamente' })
+  @HttpCode(204)
+  async removeCartItem(
+    @Param('itemId') itemId: string,
+    @Query('sessionId') sessionId?: string,
+    @GetUser() user?: PayloadToken,
+  ): Promise<void> {
+    const userId = user?.sub ?? null;
+    await this.cartsService.removeCartItem(itemId, userId, sessionId ?? null);
   }
 }
