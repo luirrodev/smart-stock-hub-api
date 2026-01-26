@@ -5,6 +5,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
   ManyToOne,
+  OneToMany,
   JoinColumn,
   Index,
   DeleteDateColumn,
@@ -12,6 +13,8 @@ import {
 import { Exclude } from 'class-transformer';
 
 import { User } from '../../access-control/users/entities/user.entity';
+import { CartItem } from './cart-item.entity';
+
 export enum CartStatus {
   ACTIVE = 'active',
   ABANDONED = 'abandoned',
@@ -21,12 +24,15 @@ export enum CartStatus {
 
 /**
  * Entidad Cart (carts) — representa un carrito de compras.
+ * Soporta tanto usuarios autenticados como invitados (guest).
+ *
+ * Para usuarios autenticados: se vincula mediante user_id
+ * Para invitados: se identifica mediante session_id
  */
 @Entity({ name: 'carts' })
 export class Cart {
-  // Identificador principal (UUID) — Primary Key
-  @PrimaryGeneratedColumn()
-  id: number;
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
   // Usuario asociado, NULLABLE para carritos de invitados
   @Index()
@@ -34,7 +40,7 @@ export class Cart {
   @JoinColumn({ name: 'user_id' })
   user?: User | null;
 
-  // Para usuarios invitados
+  @Index()
   @Column({ name: 'session_id', type: 'uuid', nullable: true })
   sessionId: string | null;
 
@@ -45,6 +51,13 @@ export class Cart {
   // Fecha de expiración (útil para carritos de invitados), NULLABLE
   @Column({ name: 'expires_at', type: 'timestamptz', nullable: true })
   expiresAt: Date | null;
+
+  // Relación con items del carrito
+  @OneToMany(() => CartItem, (cartItem) => cartItem.cart, {
+    cascade: true,
+    eager: true, // Carga automáticamente los items
+  })
+  items: CartItem[];
 
   // Marcas de tiempo
   @Exclude()
@@ -70,4 +83,24 @@ export class Cart {
     nullable: true,
   })
   deletedAt: Date;
+
+  // ✅ NUEVO: Campos calculados virtuales (no se guardan en BD)
+  /**
+   * Calcula el total de items en el carrito
+   */
+  get totalItems(): number {
+    return this.items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+  }
+
+  /**
+   * Calcula el subtotal del carrito (sin impuestos ni envío)
+   */
+  get subtotal(): number {
+    return (
+      this.items?.reduce(
+        (sum, item) => sum + Number(item.price) * item.quantity,
+        0,
+      ) || 0
+    );
+  }
 }
