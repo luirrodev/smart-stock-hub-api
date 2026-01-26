@@ -88,13 +88,13 @@ export class CartService {
     }
 
     // Construir condiciones de búsqueda
-    const whereCondition: any = {
+    const whereCondition: FindOptionsWhere<Cart> = {
       status: CartStatus.ACTIVE,
     };
 
     if (userId) {
       whereCondition.user = { id: userId };
-    } else {
+    } else if (sessionId) {
       whereCondition.sessionId = sessionId;
     }
 
