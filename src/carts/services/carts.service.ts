@@ -229,12 +229,6 @@ export class CartService {
     userId: number,
     sessionId: string,
   ): Promise<Cart> {
-    if (!sessionId) {
-      throw new BadRequestException(
-        'sessionId es requerido para fusionar carritos',
-      );
-    }
-
     // Reusar helpers y ejecutar en transacción para consistencia
     return await this.cartRepository.manager.transaction(async (manager) => {
       const cartRepo = manager.getRepository(Cart);
