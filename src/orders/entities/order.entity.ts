@@ -9,11 +9,13 @@ import {
   Check,
   BeforeInsert,
   BeforeUpdate,
+  OneToMany,
 } from 'typeorm';
 import { Customer } from '../../customers/entities/customer.entity';
 import { PickupPoint } from './pickup-point.entity';
 import { OrderStatus } from './order-status.entity';
 import { Store } from '../../stores/entities/store.entity';
+import { OrderItem } from './order-items.entity';
 
 export enum FulfillmentType {
   SHIPPING = 'shipping',
@@ -77,6 +79,12 @@ export class Order {
 
   @Column({ name: 'pickup_point_id', nullable: true })
   pickupPointId?: number | null;
+
+  // Items del pedido
+  @OneToMany(() => OrderItem, (orderItem) => orderItem.order, {
+    cascade: true,
+  })
+  items: OrderItem[];
 
   // SNAPSHOT DE DIRECCIÓN DE ENVÍO (basada en la estructura de ShippingAddress)
   // Provincia
