@@ -122,8 +122,13 @@ export class Order {
   })
   shippingMiddleName?: string | null;
 
-  @Column({ name: 'shipping_last_name', type: 'varchar', length: 100 })
-  shippingLastName: string;
+  @Column({
+    name: 'shipping_last_name',
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+  })
+  shippingLastName?: string | null;
 
   @Column({
     name: 'shipping_second_last_name',
