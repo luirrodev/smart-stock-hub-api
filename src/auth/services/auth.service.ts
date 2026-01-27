@@ -222,16 +222,26 @@ export class AuthService {
     // Actualizar lastLoginAt (solo en login con credenciales)
     await this.userService.updateLastLogin(userData.id);
 
-    const { id: customerId } = await this.customersService.findByUserId(
-      userData.id,
-    );
+    // Resolve customerId safely: use relation if present, otherwise fetch only when role is 'customer'
+    let customerId: number | null = null;
+    if (userData.customerId != null) {
+      customerId = userData.customerId;
+    } else if (userData.role && userData.role.name === 'customer') {
+      try {
+        const customer = await this.customersService.findByUserId(userData.id);
+        customerId = customer?.id ?? null;
+      } catch (e) {
+        // If not found or error, ignore and leave customerId null
+        customerId = null;
+      }
+    }
 
     const payload: PayloadToken = {
       role: userData.role.name,
       roleId: userData.role.id,
       roleVersion: userData.role.version,
       sub: userData.id,
-      customerId: customerId,
+      ...(customerId != null ? { customerId } : {}),
     };
 
     const access_token = await this.jwtService.sign(payload, {
