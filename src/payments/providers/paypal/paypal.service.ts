@@ -48,6 +48,54 @@ export class PaypalService implements PaymentProviderInterface {
   }
 
   /**
+   * Crea una orden de pago en PayPal
+   * @param credentials - Credenciales de la tienda
+   * @param orderData - Datos de la orden
+   * @param storeId - ID de la tienda (para cache de token)
+   */
+  async createOrder(
+    credentials: PayPalCredentials,
+    orderData: CreatePayPalOrderRequest,
+    storeId: number,
+  ): Promise<PayPalOrderResponse> {
+    const baseUrl = this.getBaseUrl(credentials.mode);
+    const url = `${baseUrl}${PAYPAL_ENDPOINTS.ORDERS}`;
+
+    try {
+      // 1. Obtener access token
+      const accessToken = await this.getAccessToken(storeId, credentials);
+
+      // 2. Crear orden en PayPal usando HttpService
+      const response = await firstValueFrom(
+        this.httpService.post<PayPalOrderResponse>(url, orderData, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }),
+      );
+
+      // 3. Log de éxito
+      this.logger.log(
+        `Orden creada en PayPal. ID: ${response.data.id}, Status: ${response.data.status}`,
+      );
+
+      return response.data;
+    } catch (error) {
+      this.logger.error(
+        'Error creando orden en PayPal:',
+        // Axios errors may expose response.data
+        error.response?.data || error.message || error,
+      );
+
+      // Re-lanzar error con más contexto
+      const message =
+        error.response?.data?.message || error.message || 'Unknown error';
+      throw new Error(`Error de PayPal: ${message}`);
+    }
+  }
+
+  /**
    * Obtiene la URL base de PayPal según el modo (sandbox/production)
    */
   private getBaseUrl(mode: 'sandbox' | 'production'): string {
@@ -66,7 +114,7 @@ export class PaypalService implements PaymentProviderInterface {
    * @param credentials - Credenciales de PayPal
    */
   async getAccessToken(
-    storeId: string,
+    storeId: number,
     credentials: PayPalCredentials,
   ): Promise<string> {
     const cacheKey = `paypal:token:${storeId}`;
