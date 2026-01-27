@@ -6,6 +6,9 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   JoinColumn,
+  Check,
+  BeforeInsert,
+  BeforeUpdate,
 } from 'typeorm';
 import { Customer } from '../../customers/entities/customer.entity';
 import { PickupPoint } from './pickup-point.entity';
@@ -16,6 +19,17 @@ export enum FulfillmentType {
   PICKUP = 'pickup',
 }
 
+@Check(
+  `"fulfillment_type" != 'shipping' OR (
+    "shipping_province" IS NOT NULL AND
+    "shipping_municipality" IS NOT NULL AND
+    "shipping_first_name" IS NOT NULL AND
+    "shipping_last_name" IS NOT NULL AND
+    "shipping_street" IS NOT NULL AND
+    "shipping_number" IS NOT NULL AND
+    "shipping_contact_phone" IS NOT NULL
+  )`,
+)
 @Entity({ name: 'orders' })
 export class Order {
   // Clave primaria (id del pedido)
@@ -65,16 +79,31 @@ export class Order {
 
   // SNAPSHOT DE DIRECCIÓN DE ENVÍO (basada en la estructura de ShippingAddress)
   // Provincia
-  @Column({ name: 'shipping_province', type: 'varchar', length: 100 })
-  shippingProvince: string;
+  @Column({
+    name: 'shipping_province',
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+  })
+  shippingProvince?: string | null;
 
   // Municipio
-  @Column({ name: 'shipping_municipality', type: 'varchar', length: 100 })
-  shippingMunicipality: string;
+  @Column({
+    name: 'shipping_municipality',
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+  })
+  shippingMunicipality?: string | null;
 
   // Nombre y apellidos del destinatario en el momento del pedido
-  @Column({ name: 'shipping_first_name', type: 'varchar', length: 100 })
-  shippingFirstName: string;
+  @Column({
+    name: 'shipping_first_name',
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+  })
+  shippingFirstName?: string | null;
 
   @Column({
     name: 'shipping_middle_name',
@@ -96,11 +125,21 @@ export class Order {
   shippingSecondLastName?: string | null;
 
   // Calle, número, apartamento y piso
-  @Column({ name: 'shipping_street', type: 'varchar', length: 255 })
-  shippingStreet: string;
+  @Column({
+    name: 'shipping_street',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
+  shippingStreet?: string | null;
 
-  @Column({ name: 'shipping_number', type: 'varchar', length: 50 })
-  shippingNumber: string;
+  @Column({
+    name: 'shipping_number',
+    type: 'varchar',
+    length: 50,
+    nullable: true,
+  })
+  shippingNumber?: string | null;
 
   @Column({
     name: 'shipping_apartment',
@@ -145,8 +184,13 @@ export class Order {
   shippingPostalCode?: string | null;
 
   // Teléfono de contacto del destinatario
-  @Column({ name: 'shipping_contact_phone', type: 'varchar', length: 20 })
-  shippingContactPhone: string;
+  @Column({
+    name: 'shipping_contact_phone',
+    type: 'varchar',
+    length: 20,
+    nullable: true,
+  })
+  shippingContactPhone?: string | null;
 
   // Instrucciones adicionales de entrega o referencia de dirección
   @Column({ name: 'shipping_reference', type: 'text', nullable: true })
@@ -262,6 +306,36 @@ export class Order {
     nullable: true,
   })
   shippingCarrier: string | null;
+
+  // Validación: si fulfillmentType es 'shipping', ciertos campos deben existir
+  @BeforeInsert()
+  @BeforeUpdate()
+  validateShippingFields() {
+    if (this.fulfillmentType === FulfillmentType.SHIPPING) {
+      const required = [
+        'shippingProvince',
+        'shippingMunicipality',
+        'shippingFirstName',
+        'shippingLastName',
+        'shippingStreet',
+        'shippingNumber',
+        'shippingContactPhone',
+      ];
+      const missing = required.filter((k) => {
+        const v = (this as any)[k];
+        return (
+          v === null ||
+          v === undefined ||
+          (typeof v === 'string' && v.trim() === '')
+        );
+      });
+      if (missing.length) {
+        throw new Error(
+          `Faltan campos de envío obligatorios para tipo de envío 'a domicilio': ${missing.join(', ')}`,
+        );
+      }
+    }
+  }
 
   // TIMESTAMPS
   // Fecha en que el pedido fue marcado como enviado
