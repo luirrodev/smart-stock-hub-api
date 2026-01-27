@@ -14,14 +14,20 @@ import {
 } from './entities/store-payment-config.entity';
 import { StoresService } from '../stores/services/stores.service';
 import { encrypt } from 'src/common/utils/crypto.util';
+import { PaypalService } from './providers/paypal/paypal.service';
+import { NotFoundException, Logger } from '@nestjs/common';
 
 @Injectable()
 export class PaymentsService {
+  private readonly logger = new Logger('PaymentsService');
+
   constructor(
     @InjectRepository(StorePaymentConfig)
     private readonly storePaymentConfigRepo: Repository<StorePaymentConfig>,
 
     private readonly storesService: StoresService,
+
+    private readonly paypalService: PaypalService,
   ) {}
 
   // Crea la configuración de pago para una tienda
@@ -69,6 +75,16 @@ export class PaymentsService {
     });
 
     await this.storePaymentConfigRepo.save(config);
+
+    // Invalidar token de PayPal para esta tienda (si existía)
+    try {
+      await this.paypalService.invalidateToken(String(storeId));
+    } catch (err) {
+      this.logger.warn(
+        'No se pudo invalidar token de PayPal:',
+        err?.message || err,
+      );
+    }
   }
 
   // Placeholder: obtiene la configuración de pago para la tienda
@@ -78,14 +94,36 @@ export class PaymentsService {
   }
 
   // Placeholder: actualiza la configuración de pago
-  async updateStorePaymentConfig(
-    storeId: number,
-    id: number,
-    dto: UpdatePaymentConfigDto,
-  ): Promise<void> {
-    // TODO: Implementar lógica real
-    return;
-  }
+  // async updateStorePaymentConfig(
+  //   storeId: number,
+  //   id: number,
+  //   dto: UpdatePaymentConfigDto,
+  // ): Promise<void> {
+  //   // Buscar configuración
+  //   const config = await this.storePaymentConfigRepo.findOne({
+  //     where: { id, storeId },
+  //   });
+
+  //   if (!config) {
+  //     throw new NotFoundException('Payment config not found');
+  //   }
+
+  //   // Aplicar cambios
+  //   if (dto.clientId !== undefined) config.clientId = dto.clientId;
+  //   if (dto.secret !== undefined) config.secret = encrypt(dto.secret);
+  //   if (dto.mode !== undefined) config.mode = dto.mode;
+  //   if (dto.isActive !== undefined) config.isActive = dto.isActive;
+  //   if (dto.webhookUrl !== undefined) config.webhookUrl = dto.webhookUrl ?? null;
+
+  //   await this.storePaymentConfigRepo.save(config);
+
+  //   // Invalidar token de PayPal para esta tienda (por si se cambió credenciales/activación)
+  //   try {
+  //     await this.paypalService.invalidateToken(String(storeId));
+  //   } catch (err) {
+  //     this.logger.warn('No se pudo invalidar token de PayPal:', err?.message || err);
+  //   }
+  // }
 
   // Placeholder: procesa un reembolso
   async refundPayment(paymentId: number, dto: RefundPaymentDto): Promise<void> {
