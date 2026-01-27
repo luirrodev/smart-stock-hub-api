@@ -13,6 +13,7 @@ import { PickupPoint } from '../entities/pickup-point.entity';
 import { CreateOrderDto } from '../dtos/create-order.dto';
 import { UsersService } from 'src/access-control/users/services/users.service';
 import { StoresService } from 'src/stores/services/stores.service';
+import { PayloadToken } from 'src/auth/models/token.model';
 
 @Injectable()
 export class OrdersService {
@@ -159,5 +160,30 @@ export class OrdersService {
     });
 
     return order!;
+  }
+
+  /**
+   * Obtiene un pedido por id y verifica permisos:
+   * - usuarios con role 'customer' solo pueden ver sus propios pedidos
+   */
+  async findOne(id: number, user?: PayloadToken): Promise<Order> {
+    const order = await this.orderRepo.findOne({
+      where: { id },
+      relations: ['items', 'store', 'status'],
+    });
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    // Si el request viene de un usuario tipo customer, asegurar que solo vea sus pedidos
+    if (user && user.role === 'customer') {
+      const custId = user.customerId ?? null;
+      if (custId === null || order.customerId !== custId) {
+        throw new BadRequestException('Access denied to this order');
+      }
+    }
+
+    return order;
   }
 }
