@@ -17,6 +17,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { JWTAuthGuard } from './auth/guards/jwt-auth.guard';
 import { OrdersModule } from './orders/orders.module';
 import { StoresModule } from './stores/stores.module';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { StoresModule } from './stores/stores.module';
     CartsModule,
     OrdersModule,
     StoresModule,
+    PaymentsModule,
   ],
   controllers: [AppController],
   providers: [
