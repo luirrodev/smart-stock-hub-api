@@ -8,7 +8,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Customer } from '../../customers/entities/customer.entity';
-import { PickupPoint } from '../../stores/entities/pickup-point.entity';
+import { PickupPoint } from './pickup-point.entity';
 import { Store } from '../../stores/entities/store.entity';
 
 export enum FulfillmentType {
