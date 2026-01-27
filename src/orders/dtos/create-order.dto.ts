@@ -21,6 +21,7 @@ export class CreateOrderItemDto {
 
 export class CreateOrderDto {
   @IsInt()
+  @IsOptional()
   userId: number;
 
   @IsInt()
