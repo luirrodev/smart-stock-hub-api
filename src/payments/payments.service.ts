@@ -16,10 +16,14 @@ import { StoresService } from '../stores/services/stores.service';
 import { decrypt, encrypt } from 'src/common/utils/crypto.util';
 import { PaypalService } from './providers/paypal/paypal.service';
 import { NotFoundException, Logger } from '@nestjs/common';
-import { PaymentTransaction } from './entities/payment-transaction.entity';
-import { Payment } from './entities/payment.entity';
+import {
+  PaymentTransaction,
+  TransactionType,
+} from './entities/payment-transaction.entity';
+import { Payment, PaymentStatus } from './entities/payment.entity';
 import { OrdersService } from 'src/orders/services/orders.service';
 import { PayPalMode } from './providers/paypal/paypal.constants';
+import { CreatePayPalOrderRequest } from './providers/paypal/paypal.interface';
 
 @Injectable()
 export class PaymentsService {
@@ -95,6 +99,130 @@ export class PaymentsService {
         err?.message || err,
       );
     }
+  }
+
+  /**
+   * Inicia el proceso de pago creando una orden en PayPal
+   * @param orderId - ID de la orden en tu sistema
+   * @returns URL de aprobación de PayPal y datos del pago
+   */
+  async initiatePayment(orderId: number) {
+    // 1. Obtener la orden de tu sistema
+    const order = await this.ordersService.findOne(orderId);
+
+    // 2. Validar que la orden esté en estado correcto
+    if (order.status.code !== 'pending') {
+      throw new BadRequestException(
+        `La orden ${orderId} no está en estado PENDING_PAYMENT`,
+      );
+    }
+
+    // 3. Verificar que no exista un pago en proceso
+    const existingPayment = await this.paymentRepository.findOne({
+      where: {
+        orderId,
+        status: PaymentStatus.CREATED,
+      },
+    });
+
+    if (existingPayment) {
+      throw new BadRequestException(
+        `Ya existe un pago en proceso para la orden ${orderId}`,
+      );
+    }
+
+    // 4. Obtener configuración de PayPal de la tienda
+    const paypalConfig = await this.getStorePayPalConfig(order.storeId);
+
+    // 5. Preparar datos para PayPal
+    const paypalOrderData: CreatePayPalOrderRequest = {
+      intent: 'CAPTURE' as const,
+      purchase_units: [
+        {
+          reference_id: order.id + '',
+          amount: {
+            currency_code: order.currency || 'USD',
+            value: order.total.toFixed(2),
+            breakdown: {
+              item_total: {
+                currency_code: order.currency || 'USD',
+                value: order.subtotal.toFixed(2),
+              },
+              shipping: {
+                currency_code: order.currency || 'USD',
+                value: (order.shippingCost || 0).toFixed(2),
+              },
+              tax_total: {
+                currency_code: order.currency || 'USD',
+                value: (order.tax || 0).toFixed(2),
+              },
+            },
+          },
+          description: `Orden #${order.orderNumber}`,
+        },
+      ],
+      application_context: {
+        return_url: `${process.env.FRONTEND_URL}/payment/success`,
+        cancel_url: `${process.env.FRONTEND_URL}/payment/cancel`,
+        brand_name: order.store.name, // Nombre de la tienda
+        user_action: 'PAY_NOW' as const,
+      },
+    };
+
+    // 6. Crear orden en PayPal
+    let paypalOrder;
+    try {
+      paypalOrder = await this.paypalService.createOrder(
+        paypalConfig,
+        paypalOrderData,
+        order.storeId,
+      );
+    } catch (error) {
+      this.logger.error(`Error creando orden en PayPal: ${error.message}`);
+      throw new BadRequestException('Error al procesar el pago con PayPal');
+    }
+
+    // 7. Crear registro de Payment en tu BD
+    const payment = this.paymentRepository.create({
+      orderId: order.id,
+      storeId: order.storeId,
+      provider: 'paypal',
+      providerOrderId: paypalOrder.id,
+      amount: order.total,
+      currency: order.currency || 'USD',
+      status: PaymentStatus.CREATED,
+    });
+
+    await this.paymentRepository.save(payment);
+
+    // 8. Guardar transacción de creación
+    const transaction = this.transactionRepository.create({
+      paymentId: payment.id,
+      transactionType: TransactionType.CREATE,
+      providerTransactionId: paypalOrder.id,
+      requestPayload: paypalOrderData,
+      responsePayload: paypalOrder,
+      status: 'SUCCESS',
+    });
+
+    await this.transactionRepository.save(transaction);
+
+    // 9. Obtener URL de aprobación
+    const approvalUrl = paypalOrder.links.find(
+      (link) => link.rel === 'approve',
+    )?.href;
+
+    if (!approvalUrl) {
+      throw new BadRequestException('No se obtuvo URL de aprobación de PayPal');
+    }
+
+    // 10. Retornar datos al frontend
+    return {
+      paymentId: payment.id,
+      paypalOrderId: paypalOrder.id,
+      approvalUrl,
+      status: payment.status,
+    };
   }
 
   /**
