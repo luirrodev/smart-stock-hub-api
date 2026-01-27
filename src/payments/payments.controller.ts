@@ -39,7 +39,7 @@ export class PaymentsController {
     @Param('storeId', ParseIntPipe) storeId: number,
   ): Promise<void> {
     // Endpoint placeholder: no retorna nada por ahora
-    await this.paymentsService.getStorePaymentConfig(storeId);
+    return void 0;
   }
 
   // Actualizar configuración de pagos
