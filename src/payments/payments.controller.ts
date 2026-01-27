@@ -51,7 +51,8 @@ export class PaymentsController {
     @Body() dto: UpdatePaymentConfigDto,
   ): Promise<void> {
     // Endpoint placeholder: no retorna nada por ahora
-    await this.paymentsService.updateStorePaymentConfig(storeId, id, dto);
+    // await this.paymentsService.updateStorePaymentConfig(storeId, id, dto);
+    return void 0;
   }
 
   // Procesar reembolso de un pago
