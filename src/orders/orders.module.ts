@@ -7,6 +7,7 @@ import { PickupPoint } from './entities/pickup-point.entity';
 import { OrderStatus } from './entities/order-status.entity';
 import { Product } from '../products/entities/product.entity';
 import { OrdersService } from './services/orders.service';
+import { OrdersController } from './controllers/orders.controller';
 
 @Module({
   imports: [
@@ -18,7 +19,7 @@ import { OrdersService } from './services/orders.service';
       Product,
     ]),
   ],
-  controllers: [],
+  controllers: [require('./controllers/orders.controller').OrdersController],
   providers: [OrdersService],
   exports: [OrdersService],
 })
