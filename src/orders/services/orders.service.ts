@@ -11,6 +11,7 @@ import { Product } from '../../products/entities/product.entity';
 import { OrderStatus } from '../entities/order-status.entity';
 import { PickupPoint } from '../entities/pickup-point.entity';
 import { CreateOrderDto } from '../dtos/create-order.dto';
+import { UsersService } from 'src/access-control/users/services/users.service';
 
 @Injectable()
 export class OrdersService {
@@ -22,6 +23,7 @@ export class OrdersService {
     private orderStatusRepo: Repository<OrderStatus>,
     @InjectRepository(PickupPoint)
     private pickupPointRepo: Repository<PickupPoint>,
+    private usersService: UsersService,
   ) {}
 
   private async generateOrderNumber(): Promise<string> {
@@ -104,9 +106,13 @@ export class OrdersService {
 
     const orderNumber = await this.generateOrderNumber();
 
+    const customerId = await this.usersService.findCustomerIdByUserId(
+      dto.userId,
+    );
+
     const orderToSave: Partial<Order> = {
       orderNumber,
-      customerId: dto.customerId,
+      customerId,
       storeId: dto.storeId,
       fulfillmentType: dto.fulfillmentType,
       pickupPointId: dto.pickupPointId ?? null,
