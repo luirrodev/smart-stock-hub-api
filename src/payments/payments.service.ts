@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreatePaymentConfigDto } from './dto/create-payment-config.dto';
@@ -9,6 +13,7 @@ import {
   PaymentProvider,
 } from './entities/store-payment-config.entity';
 import { StoresService } from '../stores/services/stores.service';
+import { encrypt } from 'src/common/utils/crypto.util';
 
 @Injectable()
 export class PaymentsService {
@@ -45,12 +50,19 @@ export class PaymentsService {
       }
     }
 
-    // Crear y guardar la configuración (secret se almacena tal cual por ahora; en el futuro debe encriptarse)
+    // Crear y guardar la configuración (secret se encripta)
+    let encryptedSecret: string;
+    try {
+      encryptedSecret = encrypt(dto.secret);
+    } catch (err) {
+      throw new InternalServerErrorException('Error al encriptar el secret');
+    }
+
     const config = this.storePaymentConfigRepo.create({
       storeId,
       provider: dto.provider,
       clientId: dto.clientId,
-      secret: dto.secret,
+      secret: encryptedSecret,
       mode: dto.mode,
       isActive: !!dto.isActive,
       webhookUrl: dto.webhookUrl ?? null,
