@@ -12,6 +12,7 @@ import {
 } from 'typeorm';
 import { Customer } from '../../customers/entities/customer.entity';
 import { PickupPoint } from './pickup-point.entity';
+import { OrderStatus } from './order-status.entity';
 import { Store } from '../../stores/entities/store.entity';
 
 export enum FulfillmentType {
@@ -197,22 +198,13 @@ export class Order {
   shippingReference?: string | null;
 
   // ESTADOS
-  // Estado del ciclo de vida del pedido
-  @Column({
-    name: 'status',
-    type: 'enum',
-    enum: [
-      'pending',
-      'confirmed',
-      'processing',
-      'shipped',
-      'delivered',
-      'cancelled',
-      'refunded',
-    ],
-    default: 'pending',
-  })
-  status: string;
+  // Estado del ciclo de vida del pedido (referencia a `order_status`)
+  @ManyToOne(() => OrderStatus, { nullable: false })
+  @JoinColumn({ name: 'status_id' })
+  status: OrderStatus;
+
+  @Column({ name: 'status_id' })
+  statusId: number;
 
   // Estado del pago para este pedido
   @Column({
