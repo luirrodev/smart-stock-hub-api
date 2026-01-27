@@ -12,8 +12,18 @@ import { PaymentsService } from './payments.service';
 import { CreatePaymentConfigDto } from './dto/create-payment-config.dto';
 import { UpdatePaymentConfigDto } from './dto/update-payment-config.dto';
 import { RefundPaymentDto } from './dto/refund-payment.dto';
+import { CreatePaymentDto } from './dto/create-payment.dto';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiParam,
+  ApiBody,
+} from '@nestjs/swagger';
 
-@Controller('admin')
+@ApiTags('Payments')
+@Controller('payments')
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
@@ -55,14 +65,49 @@ export class PaymentsController {
     return void 0;
   }
 
+  /**
+   * Crear orden de pago
+   * POST /payments/create
+   */
+  @Post('create')
+  @ApiOperation({ summary: 'Crear orden de pago' })
+  @ApiCreatedResponse({ description: 'Orden creada correctamente' })
+  @ApiBody({ type: CreatePaymentDto })
+  async createPayment(@Body() dto: CreatePaymentDto) {
+    return await this.paymentsService.initiatePayment(dto.orderId);
+  }
+
+  /**
+   * Captura un pago aprobado
+   * POST /payments/capture
+   */
+  @Post('capture')
+  @ApiOperation({ summary: 'Capturar pago aprobado' })
+  @ApiOkResponse({ description: 'Pago capturado correctamente' })
+  async capturePayment(@Body('paypalOrderId') paypalOrderId: string) {
+    return await this.paymentsService.capturePayment(paypalOrderId);
+  }
+
+  /**
+   * Consulta estado de un pago
+   * GET /payments/:id/status
+   */
+  @Get(':id/status')
+  @ApiOperation({ summary: 'Obtener estado de un pago' })
+  @ApiParam({ name: 'id', required: true, description: 'ID del pago' })
+  @ApiOkResponse({ description: 'Estado del pago obtenido' })
+  async getPaymentStatus(@Param('id') paymentId: string) {
+    return await this.paymentsService.getPaymentStatus(paymentId);
+  }
+
   // Procesar reembolso de un pago
-  @Post('payments/:paymentId/refund')
-  @HttpCode(204)
+  @Post(':paymentId/refund')
+  @ApiOperation({ summary: 'Procesar reembolso (total o parcial)' })
+  @ApiParam({ name: 'paymentId', required: true, description: 'ID del pago' })
   async refundPayment(
     @Param('paymentId', ParseIntPipe) paymentId: number,
     @Body() dto: RefundPaymentDto,
-  ): Promise<void> {
-    // Endpoint placeholder: no retorna nada por ahora
-    await this.paymentsService.refundPayment(paymentId, dto);
+  ) {
+    return await this.paymentsService.refundPayment(paymentId, dto);
   }
 }
