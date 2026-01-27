@@ -61,7 +61,7 @@ export class Payment {
   // MONTO
   // Monto cobrado en la transacción. Se usa tipo numeric con precisión para evitar pérdida de precisión.
   @Column({ type: 'numeric', precision: 14, scale: 2 })
-  amount: string;
+  amount: number;
 
   // MONEDA
   // Código de la moneda en formato ISO 4217 (ej. 'USD', 'EUR').
