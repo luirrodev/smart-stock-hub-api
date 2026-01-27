@@ -226,6 +226,99 @@ export class PaymentsService {
   }
 
   /**
+   * Captura un pago después de que el cliente lo aprobó
+   * @param paypalOrderId - ID de la orden de PayPal
+   * @returns Datos del pago capturado
+   */
+  async capturePayment(paypalOrderId: string) {
+    // 1. Buscar el pago en tu BD
+    const payment = await this.paymentRepository.findOne({
+      where: { providerOrderId: paypalOrderId },
+      relations: ['order'],
+    });
+
+    if (!payment) {
+      throw new NotFoundException(
+        `No se encontró pago con PayPal Order ID: ${paypalOrderId}`,
+      );
+    }
+
+    // 2. Validar estado del pago
+    if (payment.status === PaymentStatus.COMPLETED) {
+      throw new BadRequestException('Este pago ya fue completado');
+    }
+
+    if (payment.status === 'FAILED') {
+      throw new BadRequestException('Este pago falló y no puede ser capturado');
+    }
+
+    // 3. Obtener configuración de PayPal
+    const paypalConfig = await this.getStorePayPalConfig(payment.storeId);
+
+    // 4. Capturar pago en PayPal
+    let captureResponse;
+    try {
+      captureResponse = await this.paypalService.captureOrder(
+        paypalOrderId,
+        paypalConfig,
+        payment.storeId,
+      );
+    } catch (error) {
+      // Guardar transacción fallida
+      await this.transactionRepository.save({
+        paymentId: payment.id,
+        transactionType: TransactionType.CAPTURE,
+        providerTransactionId: paypalOrderId,
+        requestPayload: { paypalOrderId },
+        responsePayload: error.response?.data || { error: error.message },
+        status: 'FAILED',
+      });
+
+      // Actualizar payment a FAILED
+      payment.status = PaymentStatus.FAILED;
+      await this.paymentRepository.save(payment);
+
+      throw new BadRequestException('Error al capturar el pago en PayPal');
+    }
+
+    // 5. Extraer Capture ID de la respuesta
+    const captureId =
+      captureResponse.purchase_units[0]?.payments?.captures[0]?.id;
+
+    // 6. Actualizar Payment en BD
+    payment.status = PaymentStatus.COMPLETED;
+    payment.providerOrderId = captureId;
+    await this.paymentRepository.save(payment);
+
+    // 7. Guardar transacción exitosa
+    await this.transactionRepository.save({
+      paymentId: payment.id,
+      transactionType: TransactionType.CAPTURE,
+      providerTransactionId: captureId,
+      requestPayload: { paypalOrderId },
+      responsePayload: captureResponse,
+      status: 'SUCCESS',
+    });
+
+    // 8. Actualizar estado de la orden
+    await this.ordersService.changeStatusByCode(
+      payment.orderId,
+      'payment_accepted',
+    );
+
+    this.logger.log(`Pago capturado exitosamente. Payment ID: ${payment.id}`);
+
+    return {
+      paymentId: payment.id,
+      orderId: payment.orderId,
+      status: payment.status,
+      captureId,
+      amount: payment.amount,
+      currency: payment.currency,
+    };
+  }
+
+  /**
    * Obtiene la configuración de PayPal de una tienda
    * @param storeId - ID de la tienda
    * @returns Credenciales descifradas
