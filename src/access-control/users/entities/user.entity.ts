@@ -35,6 +35,9 @@ export class User {
   @JoinColumn({ name: 'role_id' })
   role: Role;
 
+  @Column({ name: 'role_id', type: 'int' })
+  roleId: number;
+
   @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive: boolean;
 
