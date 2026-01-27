@@ -183,6 +183,51 @@ export class PaypalService implements PaymentProviderInterface {
   }
 
   /**
+   * Procesa un reembolso total o parcial
+   * @param captureId - ID de la captura (NO el order ID)
+   * @param credentials - Credenciales de la tienda
+   * @param storeId - ID de la tienda
+   * @param refundData - Datos del reembolso (opcional para reembolso total)
+   */
+  async refundCapture(
+    captureId: string,
+    credentials: PayPalCredentials,
+    storeId: number,
+    refundData?: PayPalRefundRequest,
+  ): Promise<PayPalRefundResponse> {
+    const baseUrl = this.getBaseUrl(credentials.mode);
+    const url = `${baseUrl}${PAYPAL_ENDPOINTS.REFUND(captureId)}`;
+
+    try {
+      const accessToken = await this.getAccessToken(storeId, credentials);
+
+      const response = await firstValueFrom(
+        this.httpService.post<PayPalRefundResponse>(url, refundData || {}, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }),
+      );
+
+      this.logger.log(
+        `Reembolso procesado. Capture ID: ${captureId}, Status: ${response.data.status}`,
+      );
+
+      return response.data;
+    } catch (error) {
+      this.logger.error(
+        'Error procesando reembolso:',
+        error.response?.data || error.message || error,
+      );
+
+      const message =
+        error.response?.data?.message || error.message || 'Unknown error';
+      throw new Error(`Error en reembolso: ${message}`);
+    }
+  }
+
+  /**
    * Obtiene la URL base de PayPal según el modo (sandbox/production)
    */
   private getBaseUrl(mode: 'sandbox' | 'production'): string {
