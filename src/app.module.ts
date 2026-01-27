@@ -33,6 +33,7 @@ import { PaymentsModule } from './payments/payments.module';
         JWT_REFRESH_EXPIRES_IN: Joi.string().required(),
         API_URL_GET_PRODUCTS: Joi.string().required(),
         API_KEY_GET_PRODUCTS: Joi.string().required(),
+        PAYMENTS_ENCRYPTION_KEY: Joi.string().required(),
       }),
     }),
     AccessControlModule,
