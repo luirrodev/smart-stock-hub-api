@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { HttpModule } from '@nestjs/axios';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { Payment } from './entities/payment.entity';
@@ -13,6 +14,7 @@ import { OrdersModule } from 'src/orders/orders.module';
 
 @Module({
   imports: [
+    HttpModule,
     TypeOrmModule.forFeature([StorePaymentConfig, Payment, PaymentTransaction]),
     StoresModule,
     OrdersModule,
