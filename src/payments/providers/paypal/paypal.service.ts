@@ -1,7 +1,14 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  Inject,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { PaymentProviderInterface } from '../payment-provider.interface';
 import { PayPalConfig } from './paypal.interface';
 import {
@@ -24,11 +31,10 @@ import {
 export class PaypalService implements PaymentProviderInterface {
   private readonly logger = new Logger(PaypalService.name);
 
-  // Cache de tokens por tienda
-  // Key: storeId, Value: { token, expiresAt }
-  // ToDO: Implementar cache con expiración adecuada
-  private tokenCache = new Map<string, { token: string; expiresAt: Date }>();
-  constructor(private readonly httpService: HttpService) {
+  constructor(
+    private readonly httpService: HttpService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+  ) {
     this.logger.log('PayPal service initialized');
   }
   async init(config: PayPalConfig): Promise<void> {
@@ -63,29 +69,27 @@ export class PaypalService implements PaymentProviderInterface {
     storeId: string,
     credentials: PayPalCredentials,
   ): Promise<string> {
-    // 1. Buscar en cache
-    const cached = this.tokenCache.get(storeId);
+    const cacheKey = `paypal:token:${storeId}`;
 
-    // 2. Si existe y no expiró, usar cache
-    if (cached && cached.expiresAt > new Date()) {
+    // 1. Intentar obtener token desde cache
+    const cached = await this.cacheManager.get<string>(cacheKey);
+    if (cached) {
       this.logger.debug(`Usando token en cache para tienda ${storeId}`);
-      return cached.token;
+      return cached;
     }
 
-    // 3. Si no, generar nuevo
+    // 2. Generar nuevo token
     this.logger.debug(`Generando nuevo token para tienda ${storeId}`);
-    const newToken = await this.generateAccessToken(credentials);
+    const data = await this.generateAccessToken(credentials);
 
-    // 4. Guardar en cache (expira en 8 horas, dejamos margen de 1 hora)
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 8);
+    // 3. Calcular TTL en ms usando expires_in (dejamos margen de 60s)
+    const safetyMarginSec = 60;
+    const ttlMs = Math.max((data.expires_in - safetyMarginSec) * 1000, 0);
 
-    this.tokenCache.set(storeId, {
-      token: newToken,
-      expiresAt,
-    });
+    // 4. Guardar token en cache con TTL
+    await this.cacheManager.set(cacheKey, data.access_token, ttlMs);
 
-    return newToken;
+    return data.access_token;
   }
 
   /**
@@ -93,7 +97,7 @@ export class PaypalService implements PaymentProviderInterface {
    */
   private async generateAccessToken(
     credentials: PayPalCredentials,
-  ): Promise<string> {
+  ): Promise<PayPalAuthResponse> {
     const baseUrl = this.getBaseUrl(credentials.mode);
     const url = `${baseUrl}${PAYPAL_ENDPOINTS.TOKEN}`;
 
@@ -123,7 +127,7 @@ export class PaypalService implements PaymentProviderInterface {
         `Token generado exitosamente. Expira en ${data.expires_in}s`,
       );
 
-      return data.access_token;
+      return data;
     } catch (error) {
       this.logger.error(
         'Error generando access token:',
@@ -131,5 +135,14 @@ export class PaypalService implements PaymentProviderInterface {
       );
       throw new BadRequestException('No se pudo autenticar con PayPal');
     }
+  }
+
+  /**
+   * Invalidates cached token for a store (useful when store config changes)
+   */
+  async invalidateToken(storeId: string): Promise<void> {
+    const cacheKey = `paypal:token:${storeId}`;
+    await this.cacheManager.del(cacheKey);
+    this.logger.debug(`Token invalidado para tienda ${storeId}`);
   }
 }
