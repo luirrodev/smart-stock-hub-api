@@ -146,6 +146,43 @@ export class PaypalService implements PaymentProviderInterface {
   }
 
   /**
+   * Obtiene detalles de una orden de PayPal
+   * @param orderId - PayPal Order ID
+   * @param credentials - Credenciales de la tienda
+   * @param storeId - ID de la tienda
+   */
+  async getOrderDetails(
+    orderId: string,
+    credentials: PayPalCredentials,
+    storeId: number,
+  ): Promise<any> {
+    const baseUrl = this.getBaseUrl(credentials.mode);
+    const url = `${baseUrl}${PAYPAL_ENDPOINTS.ORDER_DETAILS(orderId)}`;
+
+    try {
+      const accessToken = await this.getAccessToken(storeId, credentials);
+
+      const response = await firstValueFrom(
+        this.httpService.get(url, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }),
+      );
+
+      return response.data;
+    } catch (error) {
+      this.logger.error(
+        'Error obteniendo detalles de orden:',
+        error.response?.data || error.message || error,
+      );
+
+      throw new Error('No se pudo obtener detalles de la orden');
+    }
+  }
+
+  /**
    * Obtiene la URL base de PayPal según el modo (sandbox/production)
    */
   private getBaseUrl(mode: 'sandbox' | 'production'): string {
