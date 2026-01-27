@@ -10,6 +10,7 @@ import { Customer } from '../entities/customer.entity';
 import { CreateCustomerDto } from 'src/customers/dtos/create-customer.dto';
 // import { UpdateCustomerDto } from '../dtos/update-customer.dto';
 import { UsersService } from 'src/access-control/users/services/users.service';
+import { User } from 'src/access-control/users/entities/user.entity';
 
 @Injectable()
 export class CustomersService {
@@ -41,7 +42,14 @@ export class CustomersService {
       notes: data.notes ?? null,
     });
 
-    return this.customerRepo.save(newCustomer);
+    const savedCustomer = await this.customerRepo.save(newCustomer);
+
+    console.log('Customer created:', savedCustomer);
+
+    // Asociar el customer al user: actualizar customerId en users
+    await this.usersService.setCustomerId(user.id, savedCustomer.id);
+
+    return savedCustomer;
   }
 
   async findOne(id: number) {
