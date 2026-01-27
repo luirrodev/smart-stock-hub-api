@@ -150,7 +150,14 @@ export class OrdersService {
       items: items as OrderItem[],
     };
 
-    const order = await this.orderRepo.save(orderToSave as Order);
-    return order;
+    const saved = await this.orderRepo.save(orderToSave as Order);
+
+    // Re-obtener con relaciones para asegurarnos de que las subentidades (items, store, status) estén presentes
+    const order = await this.orderRepo.findOne({
+      where: { id: saved.id },
+      relations: ['items', 'store', 'status'],
+    });
+
+    return order!;
   }
 }

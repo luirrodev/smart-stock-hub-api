@@ -4,6 +4,8 @@ import { OrdersService } from '../services/orders.service';
 import { CreateOrderDto } from '../dtos/create-order.dto';
 import { GetUser } from 'src/auth/decorators/get-user.decorator';
 import { PayloadToken } from 'src/auth/models/token.model';
+import { plainToInstance } from 'class-transformer';
+import { OrderResponseDto } from '../dtos/order-response.dto';
 
 @ApiTags('Orders')
 @Controller('orders')
@@ -12,7 +14,10 @@ export class OrdersController {
 
   @Post()
   @ApiOperation({ summary: 'Crear un nuevo pedido' })
-  @ApiCreatedResponse({ description: 'Pedido creado correctamente' })
+  @ApiCreatedResponse({
+    description: 'Pedido creado correctamente',
+    type: OrderResponseDto,
+  })
   async createOrder(
     @Body() dto: CreateOrderDto,
     @GetUser() user: PayloadToken,
@@ -24,6 +29,8 @@ export class OrdersController {
     };
 
     const order = await this.ordersService.createOrder(payload);
-    return order;
+    return plainToInstance(OrderResponseDto, order, {
+      excludeExtraneousValues: true,
+    });
   }
 }
