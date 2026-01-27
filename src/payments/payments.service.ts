@@ -16,18 +16,27 @@ import { StoresService } from '../stores/services/stores.service';
 import { encrypt } from 'src/common/utils/crypto.util';
 import { PaypalService } from './providers/paypal/paypal.service';
 import { NotFoundException, Logger } from '@nestjs/common';
+import { PaymentTransaction } from './entities/payment-transaction.entity';
+import { Payment } from './entities/payment.entity';
+import { OrdersService } from 'src/orders/services/orders.service';
 
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger('PaymentsService');
 
   constructor(
+    @InjectRepository(Payment)
+    private paymentRepository: Repository<Payment>,
+
+    @InjectRepository(PaymentTransaction)
+    private transactionRepository: Repository<PaymentTransaction>,
+
     @InjectRepository(StorePaymentConfig)
     private readonly storePaymentConfigRepo: Repository<StorePaymentConfig>,
 
-    private readonly storesService: StoresService,
-
     private readonly paypalService: PaypalService,
+    private ordersService: OrdersService,
+    private readonly storesService: StoresService,
   ) {}
 
   // Crea la configuración de pago para una tienda
