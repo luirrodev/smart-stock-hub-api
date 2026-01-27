@@ -96,6 +96,56 @@ export class PaypalService implements PaymentProviderInterface {
   }
 
   /**
+   * Captura una orden aprobada por el cliente
+   * @param orderId - PayPal Order ID
+   * @param credentials - Credenciales de la tienda
+   * @param storeId - ID de la tienda
+   */
+  async captureOrder(
+    orderId: string,
+    credentials: PayPalCredentials,
+    storeId: number,
+  ): Promise<PayPalCaptureResponse> {
+    const baseUrl = this.getBaseUrl(credentials.mode);
+    const url = `${baseUrl}${PAYPAL_ENDPOINTS.CAPTURE(orderId)}`;
+
+    try {
+      // 1. Obtener access token
+      const accessToken = await this.getAccessToken(storeId, credentials);
+
+      // 2. Capturar orden
+      const response = await firstValueFrom(
+        this.httpService.post<PayPalCaptureResponse>(
+          url,
+          {},
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+          },
+        ),
+      );
+
+      // 3. Log de éxito
+      this.logger.log(
+        `Orden capturada. ID: ${orderId}, Status: ${response.data.status}`,
+      );
+
+      return response.data;
+    } catch (error) {
+      this.logger.error(
+        'Error capturando orden:',
+        error.response?.data || error.message || error,
+      );
+
+      const message =
+        error.response?.data?.message || error.message || 'Unknown error';
+      throw new Error(`Error capturando pago: ${message}`);
+    }
+  }
+
+  /**
    * Obtiene la URL base de PayPal según el modo (sandbox/production)
    */
   private getBaseUrl(mode: 'sandbox' | 'production'): string {
