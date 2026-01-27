@@ -21,7 +21,7 @@ export class CreateOrderItemDto {
 
 export class CreateOrderDto {
   @IsInt()
-  customerId: number;
+  userId: number;
 
   @IsInt()
   storeId: number;
