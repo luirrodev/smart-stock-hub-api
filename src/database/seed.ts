@@ -2,6 +2,7 @@ import MyDataSourse from '../database/data-source';
 import { Role } from '../access-control/roles/entities/role.entity';
 import { Permission } from '../access-control/permissions/entities/permission.entity';
 import { User } from '../access-control/users/entities/user.entity';
+import { OrderStatus } from '../orders/entities/order-status.entity';
 import * as bcrypt from 'bcryptjs';
 
 async function seed() {
@@ -87,6 +88,68 @@ async function seed() {
       await MyDataSourse.getRepository(User).save(adminUser);
     }
     console.log(`Usuario admin ya existe: ${adminEmail}`);
+  }
+
+  // Seed default order statuses
+  const orderStatuses = [
+    {
+      name: 'Pending',
+      code: 'pending',
+      description: 'Pedido recibido y pendiente de pago',
+      isActive: true,
+    },
+    {
+      name: 'Processing',
+      code: 'processing',
+      description: 'El pedido está siendo preparado',
+      isActive: true,
+    },
+    {
+      name: 'Shipped',
+      code: 'shipped',
+      description: 'El pedido ha sido enviado',
+      isActive: true,
+    },
+    {
+      name: 'Delivered',
+      code: 'delivered',
+      description: 'El pedido ha sido entregado al cliente',
+      isActive: true,
+    },
+    {
+      name: 'Cancelled',
+      code: 'cancelled',
+      description: 'El pedido ha sido cancelado',
+      isActive: true,
+    },
+    {
+      name: 'Refunded',
+      code: 'refunded',
+      description: 'El pedido ha sido reembolsado',
+      isActive: true,
+    },
+    {
+      name: 'Pago aceptado',
+      code: 'payment_accepted',
+      description: 'Pago aceptado por la pasarela de pagos',
+      isActive: true,
+    },
+    {
+      name: 'Verificado',
+      code: 'verified',
+      description: 'Pedido y datos verificados, listo para procesar',
+      isActive: true,
+    },
+  ];
+
+  for (const s of orderStatuses) {
+    const exists = await MyDataSourse.getRepository(OrderStatus).findOneBy({
+      code: s.code,
+    });
+    if (!exists) {
+      await MyDataSourse.getRepository(OrderStatus).save(s);
+      console.log(`Estado de pedido creado: ${s.code}`);
+    }
   }
 
   console.log('Seed completado');
