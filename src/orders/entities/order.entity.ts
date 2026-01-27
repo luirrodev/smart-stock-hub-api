@@ -8,7 +8,8 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Customer } from '../../customers/entities/customer.entity';
-import { PickupPoint } from 'src/stores/entities/pickup-point.entity';
+import { PickupPoint } from '../../stores/entities/pickup-point.entity';
+import { Store } from '../../stores/entities/store.entity';
 
 export enum FulfillmentType {
   SHIPPING = 'shipping',
@@ -34,6 +35,15 @@ export class Order {
   // Clave foránea que referencia a customers.id
   @Column({ name: 'customer_id' })
   customerId: number;
+
+  // TIENDA
+  // Tienda específica asociada al pedido
+  @ManyToOne(() => Store, { nullable: false })
+  @JoinColumn({ name: 'store_id' })
+  store: Store;
+
+  @Column({ name: 'store_id' })
+  storeId: number;
 
   // TIPO DE ENTREGA
   // Tipo de pedido: 'shipping' = envío a domicilio, 'pickup' = recogida en punto
