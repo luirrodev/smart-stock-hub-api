@@ -1,5 +1,18 @@
-import { Controller, Post, Body } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiCreatedResponse } from '@nestjs/swagger';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  Param,
+  ParseIntPipe,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiParam,
+} from '@nestjs/swagger';
 import { OrdersService } from '../services/orders.service';
 import { CreateOrderDto } from '../dtos/create-order.dto';
 import { GetUser } from 'src/auth/decorators/get-user.decorator';
@@ -29,6 +42,20 @@ export class OrdersController {
     };
 
     const order = await this.ordersService.createOrder(payload);
+    return plainToInstance(OrderResponseDto, order, {
+      excludeExtraneousValues: true,
+    });
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Obtener un pedido por id' })
+  @ApiParam({ name: 'id', required: true, description: 'ID del pedido' })
+  @ApiOkResponse({ description: 'Pedido encontrado', type: OrderResponseDto })
+  async getOrder(
+    @Param('id', ParseIntPipe) id: number,
+    @GetUser() user: PayloadToken,
+  ) {
+    const order = await this.ordersService.findOne(id, user);
     return plainToInstance(OrderResponseDto, order, {
       excludeExtraneousValues: true,
     });
