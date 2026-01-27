@@ -130,7 +130,7 @@ export class UsersService {
     return this.userRepo.save(newUser);
   }
 
-  async update(id: number, changes: UpdateUserDto) {
+  async update(id: number, changes: UpdateUserDto): Promise<User> {
     const userToUpdate = await this.findOne(id);
 
     if (changes.email && changes.email !== userToUpdate.email) {
@@ -213,6 +213,27 @@ export class UsersService {
    */
   async findAllWithDeleted() {
     return this.userRepo.find({ withDeleted: true });
+  }
+
+  async setCustomerId(userId: number, customerId: number): Promise<void> {
+    console.log('CustomerId updated');
+
+    // Actualiza directamente la columna customer_id y limpia caché
+    await this.userRepo.update(userId, { customerId });
+    await this.invalidateUserCache(userId);
+  }
+
+  async findCustomerIdByUserId(userId: number): Promise<number> {
+    const user = await this.userRepo.findOne({
+      where: { id: userId },
+      select: ['customerId'],
+    });
+
+    if (!user?.customerId) {
+      throw new NotFoundException('Usuario sin cliente asociado');
+    }
+
+    return user.customerId;
   }
 
   private async invalidateUserCache(id: number, email?: string): Promise<void> {
