@@ -8,6 +8,12 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Customer } from '../../customers/entities/customer.entity';
+import { PickupPoint } from 'src/stores/entities/pickup-point.entity';
+
+export enum FulfillmentType {
+  SHIPPING = 'shipping',
+  PICKUP = 'pickup',
+}
 
 @Entity({ name: 'orders' })
 export class Order {
@@ -28,6 +34,24 @@ export class Order {
   // Clave foránea que referencia a customers.id
   @Column({ name: 'customer_id' })
   customerId: number;
+
+  // TIPO DE ENTREGA
+  // Tipo de pedido: 'shipping' = envío a domicilio, 'pickup' = recogida en punto
+  @Column({
+    name: 'fulfillment_type',
+    type: 'enum',
+    enum: FulfillmentType,
+    default: FulfillmentType.SHIPPING,
+  })
+  fulfillmentType: FulfillmentType;
+
+  // Punto de retiro asignado (si el pedido es pickup)
+  @ManyToOne(() => PickupPoint, (pp) => pp.orders, { nullable: true })
+  @JoinColumn({ name: 'pickup_point_id' })
+  pickupPoint?: PickupPoint | null;
+
+  @Column({ name: 'pickup_point_id', nullable: true })
+  pickupPointId?: number | null;
 
   // SNAPSHOT DE DIRECCIÓN DE ENVÍO (basada en la estructura de ShippingAddress)
   // Provincia
