@@ -3,6 +3,7 @@ import { Role } from '../access-control/roles/entities/role.entity';
 import { Permission } from '../access-control/permissions/entities/permission.entity';
 import { User } from '../access-control/users/entities/user.entity';
 import { OrderStatus } from '../orders/entities/order-status.entity';
+import { Store } from '../stores/entities/store.entity';
 import * as bcrypt from 'bcryptjs';
 
 async function seed() {
@@ -149,6 +150,40 @@ async function seed() {
     if (!exists) {
       await MyDataSourse.getRepository(OrderStatus).save(s);
       console.log(`Estado de pedido creado: ${s.code}`);
+    }
+  }
+
+  // Seed default stores
+  const stores = [
+    {
+      name: 'AllNovu',
+      address: 'No definida',
+      city: 'No definida',
+      state: 'No definida',
+      zipCode: 'No definida',
+      country: 'No definida',
+      phone: null,
+      email: null,
+    },
+    {
+      name: 'Mandasaldo',
+      address: 'No definida',
+      city: 'No definida',
+      state: 'No definida',
+      zipCode: 'No definida',
+      country: 'No definida',
+      phone: null,
+      email: null,
+    },
+  ];
+
+  for (const st of stores) {
+    const exists = await MyDataSourse.getRepository(Store).findOneBy({
+      name: st.name,
+    });
+    if (!exists) {
+      await MyDataSourse.getRepository(Store).save(st);
+      console.log(`Tienda creada: ${st.name}`);
     }
   }
 
