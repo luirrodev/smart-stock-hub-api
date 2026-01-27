@@ -19,13 +19,17 @@ export class PaymentsController {
 
   // Configurar PayPal para una tienda
   @Post('stores/:storeId/payment-config')
-  @HttpCode(204)
+  // @HttpCode(204)
   async createStorePaymentConfig(
     @Param('storeId', ParseIntPipe) storeId: number,
     @Body() dto: CreatePaymentConfigDto,
-  ): Promise<void> {
+  ) {
     // Endpoint placeholder: no retorna nada por ahora
     await this.paymentsService.createStorePaymentConfig(storeId, dto);
+
+    return {
+      message: 'Configuración de pago creada',
+    };
   }
 
   // Ver configuración de pagos de una tienda
