@@ -8,6 +8,9 @@ import { OrderStatus } from './entities/order-status.entity';
 import { Product } from '../products/entities/product.entity';
 import { OrdersService } from './services/orders.service';
 import { OrdersController } from './controllers/orders.controller';
+import { ProductsModule } from 'src/products/products.module';
+import { AccessControlModule } from 'src/access-control/access-control.module';
+import { StoresModule } from 'src/stores/stores.module';
 
 @Module({
   imports: [
@@ -18,8 +21,11 @@ import { OrdersController } from './controllers/orders.controller';
       OrderStatus,
       Product,
     ]),
+    ProductsModule,
+    AccessControlModule,
+    StoresModule,
   ],
-  controllers: [require('./controllers/orders.controller').OrdersController],
+  controllers: [OrdersController],
   providers: [OrdersService],
   exports: [OrdersService],
 })

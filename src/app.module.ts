@@ -15,6 +15,8 @@ import { CartsModule } from './carts/carts.module';
 import { AppController } from './app.controller';
 import { APP_GUARD } from '@nestjs/core';
 import { JWTAuthGuard } from './auth/guards/jwt-auth.guard';
+import { OrdersModule } from './orders/orders.module';
+import { StoresModule } from './stores/stores.module';
 
 @Module({
   imports: [
@@ -38,6 +40,8 @@ import { JWTAuthGuard } from './auth/guards/jwt-auth.guard';
     CustomersModule,
     ProductsModule,
     CartsModule,
+    OrdersModule,
+    StoresModule,
   ],
   controllers: [AppController],
   providers: [
