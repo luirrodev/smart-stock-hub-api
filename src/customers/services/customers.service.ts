@@ -44,8 +44,6 @@ export class CustomersService {
 
     const savedCustomer = await this.customerRepo.save(newCustomer);
 
-    console.log('Customer created:', savedCustomer);
-
     // Asociar el customer al user: actualizar customerId en users
     await this.usersService.setCustomerId(user.id, savedCustomer.id);
 

@@ -216,8 +216,6 @@ export class UsersService {
   }
 
   async setCustomerId(userId: number, customerId: number): Promise<void> {
-    console.log('CustomerId updated');
-
     // Actualiza directamente la columna customer_id y limpia caché
     await this.userRepo.update(userId, { customerId });
     await this.invalidateUserCache(userId);
