@@ -4,6 +4,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Payment } from './entities/payment.entity';
 import { StorePaymentConfig } from './entities/store-payment-config.entity';
 import { PaymentTransaction } from './entities/payment-transaction.entity';
+import { Store } from '../stores/entities/store.entity';
+import { StoresModule } from '../stores/stores.module';
 import { PaymentsService } from './payments.service';
 import { PaymentsController } from './payments.controller';
 import { PaypalService } from './providers/paypal/paypal.service';
@@ -11,7 +13,13 @@ import { PaypalWebhookController } from './providers/paypal/paypal.webhook.contr
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([StorePaymentConfig, Payment, PaymentTransaction]),
+    TypeOrmModule.forFeature([
+      StorePaymentConfig,
+      Payment,
+      PaymentTransaction,
+      Store,
+    ]),
+    StoresModule,
   ],
   controllers: [PaymentsController, PaypalWebhookController],
   providers: [PaymentsService, PaypalService],
