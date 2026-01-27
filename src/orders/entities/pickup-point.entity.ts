@@ -6,7 +6,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Order } from '../../orders/entities/order.entity';
+import { Order } from './order.entity';
 
 @Entity({ name: 'pickup_points' })
 export class PickupPoint {
