@@ -135,6 +135,13 @@ export class PaymentsService {
     const paypalConfig = await this.getStorePayPalConfig(order.storeId);
 
     // 5. Preparar datos para PayPal
+    // Nota: los campos tipo numeric en Postgres suelen venir como string desde TypeORM,
+    // convertirlos a número antes de usar toFixed
+    const subtotalNum = Number(order.subtotal || 0);
+    const totalNum = Number(order.total || 0);
+    const shippingNum = Number(order.shippingCost || 0);
+    const taxNum = Number(order.tax || 0);
+
     const paypalOrderData: CreatePayPalOrderRequest = {
       intent: 'CAPTURE' as const,
       purchase_units: [
@@ -142,19 +149,19 @@ export class PaymentsService {
           reference_id: order.id + '',
           amount: {
             currency_code: order.currency || 'USD',
-            value: order.total.toFixed(2),
+            value: totalNum.toFixed(2),
             breakdown: {
               item_total: {
                 currency_code: order.currency || 'USD',
-                value: order.subtotal.toFixed(2),
+                value: subtotalNum.toFixed(2),
               },
               shipping: {
                 currency_code: order.currency || 'USD',
-                value: (order.shippingCost || 0).toFixed(2),
+                value: shippingNum.toFixed(2),
               },
               tax_total: {
                 currency_code: order.currency || 'USD',
-                value: (order.tax || 0).toFixed(2),
+                value: taxNum.toFixed(2),
               },
             },
           },
@@ -188,7 +195,7 @@ export class PaymentsService {
       storeId: order.storeId,
       provider: 'paypal',
       providerOrderId: paypalOrder.id,
-      amount: order.total,
+      amount: totalNum,
       currency: order.currency || 'USD',
       status: PaymentStatus.CREATED,
     });
