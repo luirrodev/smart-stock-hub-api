@@ -319,6 +319,32 @@ export class PaymentsService {
   }
 
   /**
+   * Obtiene el estado actual de un pago
+   * @param paymentId - ID del pago
+   */
+  async getPaymentStatus(paymentId: string) {
+    const payment = await this.paymentRepository.findOne({
+      where: { id: Number(paymentId) },
+      relations: ['order'],
+    });
+
+    if (!payment) {
+      throw new NotFoundException(`Pago ${paymentId} no encontrado`);
+    }
+
+    return {
+      paymentId: payment.id,
+      orderId: payment.orderId,
+      status: payment.status,
+      provider: payment.provider,
+      amount: payment.amount,
+      currency: payment.currency,
+      createdAt: payment.createdAt,
+      updatedAt: payment.updatedAt,
+    };
+  }
+
+  /**
    * Obtiene la configuración de PayPal de una tienda
    * @param storeId - ID de la tienda
    * @returns Credenciales descifradas
