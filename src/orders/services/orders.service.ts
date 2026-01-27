@@ -186,4 +186,80 @@ export class OrdersService {
 
     return order;
   }
+
+  /**
+   * Cambia el estado de un pedido dado su código (p.ej., 'pending', 'shipped')
+   * - Valida que el estado exista y esté activo
+   * - Evita reasignar el mismo estado
+   * - Aplica validaciones específicas para ciertos estados (shipped, delivered, cancelled)
+   * @param orderId - ID del pedido
+   * @param statusCode - Código del estado destino
+   * @param user - Opcional, token del usuario que realiza la acción (se respeta restricción de clientes)
+   */
+  async changeStatusByCode(
+    orderId: number,
+    statusCode: string,
+    user?: PayloadToken,
+  ): Promise<Order> {
+    // Reusar la validación de permisos y existencia de pedido
+    const order = await this.findOne(orderId, user);
+
+    // Buscar estado por código y activo
+    const status = await this.orderStatusRepo.findOne({
+      where: { code: statusCode, isActive: true },
+    });
+
+    if (!status) {
+      throw new NotFoundException('Estado no encontrado o inactivo');
+    }
+
+    if (order.statusId === status.id) {
+      throw new BadRequestException('El pedido ya posee ese estado');
+    }
+
+    // Validaciones específicas
+    // - No marcar como 'shipped' si es pickup o si el pago no está pagado
+    if (status.code === 'shipped') {
+      if (order.fulfillmentType === FulfillmentType.PICKUP) {
+        throw new BadRequestException(
+          "No se puede marcar como 'shipped' en pedidos para recogida (pickup)",
+        );
+      }
+      if (order.paymentStatus !== 'paid') {
+        throw new BadRequestException(
+          "No se puede enviar un pedido cuyo pago no está marcado como 'paid'",
+        );
+      }
+      order.shippedAt = new Date();
+    }
+
+    // - Para marcar como entregado, debe haber sido enviado antes
+    if (status.code === 'delivered') {
+      if (!order.shippedAt) {
+        throw new BadRequestException(
+          "No se puede marcar como 'delivered' si el pedido no está marcado como 'shipped'",
+        );
+      }
+      order.deliveredAt = new Date();
+    }
+
+    // - Para cancelado, registrar timestamp
+    if (status.code === 'cancelled') {
+      order.cancelledAt = new Date();
+    }
+
+    // Asignar nuevo estado
+    order.status = status;
+    order.statusId = status.id;
+
+    // Guardar y retornar con relaciones
+    const saved = await this.orderRepo.save(order);
+
+    const updated = await this.orderRepo.findOne({
+      where: { id: saved.id },
+      relations: ['items', 'store', 'status'],
+    });
+
+    return updated!;
+  }
 }
