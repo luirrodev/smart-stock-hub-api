@@ -1,3 +1,5 @@
+import { PaymentMode } from '../entities/store-payment-config.entity';
+
 export class CreatePaymentConfigDto {
   // Nombre del proveedor (ej. 'paypal')
   provider: string;
@@ -9,7 +11,7 @@ export class CreatePaymentConfigDto {
   secret: string;
 
   // Modo: 'sandbox' o 'production'
-  mode: 'sandbox' | 'production';
+  mode: PaymentMode;
 
   // Indica si la configuración está activa
   isActive?: boolean;
