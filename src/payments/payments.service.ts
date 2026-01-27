@@ -406,9 +406,133 @@ export class PaymentsService {
   //   }
   // }
 
-  // Placeholder: procesa un reembolso
-  async refundPayment(paymentId: number, dto: RefundPaymentDto): Promise<void> {
-    // TODO: Implementar lógica real con provider
-    return;
+  // Procesa un reembolso total o parcial
+  async refundPayment(
+    paymentId: number | string,
+    dtoOrAmount?: RefundPaymentDto | number,
+    reason?: string,
+  ) {
+    // Normalizar parámetros para soportar llamadas desde controller (dto) o directamente (amount, reason)
+    let amount: number | undefined;
+    let reasonText: string | undefined;
+
+    if (typeof dtoOrAmount === 'object' && dtoOrAmount !== null) {
+      amount = dtoOrAmount.amount
+        ? Number(parseFloat(dtoOrAmount.amount))
+        : undefined;
+      reasonText = dtoOrAmount.reason;
+    } else if (typeof dtoOrAmount === 'number') {
+      amount = dtoOrAmount;
+      reasonText = reason;
+    }
+
+    // 1. Buscar pago
+    const payment = await this.paymentRepository.findOne({
+      where: { id: Number(paymentId) },
+    });
+
+    if (!payment) {
+      throw new NotFoundException(`Pago ${paymentId} no encontrado`);
+    }
+
+    // 2. Validar que esté completado
+    if (payment.status !== PaymentStatus.COMPLETED) {
+      throw new BadRequestException(
+        'Solo se pueden reembolsar pagos completados',
+      );
+    }
+
+    // 3. Validar que tenga Capture ID
+    const captureId = payment.providerOrderId;
+    if (!captureId) {
+      throw new BadRequestException(
+        'No se encontró Capture ID para reembolsar',
+      );
+    }
+
+    // 4. Validar monto si es parcial
+    if (amount !== undefined && amount > Number(payment.amount)) {
+      throw new BadRequestException(
+        'El monto a reembolsar no puede ser mayor al monto del pago',
+      );
+    }
+
+    // 5. Obtener configuración de PayPal
+    const paypalConfig = await this.getStorePayPalConfig(payment.storeId);
+
+    // 6. Preparar datos de reembolso
+    const refundData = amount
+      ? {
+          amount: {
+            currency_code: payment.currency,
+            value: amount.toFixed(2),
+          },
+          note_to_payer: reasonText || 'Reembolso procesado',
+        }
+      : {
+          note_to_payer: reasonText || 'Reembolso total procesado',
+        };
+
+    // 7. Procesar reembolso en PayPal
+    let refundResponse: any;
+    try {
+      refundResponse = await this.paypalService.refundCapture(
+        captureId,
+        paypalConfig,
+        payment.storeId,
+        refundData,
+      );
+    } catch (error) {
+      this.logger.error(`Error procesando reembolso: ${error.message}`);
+
+      // Guardar transacción fallida
+      await this.transactionRepository.save({
+        paymentId: payment.id,
+        transactionType: TransactionType.REFUND,
+        providerTransactionId: error.response?.data?.id || null,
+        requestPayload: refundData,
+        responsePayload: error.response?.data || { error: error.message },
+        status: 'FAILED',
+      });
+
+      throw new BadRequestException('Error al procesar el reembolso en PayPal');
+    }
+
+    // 8. Actualizar Payment
+    payment.status = PaymentStatus.REFUNDED;
+    await this.paymentRepository.save(payment);
+
+    // 9. Guardar transacción
+    await this.transactionRepository.save({
+      paymentId: payment.id,
+      transactionType: TransactionType.REFUND,
+      providerTransactionId: refundResponse.id,
+      requestPayload: refundData,
+      responsePayload: refundResponse,
+      status: 'SUCCESS',
+    });
+
+    // 10. Actualizar orden si es reembolso total
+    if (amount === undefined || amount === Number(payment.amount)) {
+      // Marcar la orden como 'refunded' usando el status code
+      try {
+        await this.ordersService.changeStatusByCode(
+          payment.orderId,
+          'refunded',
+        );
+      } catch (err) {
+        // No queremos fallar el refund por un problema al actualizar el estado de la orden
+        this.logger.warn(
+          `No se pudo actualizar el estado de la orden: ${err?.message || err}`,
+        );
+      }
+    }
+
+    return {
+      paymentId: payment.id,
+      refundId: refundResponse.id,
+      status: refundResponse.status,
+      amount: refundResponse.amount?.value,
+    };
   }
 }
