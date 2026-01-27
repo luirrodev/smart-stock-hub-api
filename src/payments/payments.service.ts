@@ -13,12 +13,13 @@ import {
   PaymentProvider,
 } from './entities/store-payment-config.entity';
 import { StoresService } from '../stores/services/stores.service';
-import { encrypt } from 'src/common/utils/crypto.util';
+import { decrypt, encrypt } from 'src/common/utils/crypto.util';
 import { PaypalService } from './providers/paypal/paypal.service';
 import { NotFoundException, Logger } from '@nestjs/common';
 import { PaymentTransaction } from './entities/payment-transaction.entity';
 import { Payment } from './entities/payment.entity';
 import { OrdersService } from 'src/orders/services/orders.service';
+import { PayPalMode } from './providers/paypal/paypal.constants';
 
 @Injectable()
 export class PaymentsService {
@@ -96,10 +97,34 @@ export class PaymentsService {
     }
   }
 
-  // Placeholder: obtiene la configuración de pago para la tienda
-  async getStorePaymentConfig(storeId: number): Promise<void> {
-    // TODO: Implementar lógica real
-    return;
+  /**
+   * Obtiene la configuración de PayPal de una tienda
+   * @param storeId - ID de la tienda
+   * @returns Credenciales descifradas
+   */
+  private async getStorePayPalConfig(storeId: number) {
+    const config = await this.storePaymentConfigRepo.findOne({
+      where: {
+        storeId,
+        provider: 'paypal',
+        isActive: true,
+      },
+    });
+
+    if (!config) {
+      throw new NotFoundException(
+        `No se encontró configuración activa de PayPal para la tienda ${storeId}`,
+      );
+    }
+
+    // Descifrar el secret
+    const decryptedSecret = decrypt(config.secret);
+
+    return {
+      clientId: config.clientId,
+      secret: decryptedSecret,
+      mode: PayPalMode[config.mode],
+    };
   }
 
   // Placeholder: actualiza la configuración de pago
