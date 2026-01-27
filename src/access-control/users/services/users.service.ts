@@ -224,7 +224,6 @@ export class UsersService {
   async findCustomerIdByUserId(userId: number): Promise<number> {
     const user = await this.userRepo.findOne({
       where: { id: userId },
-      select: ['customerId'],
     });
 
     if (!user?.customerId) {
