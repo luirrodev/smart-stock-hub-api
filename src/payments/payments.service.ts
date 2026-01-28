@@ -3,6 +3,7 @@ import {
   BadRequestException,
   InternalServerErrorException,
 } from '@nestjs/common';
+import { PayloadToken } from 'src/auth/models/token.model';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreatePaymentConfigDto } from './dto/create-payment-config.dto';
@@ -104,11 +105,12 @@ export class PaymentsService {
   /**
    * Inicia el proceso de pago creando una orden en PayPal
    * @param orderId - ID de la orden en tu sistema
+   * @param user - Usuario Autenticado
    * @returns URL de aprobación de PayPal y datos del pago
    */
-  async initiatePayment(orderId: number) {
-    // 1. Obtener la orden de tu sistema
-    const order = await this.ordersService.findOne(orderId);
+  async initiatePayment(orderId: number, user?: PayloadToken) {
+    // 1. Obtener la orden de tu sistema (valida permisos si user es customer)
+    const order = await this.ordersService.findOne(orderId, user);
 
     // 2. Validar que la orden esté en estado correcto
     if (order.status.code !== 'pending') {
@@ -169,8 +171,9 @@ export class PaymentsService {
         },
       ],
       application_context: {
-        return_url: `${process.env.FRONTEND_URL}/payment/success`,
-        cancel_url: `${process.env.FRONTEND_URL}/payment/cancel`,
+        // TODO agregar FRONTEND_URL como variable de entorno
+        return_url: `http://mandaloca.com/payment/success`,
+        cancel_url: `http://mandaloca.com/payment/cancel`,
         brand_name: order.store.name, // Nombre de la tienda
         user_action: 'PAY_NOW' as const,
       },
@@ -237,7 +240,7 @@ export class PaymentsService {
    * @param paypalOrderId - ID de la orden de PayPal
    * @returns Datos del pago capturado
    */
-  async capturePayment(paypalOrderId: string) {
+  async capturePayment(paypalOrderId: string, user?: PayloadToken) {
     // 1. Buscar el pago en tu BD
     const payment = await this.paymentRepository.findOne({
       where: { providerOrderId: paypalOrderId },
