@@ -1,14 +1,11 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import {
-  PaypalWebhookEventDto,
-  PaypalWebhookEventType,
-} from '../dto/paypal-webhook-event.dto';
-import { Payment, PaymentStatus } from 'src/payments/entities/payment.entity';
+import { PaypalWebhookEventDto } from '../dto/paypal-webhook-event.dto';
+import { Payment } from 'src/payments/entities/payment.entity';
 import { StorePaymentConfig } from 'src/payments/entities/store-payment-config.entity';
 import { decrypt } from 'src/common/utils/crypto.util';
 import {
@@ -32,110 +29,77 @@ export class PaypalWebhookService {
     private readonly storePaymentConfigRepo: Repository<StorePaymentConfig>,
   ) {}
 
-  // async processEvent(
-  //   event: PaypalWebhookEventDto,
-  //   headers: Record<string, any>,
-  // ) {
-  //   this.logger.debug('Received PayPal webhook event', {
-  //     eventType: event.event_type,
-  //     headers: Object.keys(headers),
-  //   });
+  /**
+   * Verifica la firma de un webhook de PayPal
+   * @param headers - Headers del request
+   * @param event - Evento del webhook
+   * @returns true si la firma es válida, false en caso contrario
+   */
+  async verifySignature(
+    headers: Record<string, string>,
+    event: PaypalWebhookEventDto,
+  ): Promise<boolean> {
+    try {
+      // 1) Obtener PayPal Order ID para buscar la configuración de la tienda
+      const paypalOrderId =
+        event.resource?.supplementary_data?.related_ids?.order_id ||
+        event.resource?.id;
 
-  //   // 1) Obtener PayPal Order ID (preferir related_ids.order_id)
-  //   const paypalOrderId =
-  //     event.resource?.supplementary_data?.related_ids?.order_id ||
-  //     event.resource?.id;
+      if (!paypalOrderId) {
+        this.logger.warn('No PayPal order ID encontrado en webhook');
+        return false;
+      }
 
-  //   if (!paypalOrderId) {
-  //     this.logger.warn('No PayPal order id found in webhook resource');
-  //     return;
-  //   }
+      // 2) Buscar payment para obtener storeId
+      const payment = await this.paymentRepo.findOne({
+        where: { providerOrderId: String(paypalOrderId), provider: 'paypal' },
+      });
 
-  //   // 2) Buscar payment local vinculado (providerOrderId)
-  //   const payment = await this.paymentRepo.findOne({
-  //     where: { providerOrderId: String(paypalOrderId), provider: 'paypal' },
-  //   });
+      if (!payment) {
+        this.logger.warn(
+          `No se encontró payment para PayPal order ID: ${paypalOrderId}`,
+        );
+        return false;
+      }
 
-  //   if (!payment) {
-  //     this.logger.warn(
-  //       `No payment found for PayPal order id: ${paypalOrderId}`,
-  //     );
-  //     return;
-  //   }
+      // 3) Obtener configuración de PayPal de la tienda
+      const storeConfig = await this.storePaymentConfigRepo.findOne({
+        where: {
+          storeId: payment.storeId,
+          provider: 'paypal',
+          isActive: true,
+        },
+      });
 
-  //   // 3) Obtener configuración de PayPal de la tienda
-  //   const storeConfig = await this.storePaymentConfigRepo.findOne({
-  //     where: {
-  //       storeId: payment.storeId,
-  //       provider: 'paypal',
-  //       isActive: true,
-  //     },
-  //   });
+      if (!storeConfig) {
+        this.logger.warn(
+          `No hay configuración activa de PayPal para tienda ${payment.storeId}`,
+        );
+        return false;
+      }
 
-  //   if (!storeConfig) {
-  //     this.logger.warn(`No active PayPal config for store ${payment.storeId}`);
-  //     return;
-  //   }
+      // 4) Obtener webhook ID desde configuración
+      const webhookId = this.configService.get<string>('PAYPAL_WEBHOOK_ID');
+      if (!webhookId) {
+        this.logger.warn(
+          'PAYPAL_WEBHOOK_ID no configurado - omitiendo verificación (INSEGURO)',
+        );
+        // En producción esto debería retornar false
+        return true;
+      }
 
-  //   // 4) Verificar firma (usar webhook id desde env si está configurado)
-  //   const webhookId = this.configService.get<string>('PAYPAL_WEBHOOK_ID');
-  //   if (!webhookId) {
-  //     this.logger.warn(
-  //       'PAYPAL_WEBHOOK_ID no configurado en env; se omite verificación (inseguro)',
-  //     );
-  //   } else {
-  //     const ok = await this.verifyWebhookSignature(
-  //       headers,
-  //       event,
-  //       storeConfig,
-  //       webhookId,
-  //     );
-  //     if (!ok) {
-  //       this.logger.warn('PayPal webhook signature verification failed');
-  //       throw new BadRequestException('Invalid webhook signature');
-  //     }
-  //   }
-
-  //   // 5) Manejar eventos críticos
-  //   switch (event.event_type) {
-  //     case PaypalWebhookEventType.PAYMENT_CAPTURE_COMPLETED: {
-  //       payment.status = PaymentStatus.COMPLETED;
-  //       await this.paymentRepo.save(payment);
-  //       await this.updateOrderPaymentStatus(payment.orderId, 'paid');
-  //       this.logger.log(`Payment ${payment.id} marked as COMPLETED`);
-  //       break;
-  //     }
-
-  //     case PaypalWebhookEventType.PAYMENT_CAPTURE_DENIED: {
-  //       payment.status = PaymentStatus.FAILED;
-  //       await this.paymentRepo.save(payment);
-  //       await this.updateOrderPaymentStatus(payment.orderId, 'failed');
-  //       this.logger.log(`Payment ${payment.id} marked as FAILED`);
-  //       break;
-  //     }
-
-  //     case PaypalWebhookEventType.CHECKOUT_ORDER_APPROVED: {
-  //       // Opcional: podemos dejar como pending o registrar un log
-  //       this.logger.log(
-  //         `PayPal order ${paypalOrderId} APPROVED (no capturada aún)`,
-  //       );
-  //       break;
-  //     }
-
-  //     case PaypalWebhookEventType.PAYMENT_CAPTURE_REFUNDED: {
-  //       payment.status = PaymentStatus.REFUNDED;
-  //       await this.paymentRepo.save(payment);
-  //       await this.updateOrderPaymentStatus(payment.orderId, 'refunded');
-  //       this.logger.log(`Payment ${payment.id} marked as REFUNDED`);
-  //       break;
-  //     }
-
-  //     default:
-  //       this.logger.warn('Unhandled PayPal event type: ' + event.event_type);
-  //   }
-
-  //   return;
-  // }
+      // 5) Verificar firma usando PayPal API
+      return await this.verifyWebhookSignature(
+        headers,
+        event,
+        storeConfig,
+        webhookId,
+      );
+    } catch (error) {
+      this.logger.error('Error verificando firma de webhook', error.stack);
+      return false;
+    }
+  }
 
   private async verifyWebhookSignature(
     headers: Record<string, any>,
