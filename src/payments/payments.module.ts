@@ -21,6 +21,6 @@ import { OrdersModule } from 'src/orders/orders.module';
   ],
   controllers: [PaymentsController, PaypalWebhookController],
   providers: [PaymentsService, PaypalService],
-  exports: [PaymentsService],
+  exports: [PaymentsService, PaypalService],
 })
 export class PaymentsModule {}

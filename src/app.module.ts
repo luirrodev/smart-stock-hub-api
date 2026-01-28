@@ -18,6 +18,7 @@ import { JWTAuthGuard } from './auth/guards/jwt-auth.guard';
 import { OrdersModule } from './orders/orders.module';
 import { StoresModule } from './stores/stores.module';
 import { PaymentsModule } from './payments/payments.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { PaymentsModule } from './payments/payments.module';
     OrdersModule,
     StoresModule,
     PaymentsModule,
+    WebhooksModule,
   ],
   controllers: [AppController],
   providers: [
