@@ -26,7 +26,7 @@ export class PaypalWebhookEventDto {
   })
   @IsString()
   @IsIn(Object.values(PaypalWebhookEventType))
-  event_type: PaypalWebhookEventType | string;
+  event_type: PaypalWebhookEventType;
 
   @ApiProperty({
     example: { id: '...', status: 'COMPLETED', amount: { value: '10.00' } },
