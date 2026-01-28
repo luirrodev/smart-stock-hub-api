@@ -9,7 +9,6 @@ import { StoresModule } from '../stores/stores.module';
 import { PaymentsService } from './payments.service';
 import { PaymentsController } from './payments.controller';
 import { PaypalService } from './providers/paypal/paypal.service';
-import { PaypalWebhookController } from './providers/paypal/paypal.webhook.controller';
 import { OrdersModule } from 'src/orders/orders.module';
 
 @Module({
@@ -19,7 +18,7 @@ import { OrdersModule } from 'src/orders/orders.module';
     StoresModule,
     OrdersModule,
   ],
-  controllers: [PaymentsController, PaypalWebhookController],
+  controllers: [PaymentsController],
   providers: [PaymentsService, PaypalService],
   exports: [PaymentsService, PaypalService],
 })
