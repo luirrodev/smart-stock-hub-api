@@ -19,7 +19,7 @@ export class PaypalWebhookController {
     @Body() event: PaypalWebhookEventDto,
     @Headers() headers: Record<string, string>,
   ) {
-    await this.paypalService.processEvent(event, headers);
+    // await this.paypalService.processEvent(event, headers);
     return { received: true };
   }
 }
