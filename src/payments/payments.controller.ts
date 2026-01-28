@@ -7,6 +7,7 @@ import {
   Param,
   HttpCode,
   ParseIntPipe,
+  Query,
 } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { GetUser } from 'src/auth/decorators/get-user.decorator';
@@ -22,7 +23,9 @@ import {
   ApiOkResponse,
   ApiParam,
   ApiBody,
+  ApiQuery,
 } from '@nestjs/swagger';
+import { OptionalAuth } from 'src/auth/decorators/optional-auth.decorator';
 
 @ApiTags('Payments')
 @Controller('payments')
@@ -89,11 +92,8 @@ export class PaymentsController {
   @Post('capture')
   @ApiOperation({ summary: 'Capturar pago aprobado' })
   @ApiOkResponse({ description: 'Pago capturado correctamente' })
-  async capturePayment(
-    @Body('paypalOrderId') paypalOrderId: string,
-    @GetUser() user?: PayloadToken,
-  ) {
-    return await this.paymentsService.capturePayment(paypalOrderId, user);
+  async capturePayment(@Body('paypalOrderId') paypalOrderId: string) {
+    return await this.paymentsService.capturePayment(paypalOrderId);
   }
 
   /**
@@ -120,5 +120,29 @@ export class PaymentsController {
     @Body() dto: RefundPaymentDto,
   ) {
     return await this.paymentsService.refundPayment(paymentId, dto);
+  }
+
+  @Get('success')
+  @OptionalAuth()
+  @ApiOperation({
+    summary: 'Redirect de PayPal: recibir token y PayerID y capturar pago',
+  })
+  @ApiQuery({ name: 'token', required: true })
+  @ApiQuery({ name: 'PayerID', required: false })
+  async paymentSuccess(
+    @Query('token') token: string,
+    @Query('PayerID') payerId?: string,
+  ) {
+    // token = PayPal order id en el redirect
+    try {
+      const result = await this.paymentsService.capturePayment(String(token));
+      return { message: 'Pago capturado', result };
+    } catch (err) {
+      // Retornar un respuesta simple para el frontend; el servicio ya lanza excepciones apropiadas
+      return {
+        message: 'Error al capturar el pago',
+        error: err?.message || err,
+      };
+    }
   }
 }
