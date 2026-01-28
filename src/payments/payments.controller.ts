@@ -9,6 +9,8 @@ import {
   ParseIntPipe,
 } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
+import { GetUser } from 'src/auth/decorators/get-user.decorator';
+import { PayloadToken } from 'src/auth/models/token.model';
 import { CreatePaymentConfigDto } from './dto/create-payment-config.dto';
 import { UpdatePaymentConfigDto } from './dto/update-payment-config.dto';
 import { RefundPaymentDto } from './dto/refund-payment.dto';
@@ -73,8 +75,11 @@ export class PaymentsController {
   @ApiOperation({ summary: 'Crear orden de pago' })
   @ApiCreatedResponse({ description: 'Orden creada correctamente' })
   @ApiBody({ type: CreatePaymentDto })
-  async createPayment(@Body() dto: CreatePaymentDto) {
-    return await this.paymentsService.initiatePayment(dto.orderId);
+  async createPayment(
+    @Body() dto: CreatePaymentDto,
+    @GetUser() user?: PayloadToken,
+  ) {
+    return await this.paymentsService.initiatePayment(dto.orderId, user);
   }
 
   /**
@@ -84,8 +89,11 @@ export class PaymentsController {
   @Post('capture')
   @ApiOperation({ summary: 'Capturar pago aprobado' })
   @ApiOkResponse({ description: 'Pago capturado correctamente' })
-  async capturePayment(@Body('paypalOrderId') paypalOrderId: string) {
-    return await this.paymentsService.capturePayment(paypalOrderId);
+  async capturePayment(
+    @Body('paypalOrderId') paypalOrderId: string,
+    @GetUser() user?: PayloadToken,
+  ) {
+    return await this.paymentsService.capturePayment(paypalOrderId, user);
   }
 
   /**
@@ -96,7 +104,10 @@ export class PaymentsController {
   @ApiOperation({ summary: 'Obtener estado de un pago' })
   @ApiParam({ name: 'id', required: true, description: 'ID del pago' })
   @ApiOkResponse({ description: 'Estado del pago obtenido' })
-  async getPaymentStatus(@Param('id') paymentId: string) {
+  async getPaymentStatus(
+    @Param('id') paymentId: string,
+    @GetUser() user?: PayloadToken,
+  ) {
     return await this.paymentsService.getPaymentStatus(paymentId);
   }
 
