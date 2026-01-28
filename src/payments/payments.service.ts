@@ -173,8 +173,10 @@ export class PaymentsService {
       application_context: {
         // TODO agregar FRONTEND_URL como variable de entorno
         // esta es una url de prueba temporal
-        return_url: `https://v8rs2k4c-3010.use2.devtunnels.ms/payments/success`,
-        cancel_url: `https://v8rs2k4c-3010.use2.devtunnels.ms/payments/cancel`,
+        // return_url: `https://v8rs2k4c-3010.use2.devtunnels.ms/payments/success`,
+        // cancel_url: `https://v8rs2k4c-3010.use2.devtunnels.ms/payments/cancel`,
+        return_url: `https://lola-store.vercel.app/payments/success`,
+        cancel_url: `https://lola-store.vercel.app/payments/cancel`,
         brand_name: order.store.name, // Nombre de la tienda
         user_action: 'PAY_NOW' as const,
       },
@@ -327,6 +329,142 @@ export class PaymentsService {
       amount: payment.amount,
       currency: payment.currency,
     };
+  }
+
+  /**
+   * Captura un pago vía webhook de PayPal
+   * Implementa idempotencia para evitar procesar el mismo evento múltiples veces
+   * @param paypalOrderId - ID de la orden de PayPal
+   * @param captureId - ID de la captura de PayPal
+   */
+  async capturePaymentViaWebhook(
+    paypalOrderId: string,
+    captureId: string,
+  ): Promise<void> {
+    // 1. Buscar payment en BD
+    const payment = await this.paymentRepository.findOne({
+      where: { providerOrderId: paypalOrderId, provider: 'paypal' },
+      relations: ['order'],
+    });
+
+    if (!payment) {
+      this.logger.warn(
+        `No se encontró payment para PayPal Order ID: ${paypalOrderId}`,
+      );
+      return;
+    }
+
+    // 2. Verificar idempotencia - si ya fue procesado, no hacer nada
+    if (payment.status === PaymentStatus.COMPLETED) {
+      this.logger.log(
+        `Payment ${payment.id} ya está COMPLETED - ignorando webhook duplicado`,
+      );
+      return;
+    }
+
+    // 3. Verificar que no esté en estado fallido
+    if (payment.status === PaymentStatus.FAILED) {
+      this.logger.warn(
+        `Payment ${payment.id} está en estado FAILED - no se puede completar`,
+      );
+      return;
+    }
+
+    // 4. Actualizar payment status a COMPLETED
+    payment.status = PaymentStatus.COMPLETED;
+    payment.providerOrderId = captureId; // Guardar Capture ID
+    await this.paymentRepository.save(payment);
+
+    // 5. Guardar transacción de captura
+    await this.transactionRepository.save({
+      paymentId: payment.id,
+      transactionType: TransactionType.CAPTURE,
+      providerTransactionId: captureId,
+      requestPayload: { paypalOrderId, source: 'webhook' },
+      responsePayload: { captureId, status: 'COMPLETED' },
+      status: 'SUCCESS',
+    });
+
+    // 6. Actualizar order status a PAID
+    try {
+      await this.ordersService.changeStatusByCode(
+        payment.orderId,
+        'payment_accepted',
+      );
+      this.logger.log(
+        `Orden ${payment.orderId} actualizada a 'payment_accepted' via webhook`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Error actualizando orden ${payment.orderId}:`,
+        error.message,
+      );
+      // No lanzamos error para no fallar el webhook
+    }
+
+    this.logger.log(
+      `Payment ${payment.id} completado exitosamente via webhook`,
+    );
+  }
+
+  /**
+   * Marca un pago como fallido vía webhook
+   * @param paypalOrderId - ID de la orden de PayPal
+   */
+  async markPaymentAsFailed(paypalOrderId: string): Promise<void> {
+    const payment = await this.paymentRepository.findOne({
+      where: { providerOrderId: paypalOrderId, provider: 'paypal' },
+    });
+
+    if (!payment) {
+      this.logger.warn(
+        `No se encontró payment para PayPal Order ID: ${paypalOrderId}`,
+      );
+      return;
+    }
+
+    // Verificar idempotencia
+    if (payment.status === PaymentStatus.FAILED) {
+      this.logger.log(
+        `Payment ${payment.id} ya está FAILED - ignorando webhook duplicado`,
+      );
+      return;
+    }
+
+    payment.status = PaymentStatus.FAILED;
+    await this.paymentRepository.save(payment);
+
+    this.logger.log(`Payment ${payment.id} marcado como FAILED via webhook`);
+  }
+
+  /**
+   * Marca un pago como reembolsado vía webhook
+   * @param paypalOrderId - ID de la orden de PayPal
+   */
+  async markPaymentAsRefunded(paypalOrderId: string): Promise<void> {
+    const payment = await this.paymentRepository.findOne({
+      where: { providerOrderId: paypalOrderId, provider: 'paypal' },
+    });
+
+    if (!payment) {
+      this.logger.warn(
+        `No se encontró payment para PayPal Order ID: ${paypalOrderId}`,
+      );
+      return;
+    }
+
+    // Verificar idempotencia
+    if (payment.status === PaymentStatus.REFUNDED) {
+      this.logger.log(
+        `Payment ${payment.id} ya está REFUNDED - ignorando webhook duplicado`,
+      );
+      return;
+    }
+
+    payment.status = PaymentStatus.REFUNDED;
+    await this.paymentRepository.save(payment);
+
+    this.logger.log(`Payment ${payment.id} marcado como REFUNDED via webhook`);
   }
 
   /**
