@@ -172,8 +172,9 @@ export class PaymentsService {
       ],
       application_context: {
         // TODO agregar FRONTEND_URL como variable de entorno
-        return_url: `http://mandaloca.com/payment/success`,
-        cancel_url: `http://mandaloca.com/payment/cancel`,
+        // esta es una url de prueba temporal
+        return_url: `https://v8rs2k4c-3010.use2.devtunnels.ms/payments/success`,
+        cancel_url: `https://v8rs2k4c-3010.use2.devtunnels.ms/payments/cancel`,
         brand_name: order.store.name, // Nombre de la tienda
         user_action: 'PAY_NOW' as const,
       },
@@ -240,7 +241,7 @@ export class PaymentsService {
    * @param paypalOrderId - ID de la orden de PayPal
    * @returns Datos del pago capturado
    */
-  async capturePayment(paypalOrderId: string, user?: PayloadToken) {
+  async capturePayment(paypalOrderId: string) {
     // 1. Buscar el pago en tu BD
     const payment = await this.paymentRepository.findOne({
       where: { providerOrderId: paypalOrderId },
