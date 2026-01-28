@@ -4,6 +4,10 @@ import { OrderItemResponseDto } from './order-item-response.dto';
 import { StoreResponseDto } from '../../stores/dtos/store-response.dto';
 
 export class OrderResponseDto {
+  @ApiProperty({ example: 396973 })
+  @Expose()
+  id: number;
+
   @ApiProperty({ example: 'ORD-20260127-396973' })
   @Expose()
   orderNumber: string;
