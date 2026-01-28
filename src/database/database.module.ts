@@ -27,10 +27,7 @@ import { SnakeNamingStrategy } from './typeorm-naming-strategy';
       isGlobal: true,
       useFactory: async (configService: ConfigType<typeof config>) => {
         const store = await redisStore({
-          host: configService.redis.host,
-          port: configService.redis.port,
-          password: configService.redis.password,
-          db: configService.redis.db,
+          url: configService.redis.url,
           ttl: 3600 * 1000, // 1 hora por defecto
         });
 

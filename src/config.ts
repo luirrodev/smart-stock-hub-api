@@ -6,6 +6,7 @@ export default registerAs('config', () => {
       url: process.env.DATABASE_URL,
     },
     redis: {
+      url: process.env.REDIS_URL || 'redis://localhost:6379/0',
       host: process.env.REDIS_HOST || 'localhost',
       port: parseInt(process.env.REDIS_PORT || '6379', 10),
       password: process.env.REDIS_PASSWORD,
