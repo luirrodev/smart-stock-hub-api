@@ -2,7 +2,7 @@ import { Global, Module } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CacheModule } from '@nestjs/cache-manager';
-import { redisStore } from 'cache-manager-ioredis-yet';
+import { ioRedisStore } from '@tirke/node-cache-manager-ioredis';
 
 import config from 'src/config';
 import { SnakeNamingStrategy } from './typeorm-naming-strategy';
@@ -26,8 +26,11 @@ import { SnakeNamingStrategy } from './typeorm-naming-strategy';
       inject: [config.KEY],
       isGlobal: true,
       useFactory: async (configService: ConfigType<typeof config>) => {
-        const store = await redisStore({
-          url: configService.redis.url,
+        const store = await ioRedisStore({
+          host: configService.redis.host,
+          port: configService.redis.port,
+          password: configService.redis.password || undefined,
+          db: configService.redis.db,
           ttl: 3600 * 1000, // 1 hora por defecto
         });
 
