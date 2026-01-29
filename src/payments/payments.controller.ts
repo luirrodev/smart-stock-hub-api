@@ -96,7 +96,7 @@ export class PaymentsController {
    * dependiendo de la configuración de la tienda.
    *
    * @param CreatePaymentDto - Datos de la orden de pago
-   * @param user - Usuario Autenticado (opcional)
+   * @param user - Usuario Autenticado
    * @returns URL de aprobación de PayPal y datos del pago
    */
   @Post('checkout')
