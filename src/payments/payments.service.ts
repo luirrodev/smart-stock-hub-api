@@ -10,7 +10,6 @@ import { CreatePaymentConfigDto } from './dto/payment-config.dto';
 import { UpdatePaymentConfigDto } from './dto/payment-config.dto';
 import { RefundPaymentDto } from './dto/refund-payment.dto';
 import { StorePaymentConfigResponseDto } from './dto/store-payment-config-response.dto';
-import { plainToInstance } from 'class-transformer';
 import {
   StorePaymentConfig,
   PaymentProvider,
@@ -26,7 +25,6 @@ import {
 import { Payment, PaymentStatus } from './entities/payment.entity';
 import { OrdersService } from 'src/orders/services/orders.service';
 import { PayPalMode } from './providers/paypal/paypal.constants';
-import { CreatePayPalOrderRequest } from './providers/paypal/paypal.interface';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { Order } from 'src/orders/entities/order.entity';
 import { CreateProviderOrderResponseDto } from './dto/create-provider-order-response.dto';
@@ -135,10 +133,13 @@ export class PaymentsService {
       );
     }
 
+    // Descifrar el secret
+    const decryptedSecret = decrypt(config.secret);
+
     // 5. Delegar la creación de la orden al proveedor específico
     const providerResponse = await this.createProviderOrder(
       data.provider,
-      config,
+      { ...config, secret: decryptedSecret },
       order,
     );
 
