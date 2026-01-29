@@ -21,13 +21,13 @@ jobs:
       - name: Build deployment image
         run: |
           IMAGE=ghcr.io/luirrodev/smart-stock-hub-api
-          echo "Building deployment image using --target development..."
-          docker build --target development . --tag $IMAGE
+          echo "Building deployment image using --target production..."
+          docker build --target production . --tag $IMAGE
           echo "Pushing $IMAGE to registry..."
           docker push $IMAGE
 
       - name: Deploy to Render
-        if: success() && github.ref == 'refs/heads/dev'
+        if: success() && github.ref == 'refs/heads/main'
         run: |
           echo "Triggering deployment to Render..."
           response=$(curl -s -o /dev/null -w "%{http_code}" -X GET "${{ secrets.RENDER_DEPLOY_HOOK }}")
