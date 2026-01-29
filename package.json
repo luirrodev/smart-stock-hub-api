@@ -27,6 +27,7 @@
     "seed:dev": "ts-node src/database/seed.ts"
   },
   "dependencies": {
+    "@keyv/redis": "^5.1.6",
     "@nestjs/axios": "^4.0.1",
     "@nestjs/cache-manager": "^3.1.0",
     "@nestjs/common": "^10.4.17",
@@ -41,20 +42,20 @@
     "@nestjs/typeorm": "^10.0.2",
     "bcryptjs": "^3.0.2",
     "cache-manager": "^7.2.8",
-    "cache-manager-ioredis-yet": "^2.1.2",
+    "cacheable": "^2.3.2",
     "class-transformer": "^0.5.1",
-    "class-validator": "^0.14.1",
+    "class-validator": "^0.14.3",
     "crypto-js": "^4.2.0",
     "dotenv": "^16.5.0",
-    "ioredis": "^5.9.2",
     "joi": "^17.13.3",
+    "keyv": "^5.6.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
-    "pg": "^8.15.6",
+    "pg": "^8.17.2",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
-    "typeorm": "^0.3.22",
+    "typeorm": "^0.3.28",
     "uuid": "^11.1.0"
   },
   "devDependencies": {
@@ -102,5 +103,5 @@
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
   },
-  "packageManager": "pnpm@10.28.1"
+  "packageManager": "pnpm@10.28.2+sha512.41872f037ad22f7348e3b1debbaf7e867cfd448f2726d9cf74c08f19507c31d2c8e7a11525b983febc2df640b5438dee6023ebb1f84ed43cc2d654d2bc326264"
 }
