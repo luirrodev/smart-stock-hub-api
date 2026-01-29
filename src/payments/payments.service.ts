@@ -57,11 +57,11 @@ export class PaymentsService {
 
     // validar que no exista otra configuración activa del mismo proveedor para esa tienda
     const existingActive = await this.storePaymentConfigRepo.findOne({
-      where: { storeId, provider: dto.provider },
+      where: { storeId, provider: dto.provider, mode: dto.mode },
     });
     if (existingActive) {
       throw new BadRequestException(
-        `Ya existe una configuración activa de ${dto.provider} para esta tienda`,
+        `Ya existe una configuración activa de ${dto.provider} en modo ${dto.mode} para esta tienda`,
       );
     }
 
@@ -83,9 +83,7 @@ export class PaymentsService {
       webhookUrl: dto.webhookUrl ?? null,
     });
 
-    const saved = await this.storePaymentConfigRepo.save(config);
-
-    return saved;
+    return await this.storePaymentConfigRepo.save(config);
   }
 
   /**
