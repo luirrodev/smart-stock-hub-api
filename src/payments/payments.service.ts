@@ -285,6 +285,13 @@ export class PaymentsService {
       'payment_accepted',
     );
 
+    // 6.Actualizar informacion de pago en la orden
+    await this.ordersService.changePaymentInfo(payment.orderId, {
+      paymentStatus: PaymentStatus.COMPLETED,
+      paymentMethod: payment.provider,
+      paymentTransactionId: captureId,
+    });
+
     this.logger.log(`Pago capturado exitosamente. Payment ID: ${payment.id}`);
 
     return {
