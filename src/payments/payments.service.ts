@@ -6,8 +6,8 @@ import {
 import { PayloadToken } from 'src/auth/models/token.model';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CreatePaymentConfigDto } from './dto/create-payment-config.dto';
-import { UpdatePaymentConfigDto } from './dto/update-payment-config.dto';
+import { CreatePaymentConfigDto } from './dto/payment-config.dto';
+import { UpdatePaymentConfigDto } from './dto/payment-config.dto';
 import { RefundPaymentDto } from './dto/refund-payment.dto';
 import { StorePaymentConfigResponseDto } from './dto/store-payment-config-response.dto';
 import { plainToInstance } from 'class-transformer';
@@ -531,13 +531,20 @@ export class PaymentsService {
 
   async updateStorePaymentConfig(
     storeId: number,
-    id: number,
     dto: UpdatePaymentConfigDto,
-  ) {
-    // Buscar configuración
-    const storeConfigs = await this.getStorePaymentConfigs(storeId);
+  ): Promise<StorePaymentConfigResponseDto> {
+    // validar que no exista otra configuración activa del mismo proveedor para esa tienda
+    const storeConfigs = await this.storePaymentConfigRepo.findOne({
+      where: { storeId, provider: dto.provider, mode: dto.mode },
+    });
 
-    this.storePaymentConfigRepo.merge(storeConfigs[id], dto);
+    if (!storeConfigs) {
+      throw new NotFoundException(
+        `No se encontró la configuración de pago con ${dto.provider} en modo ${dto.mode} para esta tienda`,
+      );
+    }
+
+    this.storePaymentConfigRepo.merge(storeConfigs, dto);
 
     // Invalidar token asíncrono
     this.paypalService
