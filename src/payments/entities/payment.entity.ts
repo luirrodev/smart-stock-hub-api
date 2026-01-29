@@ -9,14 +9,7 @@ import {
 } from 'typeorm';
 import { Order } from '../../orders/entities/order.entity';
 import { Store } from '../../stores/entities/store.entity';
-
-export enum PaymentStatus {
-  CREATED = 'CREATED',
-  PENDING = 'PENDING',
-  COMPLETED = 'COMPLETED',
-  FAILED = 'FAILED',
-  REFUNDED = 'REFUNDED',
-}
+import { PaymentStatus } from './payment-status.enum';
 
 @Entity({ name: 'payments' })
 export class Payment {

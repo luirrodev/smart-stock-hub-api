@@ -15,7 +15,7 @@ import { UsersService } from 'src/access-control/users/services/users.service';
 import { StoresService } from 'src/stores/services/stores.service';
 import { PayloadToken } from 'src/auth/models/token.model';
 import { ChangePaymentInfoDto } from '../dtos/change-payment-info.dto';
-import { PaymentStatus } from 'src/payments/entities/payment.entity';
+import { PaymentStatus } from 'src/payments/entities/payment-status.enum';
 
 @Injectable()
 export class OrdersService {

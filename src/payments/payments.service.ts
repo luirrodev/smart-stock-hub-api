@@ -22,7 +22,8 @@ import {
   PaymentTransaction,
   TransactionType,
 } from './entities/payment-transaction.entity';
-import { Payment, PaymentStatus } from './entities/payment.entity';
+import { Payment } from './entities/payment.entity';
+import { PaymentStatus } from './entities/payment-status.enum';
 import { OrdersService } from 'src/orders/services/orders.service';
 import { PayPalMode } from './providers/paypal/paypal.constants';
 import { CreatePaymentDto } from './dto/create-payment.dto';

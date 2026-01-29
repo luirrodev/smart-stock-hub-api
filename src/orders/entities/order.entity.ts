@@ -16,7 +16,7 @@ import { PickupPoint } from './pickup-point.entity';
 import { OrderStatus } from './order-status.entity';
 import { Store } from '../../stores/entities/store.entity';
 import { OrderItem } from './order-items.entity';
-import { PaymentStatus } from 'src/payments/entities/payment.entity';
+import { PaymentStatus } from '../../payments/entities/payment-status.enum';
 
 export enum FulfillmentType {
   SHIPPING = 'shipping',
