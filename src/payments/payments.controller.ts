@@ -91,18 +91,22 @@ export class PaymentsController {
   }
 
   /**
-   * Crear orden de pago
-   * POST /payments/create
+   * Crear una orden de pago para una tienda.
+   * El proceso de pago se inicia creando una orden en PayPal o Stripe
+   * dependiendo de la configuración de la tienda.
+   *
+   * @param CreatePaymentDto - Datos de la orden de pago
+   * @param user - Usuario Autenticado (opcional)
+   * @returns URL de aprobación de PayPal y datos del pago
    */
-  @Post('create')
+  @Post('checkout')
   @ApiOperation({ summary: 'Crear orden de pago' })
-  @ApiCreatedResponse({ description: 'Orden creada correctamente' })
   @ApiBody({ type: CreatePaymentDto })
   async createPayment(
-    @Body() dto: CreatePaymentDto,
-    @GetUser() user?: PayloadToken,
+    @Body() payload: CreatePaymentDto,
+    @GetUser() user: PayloadToken,
   ) {
-    return await this.paymentsService.initiatePayment(dto.orderId, user);
+    return await this.paymentsService.initiatePayment(payload, user);
   }
 
   /**
