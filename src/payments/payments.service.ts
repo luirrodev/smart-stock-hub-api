@@ -27,6 +27,7 @@ import { Payment, PaymentStatus } from './entities/payment.entity';
 import { OrdersService } from 'src/orders/services/orders.service';
 import { PayPalMode } from './providers/paypal/paypal.constants';
 import { CreatePayPalOrderRequest } from './providers/paypal/paypal.interface';
+import { CreatePaymentDto } from './dto/create-payment.dto';
 
 @Injectable()
 export class PaymentsService {
@@ -92,28 +93,28 @@ export class PaymentsService {
    * @param user - Usuario Autenticado
    * @returns URL de aprobación de PayPal y datos del pago
    */
-  async initiatePayment(orderId: number, user?: PayloadToken) {
+  async initiatePayment(data: CreatePaymentDto, user: PayloadToken) {
     // 1. Obtener la orden de tu sistema (valida permisos si user es customer)
-    const order = await this.ordersService.findOne(orderId, user);
+    const order = await this.ordersService.findOne(data.orderId, user);
 
     // 2. Validar que la orden esté en estado correcto
     if (order.status.code !== 'pending') {
       throw new BadRequestException(
-        `La orden ${orderId} no está en estado PENDING_PAYMENT`,
+        `La orden ${data.orderId} no está en estado: Pendiente de Pago`,
       );
     }
 
     // 3. Verificar que no exista un pago en proceso
     const existingPayment = await this.paymentRepository.findOne({
       where: {
-        orderId,
+        orderId: data.orderId,
         status: PaymentStatus.CREATED,
       },
     });
 
     if (existingPayment) {
       throw new BadRequestException(
-        `Ya existe un pago en proceso para la orden ${orderId}`,
+        `Ya existe un pago en proceso para la orden ${data.orderId}`,
       );
     }
 
