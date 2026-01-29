@@ -179,23 +179,24 @@ export class PaymentsService {
 
   /**
    * Captura un pago después de que el cliente lo aprobó
-   * @param paypalOrderId - ID de la orden de PayPal
+   * @param providerOrderId - ID de la orden en el proveedor de pago
+   * @param provider - Proveedor de pago (paypal, stripe, etc.)
    * @returns Datos del pago capturado
    */
-  async capturePayment(paypalOrderId: string) {
-    // 1. Buscar el pago en tu BD
+  async capturePayment(providerOrderId: string, provider: PaymentProvider) {
+    // Buscar el pago en tu BD
     const payment = await this.paymentRepository.findOne({
-      where: { providerOrderId: paypalOrderId },
+      where: { providerOrderId, provider },
       relations: ['order'],
     });
 
     if (!payment) {
       throw new NotFoundException(
-        `No se encontró pago con PayPal Order ID: ${paypalOrderId}`,
+        `No se encontró pago con ${provider} Order ID: ${providerOrderId}`,
       );
     }
 
-    // 2. Validar estado del pago
+    // Validar estado del pago
     if (payment.status === PaymentStatus.COMPLETED) {
       throw new BadRequestException('Este pago ya fue completado');
     }
@@ -204,55 +205,81 @@ export class PaymentsService {
       throw new BadRequestException('Este pago falló y no puede ser capturado');
     }
 
-    // 3. Obtener configuración de PayPal
-    const paypalConfig = await this.getStorePayPalConfig(payment.storeId);
-
-    // 4. Capturar pago en PayPal
+    // Capturar pago según el proveedor
     let captureResponse;
-    try {
-      captureResponse = await this.paypalService.captureOrder(
-        paypalOrderId,
-        paypalConfig,
-        payment.storeId,
-      );
-    } catch (error) {
-      // Guardar transacción fallida
-      await this.transactionRepository.save({
-        paymentId: payment.id,
-        transactionType: TransactionType.CAPTURE,
-        providerTransactionId: paypalOrderId,
-        requestPayload: { paypalOrderId },
-        responsePayload: error.response?.data || { error: error.message },
-        status: 'FAILED',
-      });
+    let captureId: string;
 
-      // Actualizar payment a FAILED
-      payment.status = PaymentStatus.FAILED;
-      await this.paymentRepository.save(payment);
+    switch (provider) {
+      case PaymentProvider.PAYPAL:
+        // 1. Obtener configuración de PayPal
+        const paypalConfig = await this.getStoreProviderConfig(
+          payment.storeId,
+          PaymentProvider.PAYPAL,
+        );
 
-      throw new BadRequestException('Error al capturar el pago en PayPal');
+        // 2. Capturar pago en PayPal
+        try {
+          captureResponse = await this.paypalService.captureOrder(
+            payment.providerOrderId,
+            paypalConfig,
+            payment.storeId,
+          );
+        } catch (error) {
+          // Guardar transacción fallida
+          const transaction = this.transactionRepository.create({
+            paymentId: payment.id,
+            transactionType: TransactionType.CAPTURE,
+            providerTransactionId: payment.providerOrderId,
+            requestPayload: { providerOrderId: payment.providerOrderId },
+            responsePayload: error.response?.data || { error: error.message },
+            status: 'FAILED',
+          });
+
+          await this.transactionRepository.save(transaction);
+
+          // Actualizar payment a FAILED
+          payment.status = PaymentStatus.FAILED;
+          await this.paymentRepository.save(payment);
+
+          throw new BadRequestException('Error al capturar el pago en PayPal');
+        }
+        // Extraer Capture ID de la respuesta de PayPal
+        captureId =
+          captureResponse.purchase_units[0]?.payments?.captures[0]?.id;
+        break;
+
+      case PaymentProvider.STRIPE:
+        // TODO: Implementar captura de Stripe
+        // captureResponse = await this.captureStripePayment(providerOrderId, payment);
+        // captureId = captureResponse.id;
+        throw new BadRequestException(
+          'Captura de pagos con Stripe aún no está implementada',
+        );
+
+      default:
+        throw new BadRequestException(
+          `Proveedor de pago no soportado: ${provider}`,
+        );
     }
 
-    // 5. Extraer Capture ID de la respuesta
-    const captureId =
-      captureResponse.purchase_units[0]?.payments?.captures[0]?.id;
-
-    // 6. Actualizar Payment en BD
-    payment.status = PaymentStatus.COMPLETED;
-    payment.providerOrderId = captureId;
-    await this.paymentRepository.save(payment);
-
-    // 7. Guardar transacción exitosa
-    await this.transactionRepository.save({
+    // 3. Guardar transacción exitosa
+    const transaction = this.transactionRepository.create({
       paymentId: payment.id,
       transactionType: TransactionType.CAPTURE,
       providerTransactionId: captureId,
-      requestPayload: { paypalOrderId },
+      requestPayload: { providerOrderId },
       responsePayload: captureResponse,
       status: 'SUCCESS',
     });
 
-    // 8. Actualizar estado de la orden
+    await this.transactionRepository.save(transaction);
+
+    // 4. Actualizar Payment en BD
+    payment.status = PaymentStatus.COMPLETED;
+    payment.providerOrderId = captureId;
+    await this.paymentRepository.save(payment);
+
+    // 5. Actualizar estado de la orden
     await this.ordersService.changeStatusByCode(
       payment.orderId,
       'payment_accepted',
@@ -478,22 +505,26 @@ export class PaymentsService {
   }
 
   /**
-   * Obtiene la configuración de PayPal de una tienda
+   * Obtiene la configuración de un proveedor de pago de una tienda
    * @param storeId - ID de la tienda
+   * @param provider - Proveedor de pago
    * @returns Credenciales descifradas
    */
-  private async getStorePayPalConfig(storeId: number) {
+  private async getStoreProviderConfig(
+    storeId: number,
+    provider: PaymentProvider,
+  ) {
     const config = await this.storePaymentConfigRepo.findOne({
       where: {
         storeId,
-        provider: 'paypal',
+        provider,
         isActive: true,
       },
     });
 
     if (!config) {
       throw new NotFoundException(
-        `No se encontró configuración activa de PayPal para la tienda ${storeId}`,
+        `No se encontró configuración activa de ${provider} para la tienda ${storeId}`,
       );
     }
 
@@ -503,6 +534,24 @@ export class PaymentsService {
     return {
       clientId: config.clientId,
       secret: decryptedSecret,
+      mode: config.mode,
+    };
+  }
+
+  /**
+   * Obtiene la configuración de PayPal de una tienda
+   * @param storeId - ID de la tienda
+   * @returns Credenciales descifradas
+   */
+  private async getStorePayPalConfig(storeId: number) {
+    const config = await this.getStoreProviderConfig(
+      storeId,
+      PaymentProvider.PAYPAL,
+    );
+
+    return {
+      clientId: config.clientId,
+      secret: config.secret,
       mode: PayPalMode[config.mode],
     };
   }
