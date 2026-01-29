@@ -14,6 +14,8 @@ import { CreateOrderDto } from '../dtos/create-order.dto';
 import { UsersService } from 'src/access-control/users/services/users.service';
 import { StoresService } from 'src/stores/services/stores.service';
 import { PayloadToken } from 'src/auth/models/token.model';
+import { ChangePaymentInfoDto } from '../dtos/change-payment-info.dto';
+import { PaymentStatus } from 'src/payments/entities/payment.entity';
 
 @Injectable()
 export class OrdersService {
@@ -225,7 +227,7 @@ export class OrdersService {
           "No se puede marcar como 'shipped' en pedidos para recogida (pickup)",
         );
       }
-      if (order.paymentStatus !== 'paid') {
+      if (order.paymentStatus !== PaymentStatus.COMPLETED) {
         throw new BadRequestException(
           "No se puede enviar un pedido cuyo pago no está marcado como 'paid'",
         );
@@ -261,5 +263,17 @@ export class OrdersService {
     });
 
     return updated!;
+  }
+
+  async changePaymentInfo(orderId: number, data: ChangePaymentInfoDto) {
+    const order = await this.findOne(orderId);
+
+    await this.orderRepo.update(orderId, {
+      paymentStatus: data.paymentStatus,
+      paymentMethod: data.paymentMethod,
+      paymentTransactionId: data.paymentTransactionId,
+    });
+
+    return this.findOne(orderId);
   }
 }
