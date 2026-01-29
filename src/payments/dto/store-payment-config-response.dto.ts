@@ -8,7 +8,7 @@ import { Store } from 'src/stores/entities/store.entity';
 
 @Exclude()
 export class StorePaymentConfigResponseDto {
-  @Expose()
+  @Exclude()
   @ApiProperty({ example: 1 })
   id: number;
 
