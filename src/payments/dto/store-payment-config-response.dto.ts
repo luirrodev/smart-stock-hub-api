@@ -4,12 +4,17 @@ import {
   PaymentProvider,
   PaymentMode,
 } from '../entities/store-payment-config.entity';
+import { Store } from 'src/stores/entities/store.entity';
 
 @Exclude()
 export class StorePaymentConfigResponseDto {
-  @Exclude()
+  @Expose()
   @ApiProperty({ example: 1 })
   id: number;
+
+  @Exclude()
+  @ApiProperty({ example: 1 })
+  store: Store;
 
   @Exclude()
   @ApiProperty({ example: 10 })
@@ -25,7 +30,11 @@ export class StorePaymentConfigResponseDto {
 
   @Expose()
   @ApiProperty({ enum: PaymentMode, example: PaymentMode.SANDBOX })
-  mode: PaymentMode | string;
+  mode: PaymentMode;
+
+  @Exclude()
+  @ApiProperty({ example: 'SECRET-XYZ' })
+  secret: string;
 
   @Expose()
   @ApiProperty({ example: true })
@@ -41,10 +50,10 @@ export class StorePaymentConfigResponseDto {
   @Exclude()
   @Transform(({ value }) => (value ? new Date(value).toISOString() : value))
   @ApiProperty({ example: '2026-01-29T12:00:00.000Z' })
-  createdAt: Date | string;
+  createdAt: Date;
 
   @Expose()
   @Transform(({ value }) => (value ? new Date(value).toISOString() : value))
   @ApiProperty({ example: '2026-01-29T12:00:00.000Z' })
-  updatedAt: Date | string;
+  updatedAt: Date;
 }
