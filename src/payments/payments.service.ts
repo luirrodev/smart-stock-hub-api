@@ -520,6 +520,12 @@ export class PaymentsService {
       order: { id: 'ASC' },
     });
 
+    if (!configs) {
+      throw new NotFoundException(
+        'No se encontró la configuración de pago para esta tienda',
+      );
+    }
+
     return configs;
   }
 
@@ -529,68 +535,18 @@ export class PaymentsService {
     dto: UpdatePaymentConfigDto,
   ) {
     // Buscar configuración
+    const storeConfigs = await this.getStorePaymentConfigs(storeId);
 
-    const config = await this.storePaymentConfigRepo.findOne({
-      where: { id, storeId },
-    });
+    this.storePaymentConfigRepo.merge(storeConfigs[id], dto);
 
-    if (!config) {
-      throw new NotFoundException(
-        'No se encontró la configuración de pago para esta tienda',
+    // Invalidar token asíncrono
+    this.paypalService
+      .invalidateToken(storeId)
+      .catch((err) =>
+        this.logger.warn('No se pudo invalidar token de PayPal:', err?.message),
       );
-    }
 
-    // Aplicar cambios
-    if (dto.clientId) config.clientId = dto.clientId;
-    if (dto.secret) config.secret = encrypt(dto.secret);
-    if (dto.mode) config.mode = dto.mode;
-
-    if (dto.isActive) {
-      // Desactivar otras configuraciones activas del mismo provider en la tienda
-      const existingActive = await this.storePaymentConfigRepo.findOne({
-        where: { storeId, provider: config.provider, isActive: true },
-      });
-      if (existingActive && existingActive.id !== config.id) {
-        existingActive.isActive = false;
-        await this.storePaymentConfigRepo.save(existingActive);
-      }
-    }
-
-    if (dto.isActive !== undefined) config.isActive = dto.isActive;
-
-    if (dto.webhookUrl !== undefined)
-      config.webhookUrl = dto.webhookUrl ?? null;
-
-    const saved = await this.storePaymentConfigRepo.save(config);
-
-    // Invalidar token de PayPal para esta tienda (por si se cambió credenciales/activación)
-    try {
-      await this.paypalService.invalidateToken(String(storeId));
-    } catch (err) {
-      this.logger.warn(
-        'No se pudo invalidar token de PayPal:',
-        err?.message || err,
-      );
-    }
-
-    const {
-      provider,
-      clientId,
-      mode,
-      isActive,
-      webhookUrl,
-      createdAt,
-      updatedAt,
-    } = saved;
-
-    return {
-      storeId: saved.storeId,
-      provider,
-      clientId,
-      mode,
-      isActive,
-      webhookUrl,
-    };
+    return await this.storePaymentConfigRepo.save(storeConfigs);
   }
 
   // Procesa un reembolso total o parcial
