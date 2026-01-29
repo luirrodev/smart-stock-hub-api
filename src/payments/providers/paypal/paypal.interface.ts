@@ -115,3 +115,8 @@ export interface PayPalRefundResponse {
     value: string;
   };
 }
+
+export interface CreateOrderPayPalResponse {
+  responseData: PayPalOrderResponse;
+  payloadData: CreatePayPalOrderRequest;
+}
