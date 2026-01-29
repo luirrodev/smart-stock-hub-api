@@ -10,7 +10,7 @@ import { firstValueFrom } from 'rxjs';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { PaymentProviderInterface } from '../payment-provider.interface';
-import { PayPalConfig } from './paypal.interface';
+import { CreateOrderPayPalResponse, PayPalConfig } from './paypal.interface';
 import {
   PAYPAL_API_URLS,
   PAYPAL_ENDPOINTS,
@@ -57,7 +57,7 @@ export class PaypalService implements PaymentProviderInterface {
   async createOrder(
     credentials: PayPalCredentials,
     orderData: Order,
-  ): Promise<PayPalOrderResponse> {
+  ): Promise<CreateOrderPayPalResponse> {
     const baseUrl = this.getBaseUrl(credentials.mode);
     const url = `${baseUrl}${PAYPAL_ENDPOINTS.ORDERS}`;
 
@@ -122,7 +122,10 @@ export class PaypalService implements PaymentProviderInterface {
         `Orden creada en PayPal. ID: ${response.data.id}, Status: ${response.data.status}`,
       );
 
-      return response.data;
+      return {
+        responseData: response.data,
+        payloadData: paypalOrderData,
+      };
     } catch (error) {
       this.logger.error(
         'Error creando orden en PayPal:',
