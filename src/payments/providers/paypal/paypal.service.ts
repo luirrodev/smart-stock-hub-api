@@ -26,6 +26,7 @@ import {
   PayPalRefundRequest,
   PayPalRefundResponse,
 } from './paypal.interface';
+import { Order } from 'src/orders/entities/order.entity';
 
 @Injectable()
 export class PaypalService implements PaymentProviderInterface {
@@ -55,19 +56,60 @@ export class PaypalService implements PaymentProviderInterface {
    */
   async createOrder(
     credentials: PayPalCredentials,
-    orderData: CreatePayPalOrderRequest,
-    storeId: number,
+    orderData: Order,
   ): Promise<PayPalOrderResponse> {
     const baseUrl = this.getBaseUrl(credentials.mode);
     const url = `${baseUrl}${PAYPAL_ENDPOINTS.ORDERS}`;
 
+    const total = Number(orderData.total).toFixed(2);
+    const subtotal = Number(orderData.subtotal).toFixed(2);
+    const shipping = Number(orderData.shippingCost).toFixed(2);
+    const tax = Number(orderData.tax).toFixed(2);
+
+    const paypalOrderData: CreatePayPalOrderRequest = {
+      intent: 'CAPTURE',
+      purchase_units: [
+        {
+          reference_id: orderData.id + '',
+          amount: {
+            currency_code: orderData.currency,
+            value: total,
+            breakdown: {
+              item_total: {
+                currency_code: orderData.currency,
+                value: subtotal,
+              },
+              shipping: {
+                currency_code: orderData.currency,
+                value: shipping,
+              },
+              tax_total: {
+                currency_code: orderData.currency,
+                value: tax,
+              },
+            },
+          },
+          description: `${orderData.orderNumber}`,
+        },
+      ],
+      application_context: {
+        return_url: `${process.env.FRONTEND_URL}/payments/success`,
+        cancel_url: `${process.env.FRONTEND_URL}/payments/cancel`,
+        brand_name: orderData.store.name,
+        user_action: 'PAY_NOW',
+      },
+    };
+
     try {
       // 1. Obtener access token
-      const accessToken = await this.getAccessToken(storeId, credentials);
+      const accessToken = await this.getAccessToken(
+        orderData.storeId,
+        credentials,
+      );
 
-      // 2. Crear orden en PayPal usando HttpService
+      // 2. Crear orden en PayPal
       const response = await firstValueFrom(
-        this.httpService.post<PayPalOrderResponse>(url, orderData, {
+        this.httpService.post<PayPalOrderResponse>(url, paypalOrderData, {
           headers: {
             Authorization: `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
