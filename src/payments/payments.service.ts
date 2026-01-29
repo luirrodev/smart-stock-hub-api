@@ -543,6 +543,10 @@ export class PaymentsService {
         `No se encontró la configuración de pago con ${dto.provider} en modo ${dto.mode} para esta tienda`,
       );
     }
+    if (dto.secret) {
+      // Encriptar el nuevo secret
+      dto.secret = encrypt(dto.secret);
+    }
 
     this.storePaymentConfigRepo.merge(storeConfigs, dto);
 
