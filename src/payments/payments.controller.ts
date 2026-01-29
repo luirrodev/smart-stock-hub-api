@@ -9,6 +9,7 @@ import {
   ParseIntPipe,
   Query,
 } from '@nestjs/common';
+import { Serialize } from 'src/common/decorators/serialize.decorator';
 import { PaymentsService } from './payments.service';
 import { GetUser } from 'src/auth/decorators/get-user.decorator';
 import { PayloadToken } from 'src/auth/models/token.model';
@@ -16,6 +17,7 @@ import { CreatePaymentConfigDto } from './dto/create-payment-config.dto';
 import { UpdatePaymentConfigDto } from './dto/update-payment-config.dto';
 import { RefundPaymentDto } from './dto/refund-payment.dto';
 import { CreatePaymentDto } from './dto/create-payment.dto';
+import { StorePaymentConfigResponseDto } from './dto/store-payment-config-response.dto';
 import {
   ApiTags,
   ApiOperation,
@@ -32,42 +34,66 @@ import { OptionalAuth } from 'src/auth/decorators/optional-auth.decorator';
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
-  // Configurar PayPal para una tienda
+  /**
+   * Crea la configuración de pago de PayPal o Stripe para una tienda.
+   * @param storeId - ID de la tienda
+   * @param dto - Datos de la configuración de pago
+   */
   @Post('stores/:storeId/payment-config')
-  // @HttpCode(204)
+  @Serialize(StorePaymentConfigResponseDto)
+  @ApiOperation({ summary: 'Crear configuración de pago para una tienda' })
+  @ApiCreatedResponse({
+    description: 'Configuración creada correctamente',
+    type: StorePaymentConfigResponseDto,
+  })
   async createStorePaymentConfig(
     @Param('storeId', ParseIntPipe) storeId: number,
     @Body() dto: CreatePaymentConfigDto,
-  ) {
-    // Endpoint placeholder: no retorna nada por ahora
-    await this.paymentsService.createStorePaymentConfig(storeId, dto);
-
-    return {
-      message: 'Configuración de pago creada',
-    };
+  ): Promise<StorePaymentConfigResponseDto> {
+    return await this.paymentsService.createStorePaymentConfig(storeId, dto);
   }
 
-  // Ver configuración de pagos de una tienda
+  /**
+   * Obtiene las configuraciones de pago de una tienda.
+   * @param storeId - ID de la tienda
+   * @returns Configuraciones de pago de la tienda
+   */
   @Get('stores/:storeId/payment-config')
-  @HttpCode(204)
+  @Serialize(StorePaymentConfigResponseDto)
+  @ApiOperation({ summary: 'Obtener configuraciones de pago de la tienda' })
+  @ApiOkResponse({
+    description: 'Configuraciones obtenidas correctamente',
+    type: [StorePaymentConfigResponseDto],
+  })
   async getStorePaymentConfig(
     @Param('storeId', ParseIntPipe) storeId: number,
-  ): Promise<void> {
-    // Endpoint placeholder: no retorna nada por ahora
-    return void 0;
+  ): Promise<StorePaymentConfigResponseDto[]> {
+    return await this.paymentsService.getStorePaymentConfigs(storeId);
   }
 
-  // Actualizar configuración de pagos
+  /**
+   * Actualiza la configuración de pago de PayPal o Stripe para una tienda.
+   * @param storeId - ID de la tienda
+   * @param id - ID de la configuración de pago
+   * @param dto - Datos de la configuración de pago
+   */
   @Put('stores/:storeId/payment-config/:id')
-  @HttpCode(204)
+  @Serialize(StorePaymentConfigResponseDto)
+  @ApiOperation({ summary: 'Actualizar configuración de pago' })
+  @ApiOkResponse({
+    description: 'Configuración actualizada correctamente',
+    type: StorePaymentConfigResponseDto,
+  })
   async updateStorePaymentConfig(
     @Param('storeId', ParseIntPipe) storeId: number,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdatePaymentConfigDto,
-  ): Promise<void> {
-    // Endpoint placeholder: no retorna nada por ahora
-    // await this.paymentsService.updateStorePaymentConfig(storeId, id, dto);
-    return void 0;
+  ): Promise<StorePaymentConfigResponseDto> {
+    return (await this.paymentsService.updateStorePaymentConfig(
+      storeId,
+      id,
+      dto,
+    )) as StorePaymentConfigResponseDto;
   }
 
   /**
