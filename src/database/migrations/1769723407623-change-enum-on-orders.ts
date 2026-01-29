@@ -13,6 +13,9 @@ export class ChangeEnumOnOrders1769723407623 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE "orders" ALTER COLUMN "payment_status" DROP DEFAULT`,
     );
+    await queryRunner.query(
+      `ALTER TABLE "orders" ALTER COLUMN "payment_status" TYPE text USING "payment_status"::text`,
+    );
     await queryRunner.query(`UPDATE "orders" SET "payment_status" = CASE "payment_status" 
           WHEN 'paid' THEN 'COMPLETED' 
           WHEN 'pending' THEN 'PENDING' 
@@ -20,7 +23,7 @@ export class ChangeEnumOnOrders1769723407623 implements MigrationInterface {
           WHEN 'refunded' THEN 'REFUNDED' 
           ELSE "payment_status" END`);
     await queryRunner.query(
-      `ALTER TABLE "orders" ALTER COLUMN "payment_status" TYPE "public"."orders_payment_status_enum" USING "payment_status"::"text"::"public"."orders_payment_status_enum"`,
+      `ALTER TABLE "orders" ALTER COLUMN "payment_status" TYPE "public"."orders_payment_status_enum" USING "payment_status"::"public"."orders_payment_status_enum"`,
     );
     await queryRunner.query(
       `ALTER TABLE "orders" ALTER COLUMN "payment_status" SET DEFAULT 'PENDING'`,
@@ -43,6 +46,9 @@ export class ChangeEnumOnOrders1769723407623 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE "orders" ALTER COLUMN "payment_status" DROP DEFAULT`,
     );
+    await queryRunner.query(
+      `ALTER TABLE "orders" ALTER COLUMN "payment_status" TYPE text USING "payment_status"::text`,
+    );
     await queryRunner.query(`UPDATE "orders" SET "payment_status" = CASE "payment_status" 
           WHEN 'COMPLETED' THEN 'paid' 
           WHEN 'PENDING' THEN 'pending' 
@@ -51,7 +57,7 @@ export class ChangeEnumOnOrders1769723407623 implements MigrationInterface {
           WHEN 'CREATED' THEN 'pending' 
           ELSE "payment_status" END`);
     await queryRunner.query(
-      `ALTER TABLE "orders" ALTER COLUMN "payment_status" TYPE "public"."orders_payment_status_enum_old" USING "payment_status"::"text"::"public"."orders_payment_status_enum_old"`,
+      `ALTER TABLE "orders" ALTER COLUMN "payment_status" TYPE "public"."orders_payment_status_enum_old" USING "payment_status"::"public"."orders_payment_status_enum_old"`,
     );
     await queryRunner.query(
       `ALTER TABLE "orders" ALTER COLUMN "payment_status" SET DEFAULT 'pending'`,
