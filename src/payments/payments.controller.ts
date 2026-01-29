@@ -16,6 +16,7 @@ import { CreatePaymentConfigDto } from './dto/payment-config.dto';
 import { UpdatePaymentConfigDto } from './dto/payment-config.dto';
 import { RefundPaymentDto } from './dto/refund-payment.dto';
 import { CreatePaymentDto } from './dto/create-payment.dto';
+import { CapturePaymentDto } from './dto/capture-payment.dto';
 import { StorePaymentConfigResponseDto } from './dto/store-payment-config-response.dto';
 import {
   ApiTags,
@@ -115,9 +116,13 @@ export class PaymentsController {
    */
   @Post('capture')
   @ApiOperation({ summary: 'Capturar pago aprobado' })
+  @ApiBody({ type: CapturePaymentDto })
   @ApiOkResponse({ description: 'Pago capturado correctamente' })
-  async capturePayment(@Body('paypalOrderId') paypalOrderId: string) {
-    return await this.paymentsService.capturePayment(paypalOrderId);
+  async capturePayment(@Body() dto: CapturePaymentDto) {
+    return await this.paymentsService.capturePayment(
+      dto.providerOrderId,
+      dto.provider,
+    );
   }
 
   /**
@@ -149,17 +154,21 @@ export class PaymentsController {
   @Get('success')
   @OptionalAuth()
   @ApiOperation({
-    summary: 'Redirect de PayPal: recibir token y PayerID y capturar pago',
+    summary: 'Redirect del proveedor de pago: recibir token/ID y capturar pago',
   })
-  @ApiQuery({ name: 'token', required: true })
-  @ApiQuery({ name: 'PayerID', required: false })
+  @ApiQuery({ name: 'token', required: true, description: 'ID de la orden del proveedor' })
+  @ApiQuery({ name: 'provider', required: true, description: 'Proveedor de pago (paypal, stripe)' })
+  @ApiQuery({ name: 'PayerID', required: false, description: 'PayerID (solo PayPal)' })
   async paymentSuccess(
     @Query('token') token: string,
+    @Query('provider') provider: string,
     @Query('PayerID') payerId?: string,
   ) {
-    // token = PayPal order id en el redirect
     try {
-      const result = await this.paymentsService.capturePayment(String(token));
+      const result = await this.paymentsService.capturePayment(
+        String(token),
+        provider as any,
+      );
       return { message: 'Pago capturado', result };
     } catch (err) {
       // Retornar un respuesta simple para el frontend; el servicio ya lanza excepciones apropiadas
