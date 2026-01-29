@@ -54,9 +54,8 @@ export class Payment {
     name: 'provider_order_id',
     type: 'varchar',
     length: 255,
-    nullable: true,
   })
-  providerOrderId?: string | null;
+  providerOrderId: string;
 
   // MONTO
   // Monto cobrado en la transacción. Se usa tipo numeric con precisión para evitar pérdida de precisión.
