@@ -9,6 +9,8 @@ import { Repository } from 'typeorm';
 import { CreatePaymentConfigDto } from './dto/create-payment-config.dto';
 import { UpdatePaymentConfigDto } from './dto/update-payment-config.dto';
 import { RefundPaymentDto } from './dto/refund-payment.dto';
+import { StorePaymentConfigResponseDto } from './dto/store-payment-config-response.dto';
+import { plainToInstance } from 'class-transformer';
 import {
   StorePaymentConfig,
   PaymentProvider,
@@ -49,26 +51,18 @@ export class PaymentsService {
   async createStorePaymentConfig(
     storeId: number,
     dto: CreatePaymentConfigDto,
-  ): Promise<void> {
-    // Validar proveedor soportado
-    const allowedProviders = [PaymentProvider.PAYPAL, PaymentProvider.STRIPE];
-    if (!allowedProviders.includes(dto.provider as PaymentProvider)) {
-      throw new BadRequestException('Proveedor de pago no soportado');
-    }
-
+  ): Promise<StorePaymentConfigResponseDto> {
     // Verificar que la tienda exista (usa StoresService que lanza NotFoundException)
     await this.storesService.findOne(storeId);
 
-    // Si la nueva configuración viene como activa, desactivar cualquier otra activa del mismo provider en la tienda
-    if (dto.isActive) {
-      const existingActive = await this.storePaymentConfigRepo.findOne({
-        where: { storeId, provider: dto.provider, isActive: true },
-      });
-
-      if (existingActive) {
-        existingActive.isActive = false;
-        await this.storePaymentConfigRepo.save(existingActive);
-      }
+    // validar que no exista otra configuración activa del mismo proveedor para esa tienda
+    const existingActive = await this.storePaymentConfigRepo.findOne({
+      where: { storeId, provider: dto.provider },
+    });
+    if (existingActive) {
+      throw new BadRequestException(
+        `Ya existe una configuración activa de ${dto.provider} para esta tienda`,
+      );
     }
 
     // Crear y guardar la configuración (secret se encripta)
@@ -89,17 +83,9 @@ export class PaymentsService {
       webhookUrl: dto.webhookUrl ?? null,
     });
 
-    await this.storePaymentConfigRepo.save(config);
+    const saved = await this.storePaymentConfigRepo.save(config);
 
-    // Invalidar token de PayPal para esta tienda (si existía)
-    try {
-      await this.paypalService.invalidateToken(String(storeId));
-    } catch (err) {
-      this.logger.warn(
-        'No se pudo invalidar token de PayPal:',
-        err?.message || err,
-      );
-    }
+    return saved;
   }
 
   /**
@@ -523,37 +509,91 @@ export class PaymentsService {
     };
   }
 
-  // Placeholder: actualiza la configuración de pago
-  // async updateStorePaymentConfig(
-  //   storeId: number,
-  //   id: number,
-  //   dto: UpdatePaymentConfigDto,
-  // ): Promise<void> {
-  //   // Buscar configuración
-  //   const config = await this.storePaymentConfigRepo.findOne({
-  //     where: { id, storeId },
-  //   });
+  /**
+   * Lista las configuraciones de pago de una tienda (no devuelve el secret)
+   */
+  async getStorePaymentConfigs(
+    storeId: number,
+  ): Promise<StorePaymentConfigResponseDto[]> {
+    await this.storesService.findOne(storeId);
 
-  //   if (!config) {
-  //     throw new NotFoundException('Payment config not found');
-  //   }
+    const configs = await this.storePaymentConfigRepo.find({
+      where: { storeId },
+      order: { id: 'ASC' },
+    });
 
-  //   // Aplicar cambios
-  //   if (dto.clientId !== undefined) config.clientId = dto.clientId;
-  //   if (dto.secret !== undefined) config.secret = encrypt(dto.secret);
-  //   if (dto.mode !== undefined) config.mode = dto.mode;
-  //   if (dto.isActive !== undefined) config.isActive = dto.isActive;
-  //   if (dto.webhookUrl !== undefined) config.webhookUrl = dto.webhookUrl ?? null;
+    return configs;
+  }
 
-  //   await this.storePaymentConfigRepo.save(config);
+  async updateStorePaymentConfig(
+    storeId: number,
+    id: number,
+    dto: UpdatePaymentConfigDto,
+  ) {
+    // Buscar configuración
 
-  //   // Invalidar token de PayPal para esta tienda (por si se cambió credenciales/activación)
-  //   try {
-  //     await this.paypalService.invalidateToken(String(storeId));
-  //   } catch (err) {
-  //     this.logger.warn('No se pudo invalidar token de PayPal:', err?.message || err);
-  //   }
-  // }
+    const config = await this.storePaymentConfigRepo.findOne({
+      where: { id, storeId },
+    });
+
+    if (!config) {
+      throw new NotFoundException(
+        'No se encontró la configuración de pago para esta tienda',
+      );
+    }
+
+    // Aplicar cambios
+    if (dto.clientId) config.clientId = dto.clientId;
+    if (dto.secret) config.secret = encrypt(dto.secret);
+    if (dto.mode) config.mode = dto.mode;
+
+    if (dto.isActive) {
+      // Desactivar otras configuraciones activas del mismo provider en la tienda
+      const existingActive = await this.storePaymentConfigRepo.findOne({
+        where: { storeId, provider: config.provider, isActive: true },
+      });
+      if (existingActive && existingActive.id !== config.id) {
+        existingActive.isActive = false;
+        await this.storePaymentConfigRepo.save(existingActive);
+      }
+    }
+
+    if (dto.isActive !== undefined) config.isActive = dto.isActive;
+
+    if (dto.webhookUrl !== undefined)
+      config.webhookUrl = dto.webhookUrl ?? null;
+
+    const saved = await this.storePaymentConfigRepo.save(config);
+
+    // Invalidar token de PayPal para esta tienda (por si se cambió credenciales/activación)
+    try {
+      await this.paypalService.invalidateToken(String(storeId));
+    } catch (err) {
+      this.logger.warn(
+        'No se pudo invalidar token de PayPal:',
+        err?.message || err,
+      );
+    }
+
+    const {
+      provider,
+      clientId,
+      mode,
+      isActive,
+      webhookUrl,
+      createdAt,
+      updatedAt,
+    } = saved;
+
+    return {
+      storeId: saved.storeId,
+      provider,
+      clientId,
+      mode,
+      isActive,
+      webhookUrl,
+    };
+  }
 
   // Procesa un reembolso total o parcial
   async refundPayment(
