@@ -5,7 +5,6 @@ import {
   Put,
   Body,
   Param,
-  HttpCode,
   ParseIntPipe,
   Query,
 } from '@nestjs/common';
@@ -13,8 +12,8 @@ import { Serialize } from 'src/common/decorators/serialize.decorator';
 import { PaymentsService } from './payments.service';
 import { GetUser } from 'src/auth/decorators/get-user.decorator';
 import { PayloadToken } from 'src/auth/models/token.model';
-import { CreatePaymentConfigDto } from './dto/create-payment-config.dto';
-import { UpdatePaymentConfigDto } from './dto/update-payment-config.dto';
+import { CreatePaymentConfigDto } from './dto/payment-config.dto';
+import { UpdatePaymentConfigDto } from './dto/payment-config.dto';
 import { RefundPaymentDto } from './dto/refund-payment.dto';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { StorePaymentConfigResponseDto } from './dto/store-payment-config-response.dto';
@@ -86,14 +85,9 @@ export class PaymentsController {
   })
   async updateStorePaymentConfig(
     @Param('storeId', ParseIntPipe) storeId: number,
-    @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdatePaymentConfigDto,
   ): Promise<StorePaymentConfigResponseDto> {
-    return (await this.paymentsService.updateStorePaymentConfig(
-      storeId,
-      id,
-      dto,
-    )) as StorePaymentConfigResponseDto;
+    return await this.paymentsService.updateStorePaymentConfig(storeId, dto);
   }
 
   /**
