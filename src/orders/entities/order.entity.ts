@@ -16,6 +16,7 @@ import { PickupPoint } from './pickup-point.entity';
 import { OrderStatus } from './order-status.entity';
 import { Store } from '../../stores/entities/store.entity';
 import { OrderItem } from './order-items.entity';
+import { PaymentStatus } from 'src/payments/entities/payment.entity';
 
 export enum FulfillmentType {
   SHIPPING = 'shipping',
@@ -223,10 +224,10 @@ export class Order {
   @Column({
     name: 'payment_status',
     type: 'enum',
-    enum: ['pending', 'paid', 'failed', 'refunded'],
-    default: 'pending',
+    enum: PaymentStatus,
+    default: PaymentStatus.PENDING,
   })
-  paymentStatus: string;
+  paymentStatus: PaymentStatus;
 
   // INFORMACIÓN DE PAGO
   // Método de pago usado (p.ej., tarjeta, paypal)
