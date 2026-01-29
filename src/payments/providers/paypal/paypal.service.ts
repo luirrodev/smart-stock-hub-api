@@ -4,24 +4,18 @@ import {
   BadRequestException,
   Inject,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { PaymentProviderInterface } from '../payment-provider.interface';
 import { CreateOrderPayPalResponse, PayPalConfig } from './paypal.interface';
-import {
-  PAYPAL_API_URLS,
-  PAYPAL_ENDPOINTS,
-  PayPalMode,
-} from './paypal.constants';
+import { PAYPAL_API_URLS, PAYPAL_ENDPOINTS } from './paypal.constants';
 import {
   CreatePayPalOrderRequest,
   PayPalCredentials,
   PayPalAuthResponse,
   PayPalOrderResponse,
-  PayPalOrderItem,
   PayPalCaptureResponse,
   PayPalRefundRequest,
   PayPalRefundResponse,
