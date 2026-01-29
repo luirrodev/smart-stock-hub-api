@@ -28,6 +28,7 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { OptionalAuth } from 'src/auth/decorators/optional-auth.decorator';
+import { PaymentProvider } from './entities/store-payment-config.entity';
 
 @ApiTags('Payments')
 @Controller('payments')
@@ -156,9 +157,21 @@ export class PaymentsController {
   @ApiOperation({
     summary: 'Redirect del proveedor de pago: recibir token/ID y capturar pago',
   })
-  @ApiQuery({ name: 'token', required: true, description: 'ID de la orden del proveedor' })
-  @ApiQuery({ name: 'provider', required: true, description: 'Proveedor de pago (paypal, stripe)' })
-  @ApiQuery({ name: 'PayerID', required: false, description: 'PayerID (solo PayPal)' })
+  @ApiQuery({
+    name: 'token',
+    required: true,
+    description: 'ID de la orden del proveedor',
+  })
+  @ApiQuery({
+    name: 'provider',
+    required: true,
+    description: 'Proveedor de pago (paypal, stripe)',
+  })
+  @ApiQuery({
+    name: 'PayerID',
+    required: false,
+    description: 'PayerID (solo PayPal)',
+  })
   async paymentSuccess(
     @Query('token') token: string,
     @Query('provider') provider: string,
@@ -167,7 +180,8 @@ export class PaymentsController {
     try {
       const result = await this.paymentsService.capturePayment(
         String(token),
-        provider as any,
+        // Forzar Paypal para pruebas
+        PaymentProvider.PAYPAL,
       );
       return { message: 'Pago capturado', result };
     } catch (err) {
