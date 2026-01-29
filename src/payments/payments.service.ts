@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { PayloadToken } from 'src/auth/models/token.model';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { FindOptionsWhere, Repository } from 'typeorm';
 import { CreatePaymentConfigDto } from './dto/payment-config.dto';
 import { UpdatePaymentConfigDto } from './dto/payment-config.dto';
 import { RefundPaymentDto } from './dto/refund-payment.dto';
@@ -28,6 +28,8 @@ import { OrdersService } from 'src/orders/services/orders.service';
 import { PayPalMode } from './providers/paypal/paypal.constants';
 import { CreatePayPalOrderRequest } from './providers/paypal/paypal.interface';
 import { CreatePaymentDto } from './dto/create-payment.dto';
+import { Order } from 'src/orders/entities/order.entity';
+import { CreateProviderOrderResponseDto } from './dto/create-provider-order-response.dto';
 
 @Injectable()
 export class PaymentsService {
@@ -88,23 +90,23 @@ export class PaymentsService {
   }
 
   /**
-   * Inicia el proceso de pago creando una orden en PayPal
-   * @param orderId - ID de la orden en tu sistema
-   * @param user - Usuario Autenticado
-   * @returns URL de aprobación de PayPal y datos del pago
+   * Inicia el proceso de pago creando una orden en el proveedor correspondiente
+   * @param data - Datos del pago (orderId, provider)
+   * @param user - Usuario autenticado
+   * @returns URL de aprobación y datos del pago
    */
   async initiatePayment(data: CreatePaymentDto, user: PayloadToken) {
-    // 1. Obtener la orden de tu sistema (valida permisos si user es customer)
+    // 1. Obtener la orden de tu sistema
     const order = await this.ordersService.findOne(data.orderId, user);
 
     // 2. Validar que la orden esté en estado correcto
     if (order.status.code !== 'pending') {
       throw new BadRequestException(
-        `La orden ${data.orderId} no está en estado: Pendiente de Pago`,
+        `La orden en cuestión no está en estado: Pendiente de Pago`,
       );
     }
 
-    // 3. Verificar que no exista un pago en proceso
+    // 3. Verificar que no exista un pago en proceso para esta orden
     const existingPayment = await this.paymentRepository.findOne({
       where: {
         orderId: data.orderId,
@@ -114,111 +116,62 @@ export class PaymentsService {
 
     if (existingPayment) {
       throw new BadRequestException(
-        `Ya existe un pago en proceso para la orden ${data.orderId}`,
+        `Ya existe un pago en proceso para la orden en cuestión`,
       );
     }
 
-    // 4. Obtener configuración de PayPal de la tienda
-    const paypalConfig = await this.getStorePayPalConfig(order.storeId);
-
-    // 5. Preparar datos para PayPal
-    // Nota: los campos tipo numeric en Postgres suelen venir como string desde TypeORM,
-    // convertirlos a número antes de usar toFixed
-    const subtotalNum = Number(order.subtotal || 0);
-    const totalNum = Number(order.total || 0);
-    const shippingNum = Number(order.shippingCost || 0);
-    const taxNum = Number(order.tax || 0);
-
-    const paypalOrderData: CreatePayPalOrderRequest = {
-      intent: 'CAPTURE' as const,
-      purchase_units: [
-        {
-          reference_id: order.id + '',
-          amount: {
-            currency_code: order.currency || 'USD',
-            value: totalNum.toFixed(2),
-            breakdown: {
-              item_total: {
-                currency_code: order.currency || 'USD',
-                value: subtotalNum.toFixed(2),
-              },
-              shipping: {
-                currency_code: order.currency || 'USD',
-                value: shippingNum.toFixed(2),
-              },
-              tax_total: {
-                currency_code: order.currency || 'USD',
-                value: taxNum.toFixed(2),
-              },
-            },
-          },
-          description: `Orden #${order.orderNumber}`,
-        },
-      ],
-      application_context: {
-        // TODO agregar FRONTEND_URL como variable de entorno
-        // esta es una url de prueba temporal
-        // return_url: `https://v8rs2k4c-3010.use2.devtunnels.ms/payments/success`,
-        // cancel_url: `https://v8rs2k4c-3010.use2.devtunnels.ms/payments/cancel`,
-        return_url: `https://lola-store.vercel.app/payments/success`,
-        cancel_url: `https://lola-store.vercel.app/payments/cancel`,
-        brand_name: order.store.name, // Nombre de la tienda
-        user_action: 'PAY_NOW' as const,
+    // 4. Verificar que la tienda tenga configuración de pago activa para este proveedor
+    const config = await this.storePaymentConfigRepo.findOne({
+      where: {
+        storeId: order.storeId,
+        provider: data.provider,
+        isActive: true,
       },
-    };
+    });
 
-    // 6. Crear orden en PayPal
-    let paypalOrder;
-    try {
-      paypalOrder = await this.paypalService.createOrder(
-        paypalConfig,
-        paypalOrderData,
-        order.storeId,
+    if (!config) {
+      throw new BadRequestException(
+        `La tienda en cuestión no tiene configuración de pago activa para ${data.provider}`,
       );
-    } catch (error) {
-      this.logger.error(`Error creando orden en PayPal: ${error.message}`);
-      throw new BadRequestException('Error al procesar el pago con PayPal');
     }
 
-    // 7. Crear registro de Payment en tu BD
+    // 5. Delegar la creación de la orden al proveedor específico
+    const providerResponse = await this.createProviderOrder(
+      data.provider,
+      config,
+      order,
+    );
+
+    // 6. Crear registro de Payment en tu BD
     const payment = this.paymentRepository.create({
       orderId: order.id,
       storeId: order.storeId,
-      provider: 'paypal',
-      providerOrderId: paypalOrder.id,
-      amount: totalNum,
-      currency: order.currency || 'USD',
+      provider: data.provider,
+      providerOrderId: providerResponse.providerOrderId,
+      amount: Number(order.total),
+      currency: order.currency,
       status: PaymentStatus.CREATED,
     });
 
     await this.paymentRepository.save(payment);
 
-    // 8. Guardar transacción de creación
+    // 7. Guardar transacción de creación
     const transaction = this.transactionRepository.create({
       paymentId: payment.id,
       transactionType: TransactionType.CREATE,
-      providerTransactionId: paypalOrder.id,
-      requestPayload: paypalOrderData,
-      responsePayload: paypalOrder,
+      providerTransactionId: providerResponse.providerOrderId,
+      requestPayload: providerResponse.requestPayload,
+      responsePayload: providerResponse.responsePayload,
       status: 'SUCCESS',
     });
 
     await this.transactionRepository.save(transaction);
 
-    // 9. Obtener URL de aprobación
-    const approvalUrl = paypalOrder.links.find(
-      (link) => link.rel === 'approve',
-    )?.href;
-
-    if (!approvalUrl) {
-      throw new BadRequestException('No se obtuvo URL de aprobación de PayPal');
-    }
-
-    // 10. Retornar datos al frontend
+    // 8. Retornar datos al frontend
     return {
       paymentId: payment.id,
-      paypalOrderId: paypalOrder.id,
-      approvalUrl,
+      providerOrderId: providerResponse.providerOrderId,
+      approvalUrl: providerResponse.approvalUrl,
       status: payment.status,
     };
   }
@@ -479,6 +432,51 @@ export class PaymentsService {
   }
 
   /**
+   * Delega la creación de orden al proveedor de pago correspondiente
+   * @param provider - Proveedor de pago (PayPal, Stripe, etc.)
+   * @param config - Configuración del proveedor para la tienda
+   * @param order - Orden del sistema
+   * @returns Respuesta normalizada del proveedor
+   */
+  private async createProviderOrder(
+    provider: PaymentProvider,
+    config: StorePaymentConfig,
+    order: Order,
+  ): Promise<CreateProviderOrderResponseDto> {
+    switch (provider) {
+      case PaymentProvider.PAYPAL:
+        const { responseData, payloadData } =
+          await this.paypalService.createOrder(config, order);
+
+        // Extraer URL de aprobación
+        const approvalUrl = responseData.links.find(
+          (link) => link.rel === 'approve',
+        )?.href;
+
+        if (!approvalUrl) {
+          throw new InternalServerErrorException(
+            'No se pudo obtener la URL de aprobación de PayPal',
+          );
+        }
+
+        return {
+          providerOrderId: responseData.id,
+          approvalUrl,
+          requestPayload: JSON.stringify(payloadData),
+          responsePayload: JSON.stringify(responseData),
+        };
+
+      case PaymentProvider.STRIPE:
+      // return await this.createStripeOrder(config, order);
+
+      default:
+        throw new BadRequestException(
+          `Proveedor de pago no soportado: ${provider}`,
+        );
+    }
+  }
+
+  /**
    * Obtiene la configuración de PayPal de una tienda
    * @param storeId - ID de la tienda
    * @returns Credenciales descifradas
@@ -513,11 +511,18 @@ export class PaymentsService {
    */
   async getStorePaymentConfigs(
     storeId: number,
+    provider?: PaymentProvider,
   ): Promise<StorePaymentConfigResponseDto[]> {
     await this.storesService.findOne(storeId);
 
+    let whereClause: FindOptionsWhere<StorePaymentConfig> = { storeId };
+
+    if (provider) {
+      whereClause = { storeId, provider };
+    }
+
     const configs = await this.storePaymentConfigRepo.find({
-      where: { storeId },
+      where: whereClause,
       order: { id: 'ASC' },
     });
 
@@ -547,6 +552,18 @@ export class PaymentsService {
     if (dto.secret) {
       // Encriptar el nuevo secret
       dto.secret = encrypt(dto.secret);
+    }
+
+    // Si se está activando esta configuración, desactivar otras del mismo proveedor
+    if (dto.isActive) {
+      await this.storePaymentConfigRepo.update(
+        {
+          storeId,
+          provider: dto.provider,
+          isActive: true,
+        },
+        { isActive: false },
+      );
     }
 
     this.storePaymentConfigRepo.merge(storeConfigs, dto);
