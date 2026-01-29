@@ -47,7 +47,8 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     OrdersModule,
     StoresModule,
     PaymentsModule,
-    WebhooksModule,
+    // Desactivado temporalmente
+    // WebhooksModule,
   ],
   controllers: [AppController],
   providers: [
