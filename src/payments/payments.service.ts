@@ -477,6 +477,7 @@ export class PaymentsService {
    * @param storeId - ID de la tienda
    * @param provider - Proveedor de pago
    * @returns Credenciales descifradas
+   * @deprecated Usar getStorePayPalConfig en su lugar para PayPal
    */
   private async getStoreProviderConfig(
     storeId: number,
@@ -522,35 +523,6 @@ export class PaymentsService {
       secret: config.secret,
       mode: PayPalMode[config.mode],
     };
-  }
-
-  /**
-   * Lista las configuraciones de pago de una tienda (no devuelve el secret)
-   */
-  async getStorePaymentConfigs(
-    storeId: number,
-    provider?: PaymentProvider,
-  ): Promise<StorePaymentConfigResponseDto[]> {
-    await this.storesService.findOne(storeId);
-
-    let whereClause: FindOptionsWhere<StorePaymentConfig> = { storeId };
-
-    if (provider) {
-      whereClause = { storeId, provider };
-    }
-
-    const configs = await this.storePaymentConfigRepo.find({
-      where: whereClause,
-      order: { id: 'ASC' },
-    });
-
-    if (!configs) {
-      throw new NotFoundException(
-        'No se encontró la configuración de pago para esta tienda',
-      );
-    }
-
-    return configs;
   }
 
   async updateStorePaymentConfig(
