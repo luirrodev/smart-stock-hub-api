@@ -21,6 +21,7 @@ import {
   UpdatePaymentConfigDto,
 } from '../dtos/payment-config.dto';
 import { StorePaymentConfigResponseDto } from '../dtos/store-payment-config-response.dto';
+import { ProviderConfig } from 'src/payments/providers/payment-provider.interface';
 
 @Injectable()
 export class StoresPaymentConfigService {
@@ -36,10 +37,10 @@ export class StoresPaymentConfigService {
    * @param provider - Proveedor de pago
    * @returns Credenciales descifradas
    */
-  private async getStoreProviderConfig(
+  async getStoreProviderConfig(
     storeId: number,
     provider: PaymentProvider,
-  ) {
+  ): Promise<ProviderConfig> {
     const config = await this.storePaymentConfigRepo.findOne({
       where: {
         storeId,

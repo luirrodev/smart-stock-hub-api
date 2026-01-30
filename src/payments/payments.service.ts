@@ -28,6 +28,9 @@ import { PayPalMode } from './providers/paypal/paypal.constants';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { Order } from 'src/orders/entities/order.entity';
 import { CreateProviderOrderResponseDto } from './dto/create-provider-order-response.dto';
+import { StoresPaymentConfigService } from 'src/stores/services/stores-payment-config.service';
+import { PayPalCredentials } from './providers/paypal/paypal.interface';
+import { ProviderConfig } from './providers/payment-provider.interface';
 
 @Injectable()
 export class PaymentsService {
@@ -45,7 +48,7 @@ export class PaymentsService {
 
     private readonly paypalService: PaypalService,
     private ordersService: OrdersService,
-    private readonly storesService: StoresService,
+    private readonly storePaymentConfigService: StoresPaymentConfigService,
   ) {}
 
   /**
@@ -80,27 +83,15 @@ export class PaymentsService {
     }
 
     // 4. Verificar que la tienda tenga configuración de pago activa para este proveedor
-    const config = await this.storePaymentConfigRepo.findOne({
-      where: {
-        storeId: order.storeId,
-        provider: data.provider,
-        isActive: true,
-      },
-    });
-
-    if (!config) {
-      throw new BadRequestException(
-        `La tienda en cuestión no tiene configuración de pago activa para ${data.provider}`,
-      );
-    }
-
-    // Descifrar el secret
-    const decryptedSecret = decrypt(config.secret);
+    const config = await this.storePaymentConfigService.getStoreProviderConfig(
+      order.storeId,
+      data.provider,
+    );
 
     // 5. Delegar la creación de la orden al proveedor específico
     const providerResponse = await this.createProviderOrder(
       data.provider,
-      { ...config, secret: decryptedSecret },
+      config,
       order,
     );
 
@@ -436,7 +427,7 @@ export class PaymentsService {
    */
   private async createProviderOrder(
     provider: PaymentProvider,
-    config: StorePaymentConfig,
+    config: ProviderConfig,
     order: Order,
   ): Promise<CreateProviderOrderResponseDto> {
     switch (provider) {
