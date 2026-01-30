@@ -4,11 +4,13 @@ import { PaymentProvider } from '../../stores/entities/store-payment-config.enti
 
 export class CreatePaymentDto {
   @ApiProperty({ example: 123, description: 'ID de la orden a pagar' })
-  @IsInt()
-  @IsPositive()
+  @IsInt({ message: 'El ID de la orden debe ser un número entero' })
+  @IsPositive({ message: 'El ID de la orden debe ser un número positivo' })
   orderId: number;
 
   @ApiProperty({ example: PaymentProvider.PAYPAL })
-  @IsEnum(PaymentProvider)
+  @IsEnum(PaymentProvider, {
+    message: 'El proveedor de pago debe ser un valor válido',
+  })
   provider: PaymentProvider;
 }
