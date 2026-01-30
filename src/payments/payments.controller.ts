@@ -12,15 +12,12 @@ import { Serialize } from 'src/common/decorators/serialize.decorator';
 import { PaymentsService } from './payments.service';
 import { GetUser } from 'src/auth/decorators/get-user.decorator';
 import { PayloadToken } from 'src/auth/models/token.model';
-import { UpdatePaymentConfigDto } from '../stores/dtos/payment-config.dto';
 import { RefundPaymentDto } from './dto/refund-payment.dto';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { CapturePaymentDto } from './dto/capture-payment.dto';
-import { StorePaymentConfigResponseDto } from '../stores/dtos/store-payment-config-response.dto';
 import {
   ApiTags,
   ApiOperation,
-  ApiCreatedResponse,
   ApiOkResponse,
   ApiParam,
   ApiBody,
@@ -53,8 +50,9 @@ export class PaymentsController {
   }
 
   /**
-   * Captura un pago aprobado
-   * POST /payments/capture
+   * Captura un pago aprobado por el cliente
+   * @param dto - Datos del pago a capturar
+   * @returns Pago capturado correctamente
    */
   @Post('capture')
   @ApiOperation({ summary: 'Capturar pago aprobado' })
@@ -67,52 +65,19 @@ export class PaymentsController {
     );
   }
 
-  /**
-   * Consulta estado de un pago
-   * GET /payments/:id/status
-   */
-  @Get(':id/status')
-  @ApiOperation({ summary: 'Obtener estado de un pago' })
-  @ApiParam({ name: 'id', required: true, description: 'ID del pago' })
-  @ApiOkResponse({ description: 'Estado del pago obtenido' })
-  async getPaymentStatus(
-    @Param('id') paymentId: string,
-    @GetUser() user?: PayloadToken,
-  ) {
-    return await this.paymentsService.getPaymentStatus(paymentId);
-  }
-
-  // Procesar reembolso de un pago
-  @Post(':paymentId/refund')
-  @ApiOperation({ summary: 'Procesar reembolso (total o parcial)' })
-  @ApiParam({ name: 'paymentId', required: true, description: 'ID del pago' })
-  async refundPayment(
-    @Param('paymentId', ParseIntPipe) paymentId: number,
-    @Body() dto: RefundPaymentDto,
-  ) {
-    return await this.paymentsService.refundPayment(paymentId, dto);
-  }
+  // ToDo: Implementar reembolso de pagos
+  // @Post('/refund/:paymentId')
+  // @ApiOperation({ summary: 'Procesar reembolso (total o parcial)' })
+  // @ApiParam({ name: 'paymentId', required: true, description: 'ID del pago' })
+  // async refundPayment(
+  //   @Param('paymentId', ParseIntPipe) paymentId: number,
+  //   @Body() dto: RefundPaymentDto,
+  // ) {
+  //   return await this.paymentsService.refundPayment(paymentId, dto);
+  // }
 
   @Get('success')
   @OptionalAuth()
-  @ApiOperation({
-    summary: 'Redirect del proveedor de pago: recibir token/ID y capturar pago',
-  })
-  @ApiQuery({
-    name: 'token',
-    required: true,
-    description: 'ID de la orden del proveedor',
-  })
-  @ApiQuery({
-    name: 'provider',
-    required: true,
-    description: 'Proveedor de pago (paypal, stripe)',
-  })
-  @ApiQuery({
-    name: 'PayerID',
-    required: false,
-    description: 'PayerID (solo PayPal)',
-  })
   async paymentSuccess(
     @Query('token') token: string,
     @Query('provider') provider: string,

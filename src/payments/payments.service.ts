@@ -145,8 +145,18 @@ export class PaymentsService {
       throw new BadRequestException('Este pago ya fue completado');
     }
 
-    if (payment.status === 'FAILED') {
+    if (payment.status === PaymentStatus.FAILED) {
       throw new BadRequestException('Este pago falló y no puede ser capturado');
+    }
+
+    // Validar periodo de captura 30 minutos
+    if (payment.createdAt.getTime() + 30 * 60 * 1000 < Date.now()) {
+      payment.status = PaymentStatus.FAILED;
+      await this.paymentRepository.save(payment);
+
+      throw new BadRequestException(
+        'El período para capturar este pago ha expirado',
+      );
     }
 
     // Capturar pago según el proveedor
