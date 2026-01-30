@@ -31,7 +31,7 @@ export class JwtSignatureService {
       return this.jwtService.verify(decodedToken, { algorithms: ['HS256'] });
     } catch (err) {
       throw new BadRequestException(
-        'La firma proporcionada es inválida o ha caducado.',
+        'La firma proporcionada es inválida o ha caducado',
       );
     }
   }
