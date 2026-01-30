@@ -21,11 +21,11 @@ import { PaymentStatus } from './entities/payment-status.enum';
 
 import { PaymentProvider } from '../stores/entities/store-payment-config.entity';
 import { Payment } from './entities/payment.entity';
-import { Order } from 'src/orders/entities/order.entity';
+import { Order } from '../orders/entities/order.entity';
 
-import { StoresPaymentConfigService } from 'src/stores/services/stores-payment-config.service';
+import { StoresPaymentConfigService } from '../stores/services/stores-payment-config.service';
 import { PaypalService } from './providers/paypal/paypal.service';
-import { OrdersService } from 'src/orders/services/orders.service';
+import { OrdersService } from '../orders/services/orders.service';
 
 @Injectable()
 export class PaymentsService {
