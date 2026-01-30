@@ -22,7 +22,17 @@ export class StoresPaymentConfigService {
     private readonly storesService: StoresService,
   ) {}
 
-  // Crea la configuración de pago para una tienda
+  /**
+   * Crea una nueva configuración de pago para una tienda.
+   *
+   * @throws {BadRequestException} si ya existe una configuración de pago con el mismo proveedor y modo para la tienda.
+   * @throws {InternalServerErrorException} si hay un error al cifrar el secreto.
+   *
+   * @param {number} storeId - el ID de la tienda.
+   * @param {CreatePaymentConfigDto} dto - los datos para crear la configuración de pago.
+   *
+   * @returns {Promise<StorePaymentConfigResponseDto>} - la configuración de pago creada.
+   */
   async createStorePaymentConfig(
     storeId: number,
     dto: CreatePaymentConfigDto,
