@@ -73,7 +73,7 @@ export class StoresController {
    * @param id - ID de la configuración de pago
    * @param dto - Datos de la configuración de pago
    */
-  @Put('stores/:storeId/payment-config/')
+  @Put('/:storeId/payment-config/')
   @Serialize(StorePaymentConfigResponseDto)
   @ApiOperation({ summary: 'Actualizar configuración de pago' })
   @ApiOkResponse({
