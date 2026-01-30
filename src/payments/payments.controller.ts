@@ -29,12 +29,16 @@ import {
   ApiBadRequestResponse,
 } from '@nestjs/swagger';
 import { OptionalAuth } from 'src/auth/decorators/optional-auth.decorator';
+import { JwtSignatureService } from './jwt-signature.service';
 import { PaymentProvider } from '../stores/entities/store-payment-config.entity';
 
 @ApiTags('Payments')
 @Controller('payments')
 export class PaymentsController {
-  constructor(private readonly paymentsService: PaymentsService) {}
+  constructor(
+    private readonly paymentsService: PaymentsService,
+    private readonly jwtSignatureService: JwtSignatureService,
+  ) {}
   /**
    * Crear una orden de pago para una tienda.
    * El proceso de pago se inicia creando una orden en PayPal o Stripe
@@ -84,10 +88,14 @@ export class PaymentsController {
    */
   @Post('capture')
   @ApiExcludeEndpoint()
-  async capturePayment(@Body() dto: CapturePaymentDto) {
+  async capturePayment(
+    @Body() dto: CapturePaymentDto,
+    @Query('sig') sig: string,
+  ) {
     return await this.paymentsService.capturePayment(
       dto.providerOrderId,
       dto.provider,
+      sig,
     );
   }
 
@@ -107,22 +115,23 @@ export class PaymentsController {
   @ApiExcludeEndpoint()
   async paymentSuccess(
     @Query('token') token: string,
+    @Query('sig') sig: string,
     @Query('provider') provider: string,
     @Query('PayerID') payerId?: string,
   ) {
-    try {
-      const result = await this.paymentsService.capturePayment(
-        String(token),
-        // Forzar Paypal para pruebas
-        PaymentProvider.PAYPAL,
-      );
-      return { message: 'Pago capturado', result };
-    } catch (err) {
-      // Retornar un respuesta simple para el frontend; el servicio ya lanza excepciones apropiadas
-      return {
-        message: 'Error al capturar el pago',
-        error: err?.message || err,
-      };
-    }
+    const result = await this.paymentsService.capturePayment(
+      String(token),
+      // Forzar Paypal para pruebas
+      PaymentProvider.PAYPAL,
+      sig,
+    );
+    return { message: 'Pago capturado', result };
+  }
+  catch(err) {
+    // Retornar un respuesta simple para el frontend; el servicio ya lanza excepciones apropiadas
+    return {
+      message: 'Error al capturar el pago',
+      error: err?.message || err,
+    };
   }
 }
