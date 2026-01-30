@@ -13,6 +13,6 @@ import { StoresController } from './controllers/stores.controller';
   imports: [TypeOrmModule.forFeature([Store, StorePaymentConfig])],
   controllers: [StoresController],
   providers: [StoresService, StoresPaymentConfigService],
-  exports: [StoresService],
+  exports: [StoresService, StoresPaymentConfigService],
 })
 export class StoresModule {}

@@ -46,7 +46,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     CartsModule,
     OrdersModule,
     StoresModule,
-    // PaymentsModule,
+    PaymentsModule,
     // Desactivado temporalmente
     // WebhooksModule,
   ],
