@@ -163,11 +163,12 @@ export class PaymentsService {
 
     switch (provider) {
       case PaymentProvider.PAYPAL:
-        // 1. Obtener configuración de PayPal
-        const paypalConfig = await this.getStoreProviderConfig(
-          payment.storeId,
-          PaymentProvider.PAYPAL,
-        );
+        // 1. Obtener configuración de PayPal de la tienda
+        const paypalConfig =
+          await this.storePaymentConfigService.getStoreProviderConfig(
+            payment.storeId,
+            PaymentProvider.PAYPAL,
+          );
 
         // 2. Capturar pago en PayPal
         try {
@@ -452,7 +453,6 @@ export class PaymentsService {
           requestPayload: JSON.stringify(payloadData),
           responsePayload: JSON.stringify(responseData),
         };
-
       case PaymentProvider.STRIPE:
       // return await this.createStripeOrder(config, order);
 
@@ -461,59 +461,6 @@ export class PaymentsService {
           `Proveedor de pago no soportado: ${provider}`,
         );
     }
-  }
-
-  /**
-   * Obtiene la configuración de un proveedor de pago de una tienda
-   * @param storeId - ID de la tienda
-   * @param provider - Proveedor de pago
-   * @returns Credenciales descifradas
-   * @deprecated Usar getStorePayPalConfig en su lugar para PayPal
-   */
-  private async getStoreProviderConfig(
-    storeId: number,
-    provider: PaymentProvider,
-  ) {
-    const config = await this.storePaymentConfigRepo.findOne({
-      where: {
-        storeId,
-        provider,
-        isActive: true,
-      },
-    });
-
-    if (!config) {
-      throw new NotFoundException(
-        `No se encontró configuración activa de ${provider} para la tienda ${storeId}`,
-      );
-    }
-
-    // Descifrar el secret
-    const decryptedSecret = decrypt(config.secret);
-
-    return {
-      clientId: config.clientId,
-      secret: decryptedSecret,
-      mode: config.mode,
-    };
-  }
-
-  /**
-   * Obtiene la configuración de PayPal de una tienda
-   * @param storeId - ID de la tienda
-   * @returns Credenciales descifradas
-   */
-  private async getStorePayPalConfig(storeId: number) {
-    const config = await this.getStoreProviderConfig(
-      storeId,
-      PaymentProvider.PAYPAL,
-    );
-
-    return {
-      clientId: config.clientId,
-      secret: config.secret,
-      mode: PayPalMode[config.mode],
-    };
   }
 
   // Procesa un reembolso total o parcial
@@ -568,7 +515,11 @@ export class PaymentsService {
     }
 
     // 5. Obtener configuración de PayPal
-    const paypalConfig = await this.getStorePayPalConfig(payment.storeId);
+    const paypalConfig =
+      await this.storePaymentConfigService.getStoreProviderConfig(
+        payment.storeId,
+        PaymentProvider.PAYPAL,
+      );
 
     // 6. Preparar datos de reembolso
     const refundData = amount
