@@ -8,6 +8,7 @@ import config from 'src/config';
 import { Payment } from './entities/payment.entity';
 import { PaymentTransaction } from './entities/payment-transaction.entity';
 import { StoresModule } from '../stores/stores.module';
+import { JwtSignatureService } from './jwt-signature.service';
 import { PaymentsService } from './payments.service';
 import { PaymentsController } from './payments.controller';
 import { PaypalService } from './providers/paypal/paypal.service';
@@ -27,7 +28,7 @@ import { OrdersModule } from 'src/orders/orders.module';
     }),
   ],
   controllers: [PaymentsController],
-  providers: [PaymentsService, PaypalService],
+  providers: [PaymentsService, PaypalService, JwtSignatureService],
   exports: [PaymentsService, PaypalService],
 })
 export class PaymentsModule {}
