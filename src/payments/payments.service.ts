@@ -114,10 +114,8 @@ export class PaymentsService {
 
     // 8. Retornar datos al frontend
     return {
-      paymentId: payment.id,
-      providerOrderId: providerResponse.providerOrderId,
-      approvalUrl: providerResponse.approvalUrl,
       status: payment.status,
+      approvalUrl: providerResponse.approvalUrl,
     };
   }
 
