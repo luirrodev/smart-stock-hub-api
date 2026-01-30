@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -22,12 +23,14 @@ import {
 } from '../dtos/payment-config.dto';
 import { StorePaymentConfigResponseDto } from '../dtos/store-payment-config-response.dto';
 import { ProviderConfig } from 'src/payments/providers/payment-provider.interface';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 
 @Injectable()
 export class StoresPaymentConfigService {
   constructor(
     @InjectRepository(StorePaymentConfig)
     private readonly storePaymentConfigRepo: Repository<StorePaymentConfig>,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
     private readonly storesService: StoresService,
   ) {}
 
@@ -180,6 +183,12 @@ export class StoresPaymentConfigService {
     }
 
     this.storePaymentConfigRepo.merge(storeConfigs, dto);
+
+    // Invalidar caché de token si es PayPal
+    if (dto.provider === PaymentProvider.PAYPAL) {
+      const cacheKey = `paypal:token:${storeId}`;
+      await this.cacheManager.delete(cacheKey);
+    }
 
     return await this.storePaymentConfigRepo.save(storeConfigs);
   }

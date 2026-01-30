@@ -359,9 +359,5 @@ export class PaypalService implements PaymentProviderInterface {
   /**
    * Invalidates cached token for a store (useful when store config changes)
    */
-  async invalidateToken(storeId: number): Promise<void> {
-    const cacheKey = `paypal:token:${storeId}`;
-    await this.cacheManager.del(cacheKey);
-    this.logger.debug(`Token invalidado para tienda ${storeId}`);
-  }
+  async invalidateToken(storeId: number): Promise<void> {}
 }
