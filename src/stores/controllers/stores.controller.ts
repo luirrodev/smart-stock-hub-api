@@ -5,6 +5,7 @@ import {
   Param,
   ParseIntPipe,
   Post,
+  Put,
 } from '@nestjs/common';
 import {
   ApiOperation,
@@ -13,7 +14,10 @@ import {
 } from '@nestjs/swagger';
 import { Serialize } from 'src/common/decorators/serialize.decorator';
 
-import { CreatePaymentConfigDto } from '../dtos/payment-config.dto';
+import {
+  CreatePaymentConfigDto,
+  UpdatePaymentConfigDto,
+} from '../dtos/payment-config.dto';
 import { StorePaymentConfigResponseDto } from '../dtos/store-payment-config-response.dto';
 
 import { StoresPaymentConfigService } from '../services/stores-payment-config.service';
@@ -59,6 +63,28 @@ export class StoresController {
     @Body() dto: CreatePaymentConfigDto,
   ) {
     return await this.storesPaymentConfigService.createStorePaymentConfig(
+      storeId,
+      dto,
+    );
+  }
+  /**
+   * Actualiza la configuración de pago de PayPal o Stripe para una tienda.
+   * @param storeId - ID de la tienda
+   * @param id - ID de la configuración de pago
+   * @param dto - Datos de la configuración de pago
+   */
+  @Put('stores/:storeId/payment-config/')
+  @Serialize(StorePaymentConfigResponseDto)
+  @ApiOperation({ summary: 'Actualizar configuración de pago' })
+  @ApiOkResponse({
+    description: 'Configuración actualizada correctamente',
+    type: StorePaymentConfigResponseDto,
+  })
+  async updateStorePaymentConfig(
+    @Param('storeId', ParseIntPipe) storeId: number,
+    @Body() dto: UpdatePaymentConfigDto,
+  ): Promise<StorePaymentConfigResponseDto> {
+    return await this.storesPaymentConfigService.updateStorePaymentConfig(
       storeId,
       dto,
     );

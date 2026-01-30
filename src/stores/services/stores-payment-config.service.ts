@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm/repository/Repository';
+import { FindOptionsWhere } from 'typeorm';
 
 import { decrypt, encrypt } from 'src/common/utils/crypto.util';
 
@@ -15,9 +16,11 @@ import {
 } from '../entities/store-payment-config.entity';
 import { StoresService } from './stores.service';
 
-import { CreatePaymentConfigDto } from '../dtos/payment-config.dto';
+import {
+  CreatePaymentConfigDto,
+  UpdatePaymentConfigDto,
+} from '../dtos/payment-config.dto';
 import { StorePaymentConfigResponseDto } from '../dtos/store-payment-config-response.dto';
-import { FindOptionsWhere } from 'typeorm';
 
 @Injectable()
 export class StoresPaymentConfigService {
@@ -137,5 +140,41 @@ export class StoresPaymentConfigService {
       secret: decryptedSecret,
       mode: config.mode,
     };
+  }
+
+  async updateStorePaymentConfig(
+    storeId: number,
+    dto: UpdatePaymentConfigDto,
+  ): Promise<StorePaymentConfigResponseDto> {
+    // validar que no exista otra configuración activa del mismo proveedor para esa tienda
+    const storeConfigs = await this.storePaymentConfigRepo.findOne({
+      where: { storeId, provider: dto.provider, mode: dto.mode },
+    });
+
+    if (!storeConfigs) {
+      throw new NotFoundException(
+        `No se encontró la configuración de pago con ${dto.provider} en modo ${dto.mode} para esta tienda`,
+      );
+    }
+    if (dto.secret) {
+      // Encriptar el nuevo secret
+      dto.secret = encrypt(dto.secret);
+    }
+
+    // Si se está activando esta configuración, desactivar otras del mismo proveedor
+    if (dto.isActive) {
+      await this.storePaymentConfigRepo.update(
+        {
+          storeId,
+          provider: dto.provider,
+          isActive: true,
+        },
+        { isActive: false },
+      );
+    }
+
+    this.storePaymentConfigRepo.merge(storeConfigs, dto);
+
+    return await this.storePaymentConfigRepo.save(storeConfigs);
   }
 }
