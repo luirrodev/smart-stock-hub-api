@@ -2,35 +2,30 @@ import {
   Injectable,
   BadRequestException,
   InternalServerErrorException,
+  NotFoundException,
+  Logger,
 } from '@nestjs/common';
-import { PayloadToken } from 'src/auth/models/token.model';
 import { InjectRepository } from '@nestjs/typeorm';
-import { FindOptionsWhere, Repository } from 'typeorm';
-import { UpdatePaymentConfigDto } from '../stores/dtos/payment-config.dto';
+import { Repository } from 'typeorm';
+
+import { PayloadToken } from '../auth/models/token.model';
 import { RefundPaymentDto } from './dto/refund-payment.dto';
-import { StorePaymentConfigResponseDto } from '../stores/dtos/store-payment-config-response.dto';
-import {
-  StorePaymentConfig,
-  PaymentProvider,
-} from '../stores/entities/store-payment-config.entity';
-import { StoresService } from '../stores/services/stores.service';
-import { decrypt, encrypt } from 'src/common/utils/crypto.util';
-import { PaypalService } from './providers/paypal/paypal.service';
-import { NotFoundException, Logger } from '@nestjs/common';
+import { CreatePaymentDto } from './dto/create-payment.dto';
+import { ProviderConfig } from './providers/payment-provider.interface';
 import {
   PaymentTransaction,
   TransactionType,
 } from './entities/payment-transaction.entity';
-import { Payment } from './entities/payment.entity';
-import { PaymentStatus } from './entities/payment-status.enum';
-import { OrdersService } from 'src/orders/services/orders.service';
-import { PayPalMode } from './providers/paypal/paypal.constants';
-import { CreatePaymentDto } from './dto/create-payment.dto';
-import { Order } from 'src/orders/entities/order.entity';
 import { CreateProviderOrderResponseDto } from './dto/create-provider-order-response.dto';
+import { PaymentStatus } from './entities/payment-status.enum';
+
+import { PaymentProvider } from '../stores/entities/store-payment-config.entity';
+import { Payment } from './entities/payment.entity';
+import { Order } from 'src/orders/entities/order.entity';
+
 import { StoresPaymentConfigService } from 'src/stores/services/stores-payment-config.service';
-import { PayPalCredentials } from './providers/paypal/paypal.interface';
-import { ProviderConfig } from './providers/payment-provider.interface';
+import { PaypalService } from './providers/paypal/paypal.service';
+import { OrdersService } from 'src/orders/services/orders.service';
 
 @Injectable()
 export class PaymentsService {
@@ -43,11 +38,8 @@ export class PaymentsService {
     @InjectRepository(PaymentTransaction)
     private transactionRepository: Repository<PaymentTransaction>,
 
-    @InjectRepository(StorePaymentConfig)
-    private readonly storePaymentConfigRepo: Repository<StorePaymentConfig>,
-
     private readonly paypalService: PaypalService,
-    private ordersService: OrdersService,
+    private readonly ordersService: OrdersService,
     private readonly storePaymentConfigService: StoresPaymentConfigService,
   ) {}
 
