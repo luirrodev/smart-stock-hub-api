@@ -24,6 +24,7 @@ import {
 import { StorePaymentConfigResponseDto } from '../dtos/store-payment-config-response.dto';
 import { ProviderConfig } from 'src/payments/providers/payment-provider.interface';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 
 @Injectable()
 export class StoresPaymentConfigService {
@@ -187,7 +188,7 @@ export class StoresPaymentConfigService {
     // Invalidar caché de token si es PayPal
     if (dto.provider === PaymentProvider.PAYPAL) {
       const cacheKey = `paypal:token:${storeId}`;
-      await this.cacheManager.delete(cacheKey);
+      await this.cacheManager.del(cacheKey);
     }
 
     return await this.storePaymentConfigRepo.save(storeConfigs);
