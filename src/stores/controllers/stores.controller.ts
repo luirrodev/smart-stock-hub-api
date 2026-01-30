@@ -1,5 +1,16 @@
-import { Body, Controller, Param, ParseIntPipe, Post } from '@nestjs/common';
-import { ApiOperation, ApiCreatedResponse } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Post,
+} from '@nestjs/common';
+import {
+  ApiOperation,
+  ApiCreatedResponse,
+  ApiOkResponse,
+} from '@nestjs/swagger';
 import { Serialize } from 'src/common/decorators/serialize.decorator';
 
 import { CreatePaymentConfigDto } from '../dtos/payment-config.dto';
@@ -12,6 +23,25 @@ export class StoresController {
   constructor(
     private readonly storesPaymentConfigService: StoresPaymentConfigService,
   ) {}
+  /**
+   * Obtiene las configuraciones de pago de una tienda.
+   * @param storeId - ID de la tienda
+   * @returns Configuraciones de pago de la tienda
+   */
+  @Get('/:storeId/payment-config')
+  @Serialize(StorePaymentConfigResponseDto)
+  @ApiOperation({ summary: 'Obtener configuraciones de pago de la tienda' })
+  @ApiOkResponse({
+    description: 'Configuraciones obtenidas correctamente',
+    type: [StorePaymentConfigResponseDto],
+  })
+  async getStorePaymentConfig(
+    @Param('storeId', ParseIntPipe) storeId: number,
+  ): Promise<StorePaymentConfigResponseDto[]> {
+    return await this.storesPaymentConfigService.getStorePaymentConfigs(
+      storeId,
+    );
+  }
   /**
    * Crea la configuración de pago de PayPal o Stripe para una tienda.
    * @param storeId - ID de la tienda
