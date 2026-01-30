@@ -22,6 +22,7 @@ import {
   ApiParam,
   ApiBody,
   ApiQuery,
+  ApiExcludeEndpoint,
 } from '@nestjs/swagger';
 import { OptionalAuth } from 'src/auth/decorators/optional-auth.decorator';
 import { PaymentProvider } from '../stores/entities/store-payment-config.entity';
@@ -55,9 +56,7 @@ export class PaymentsController {
    * @returns Pago capturado correctamente
    */
   @Post('capture')
-  @ApiOperation({ summary: 'Capturar pago aprobado' })
-  @ApiBody({ type: CapturePaymentDto })
-  @ApiOkResponse({ description: 'Pago capturado correctamente' })
+  @ApiExcludeEndpoint()
   async capturePayment(@Body() dto: CapturePaymentDto) {
     return await this.paymentsService.capturePayment(
       dto.providerOrderId,
@@ -78,6 +77,7 @@ export class PaymentsController {
 
   @Get('success')
   @OptionalAuth()
+  @ApiExcludeEndpoint()
   async paymentSuccess(
     @Query('token') token: string,
     @Query('provider') provider: string,
