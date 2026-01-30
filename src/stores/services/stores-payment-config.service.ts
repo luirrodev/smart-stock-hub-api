@@ -31,6 +31,67 @@ export class StoresPaymentConfigService {
   ) {}
 
   /**
+   * Obtiene la configuración de un proveedor de pago de una tienda
+   * @param storeId - ID de la tienda
+   * @param provider - Proveedor de pago
+   * @returns Credenciales descifradas
+   */
+  private async getStoreProviderConfig(
+    storeId: number,
+    provider: PaymentProvider,
+  ) {
+    const config = await this.storePaymentConfigRepo.findOne({
+      where: {
+        storeId,
+        provider,
+        isActive: true,
+      },
+    });
+
+    if (!config) {
+      throw new NotFoundException(
+        `No se encontró configuración activa de ${provider} para la tienda ${storeId}`,
+      );
+    }
+
+    // Descifrar el secret
+    const decryptedSecret = decrypt(config.secret);
+
+    return {
+      clientId: config.clientId,
+      secret: decryptedSecret,
+      mode: config.mode,
+    };
+  }
+
+  /**
+   * Obtiene las todas las configuraciones de pago de una tienda.
+   * @param storeId - ID de la tienda
+   * @returns Las configuraciones de pago encontradas para la tienda.
+   * @throws {NotFoundException} si no se encontraron configuraciones de pago para la tienda.
+   */
+  async getStorePaymentConfigs(
+    storeId: number,
+  ): Promise<StorePaymentConfigResponseDto[]> {
+    await this.storesService.findOne(storeId);
+
+    let whereClause: FindOptionsWhere<StorePaymentConfig> = { storeId };
+
+    const configs = await this.storePaymentConfigRepo.find({
+      where: whereClause,
+      order: { id: 'ASC' },
+    });
+
+    if (!configs) {
+      throw new NotFoundException(
+        'No se encontró ninguna configuración de pago para esta tienda',
+      );
+    }
+
+    return configs;
+  }
+
+  /**
    * Crea una nueva configuración de pago para una tienda.
    *
    * @throws {BadRequestException} si ya existe una configuración de pago con el mismo proveedor y modo para la tienda.
@@ -77,69 +138,6 @@ export class StoresPaymentConfigService {
     });
 
     return await this.storePaymentConfigRepo.save(config);
-  }
-
-  /**
-   * Lista las configuraciones de pago de una tienda (no devuelve el secret)
-   */
-  async getStorePaymentConfigs(
-    storeId: number,
-    provider?: PaymentProvider,
-  ): Promise<StorePaymentConfigResponseDto[]> {
-    await this.storesService.findOne(storeId);
-
-    let whereClause: FindOptionsWhere<StorePaymentConfig> = { storeId };
-
-    if (provider) {
-      whereClause = { storeId, provider };
-    }
-
-    const configs = await this.storePaymentConfigRepo.find({
-      where: whereClause,
-      order: { id: 'ASC' },
-    });
-
-    if (!configs) {
-      throw new NotFoundException(
-        'No se encontró ninguna configuración de pago para esta tienda',
-      );
-    }
-
-    return configs;
-  }
-
-  /**
-   * Obtiene la configuración de un proveedor de pago de una tienda
-   * @param storeId - ID de la tienda
-   * @param provider - Proveedor de pago
-   * @returns Credenciales descifradas
-   */
-  private async getStoreProviderConfig(
-    storeId: number,
-    provider: PaymentProvider,
-  ) {
-    const config = await this.storePaymentConfigRepo.findOne({
-      where: {
-        storeId,
-        provider,
-        isActive: true,
-      },
-    });
-
-    if (!config) {
-      throw new NotFoundException(
-        `No se encontró configuración activa de ${provider} para la tienda ${storeId}`,
-      );
-    }
-
-    // Descifrar el secret
-    const decryptedSecret = decrypt(config.secret);
-
-    return {
-      clientId: config.clientId,
-      secret: decryptedSecret,
-      mode: config.mode,
-    };
   }
 
   /**
