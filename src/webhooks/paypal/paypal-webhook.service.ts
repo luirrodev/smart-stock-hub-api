@@ -6,7 +6,7 @@ import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { PaypalWebhookEventDto } from '../dto/paypal-webhook-event.dto';
 import { Payment } from 'src/payments/entities/payment.entity';
-import { StorePaymentConfig } from 'src/payments/entities/store-payment-config.entity';
+import { StorePaymentConfig } from 'src/stores/entities/store-payment-config.entity';
 import { decrypt } from 'src/common/utils/crypto.util';
 import {
   PAYPAL_API_URLS,

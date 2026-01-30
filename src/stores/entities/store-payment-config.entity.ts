@@ -7,7 +7,7 @@ import {
   UpdateDateColumn,
   JoinColumn,
 } from 'typeorm';
-import { Store } from '../../stores/entities/store.entity';
+import { Store } from './store.entity';
 
 export enum PaymentProvider {
   PAYPAL = 'paypal',

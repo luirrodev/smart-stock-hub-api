@@ -3,7 +3,7 @@ import { Expose, Exclude, Transform } from 'class-transformer';
 import {
   PaymentProvider,
   PaymentMode,
-} from '../entities/store-payment-config.entity';
+} from '../../stores/entities/store-payment-config.entity';
 import { Store } from 'src/stores/entities/store.entity';
 
 @Exclude()

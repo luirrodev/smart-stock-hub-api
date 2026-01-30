@@ -13,7 +13,7 @@ import { StorePaymentConfigResponseDto } from './dto/store-payment-config-respon
 import {
   StorePaymentConfig,
   PaymentProvider,
-} from './entities/store-payment-config.entity';
+} from '../stores/entities/store-payment-config.entity';
 import { StoresService } from '../stores/services/stores.service';
 import { decrypt, encrypt } from 'src/common/utils/crypto.util';
 import { PaypalService } from './providers/paypal/paypal.service';

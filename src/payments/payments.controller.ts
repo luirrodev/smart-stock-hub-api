@@ -28,7 +28,7 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { OptionalAuth } from 'src/auth/decorators/optional-auth.decorator';
-import { PaymentProvider } from './entities/store-payment-config.entity';
+import { PaymentProvider } from '../stores/entities/store-payment-config.entity';
 
 @ApiTags('Payments')
 @Controller('payments')

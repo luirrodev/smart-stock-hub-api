@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEnum, IsInt, IsPositive } from 'class-validator';
-import { PaymentProvider } from '../entities/store-payment-config.entity';
+import { PaymentProvider } from '../../stores/entities/store-payment-config.entity';
 
 export class CreatePaymentDto {
   @ApiProperty({ example: 123, description: 'ID de la orden a pagar' })

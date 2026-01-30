@@ -10,7 +10,7 @@ import {
 import {
   PaymentProvider,
   PaymentMode,
-} from '../entities/store-payment-config.entity';
+} from '../../stores/entities/store-payment-config.entity';
 
 export class CreatePaymentConfigDto {
   // Nombre del proveedor (ej. 'paypal')
