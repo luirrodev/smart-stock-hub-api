@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { JwtModule } from '@nestjs/jwt';
+import { ConfigType } from '@nestjs/config';
+import config from 'src/config';
 
 import { Payment } from './entities/payment.entity';
 import { PaymentTransaction } from './entities/payment-transaction.entity';
@@ -16,6 +19,12 @@ import { OrdersModule } from 'src/orders/orders.module';
     TypeOrmModule.forFeature([Payment, PaymentTransaction]),
     StoresModule,
     OrdersModule,
+    JwtModule.registerAsync({
+      inject: [config.KEY],
+      useFactory: (configService: ConfigType<typeof config>) => ({
+        secret: configService.jwt.paypalSignToken,
+      }),
+    }),
   ],
   controllers: [PaymentsController],
   providers: [PaymentsService, PaypalService],
