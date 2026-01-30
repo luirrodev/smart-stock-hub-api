@@ -11,8 +11,8 @@ import { encrypt } from 'src/common/utils/crypto.util';
 import { StorePaymentConfig } from '../entities/store-payment-config.entity';
 import { StoresService } from './stores.service';
 
-import { CreatePaymentConfigDto } from 'src/payments/dto/payment-config.dto';
-import { StorePaymentConfigResponseDto } from 'src/payments/dto/store-payment-config-response.dto';
+import { CreatePaymentConfigDto } from '../dtos/payment-config.dto';
+import { StorePaymentConfigResponseDto } from '../dtos/store-payment-config-response.dto';
 
 @Injectable()
 export class StoresPaymentConfigService {

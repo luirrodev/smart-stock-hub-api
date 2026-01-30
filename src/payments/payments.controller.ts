@@ -12,12 +12,11 @@ import { Serialize } from 'src/common/decorators/serialize.decorator';
 import { PaymentsService } from './payments.service';
 import { GetUser } from 'src/auth/decorators/get-user.decorator';
 import { PayloadToken } from 'src/auth/models/token.model';
-import { CreatePaymentConfigDto } from './dto/payment-config.dto';
-import { UpdatePaymentConfigDto } from './dto/payment-config.dto';
+import { UpdatePaymentConfigDto } from '../stores/dtos/payment-config.dto';
 import { RefundPaymentDto } from './dto/refund-payment.dto';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { CapturePaymentDto } from './dto/capture-payment.dto';
-import { StorePaymentConfigResponseDto } from './dto/store-payment-config-response.dto';
+import { StorePaymentConfigResponseDto } from '../stores/dtos/store-payment-config-response.dto';
 import {
   ApiTags,
   ApiOperation,

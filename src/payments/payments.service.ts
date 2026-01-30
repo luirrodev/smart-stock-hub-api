@@ -6,10 +6,9 @@ import {
 import { PayloadToken } from 'src/auth/models/token.model';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, Repository } from 'typeorm';
-import { CreatePaymentConfigDto } from './dto/payment-config.dto';
-import { UpdatePaymentConfigDto } from './dto/payment-config.dto';
+import { UpdatePaymentConfigDto } from '../stores/dtos/payment-config.dto';
 import { RefundPaymentDto } from './dto/refund-payment.dto';
-import { StorePaymentConfigResponseDto } from './dto/store-payment-config-response.dto';
+import { StorePaymentConfigResponseDto } from '../stores/dtos/store-payment-config-response.dto';
 import {
   StorePaymentConfig,
   PaymentProvider,

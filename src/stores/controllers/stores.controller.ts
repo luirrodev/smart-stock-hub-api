@@ -1,8 +1,8 @@
 import { Body, Controller, Param, ParseIntPipe, Post } from '@nestjs/common';
 import { ApiOperation, ApiCreatedResponse } from '@nestjs/swagger';
 import { Serialize } from 'src/common/decorators/serialize.decorator';
-import { CreatePaymentConfigDto } from 'src/payments/dto/payment-config.dto';
-import { StorePaymentConfigResponseDto } from 'src/payments/dto/store-payment-config-response.dto';
+import { CreatePaymentConfigDto } from '../dtos/payment-config.dto';
+import { StorePaymentConfigResponseDto } from '../dtos/store-payment-config-response.dto';
 
 @Controller('stores')
 export class StoresController {
