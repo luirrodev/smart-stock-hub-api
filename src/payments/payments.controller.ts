@@ -34,26 +34,6 @@ import { PaymentProvider } from '../stores/entities/store-payment-config.entity'
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
   /**
-   * Actualiza la configuración de pago de PayPal o Stripe para una tienda.
-   * @param storeId - ID de la tienda
-   * @param id - ID de la configuración de pago
-   * @param dto - Datos de la configuración de pago
-   */
-  @Put('stores/:storeId/payment-config/')
-  @Serialize(StorePaymentConfigResponseDto)
-  @ApiOperation({ summary: 'Actualizar configuración de pago' })
-  @ApiOkResponse({
-    description: 'Configuración actualizada correctamente',
-    type: StorePaymentConfigResponseDto,
-  })
-  async updateStorePaymentConfig(
-    @Param('storeId', ParseIntPipe) storeId: number,
-    @Body() dto: UpdatePaymentConfigDto,
-  ): Promise<StorePaymentConfigResponseDto> {
-    return await this.paymentsService.updateStorePaymentConfig(storeId, dto);
-  }
-
-  /**
    * Crear una orden de pago para una tienda.
    * El proceso de pago se inicia creando una orden en PayPal o Stripe
    * dependiendo de la configuración de la tienda.

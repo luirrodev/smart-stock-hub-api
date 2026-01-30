@@ -525,49 +525,6 @@ export class PaymentsService {
     };
   }
 
-  async updateStorePaymentConfig(
-    storeId: number,
-    dto: UpdatePaymentConfigDto,
-  ): Promise<StorePaymentConfigResponseDto> {
-    // validar que no exista otra configuración activa del mismo proveedor para esa tienda
-    const storeConfigs = await this.storePaymentConfigRepo.findOne({
-      where: { storeId, provider: dto.provider, mode: dto.mode },
-    });
-
-    if (!storeConfigs) {
-      throw new NotFoundException(
-        `No se encontró la configuración de pago con ${dto.provider} en modo ${dto.mode} para esta tienda`,
-      );
-    }
-    if (dto.secret) {
-      // Encriptar el nuevo secret
-      dto.secret = encrypt(dto.secret);
-    }
-
-    // Si se está activando esta configuración, desactivar otras del mismo proveedor
-    if (dto.isActive) {
-      await this.storePaymentConfigRepo.update(
-        {
-          storeId,
-          provider: dto.provider,
-          isActive: true,
-        },
-        { isActive: false },
-      );
-    }
-
-    this.storePaymentConfigRepo.merge(storeConfigs, dto);
-
-    // Invalidar token asíncrono
-    this.paypalService
-      .invalidateToken(storeId)
-      .catch((err) =>
-        this.logger.warn('No se pudo invalidar token de PayPal:', err?.message),
-      );
-
-    return await this.storePaymentConfigRepo.save(storeConfigs);
-  }
-
   // Procesa un reembolso total o parcial
   async refundPayment(
     paymentId: number | string,
