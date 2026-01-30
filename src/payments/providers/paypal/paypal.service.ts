@@ -8,6 +8,10 @@ import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
+import {
+  JwtSignatureService,
+  PayloadSignatureToken,
+} from 'src/payments/jwt-signature.service';
 import { PaymentProviderInterface } from '../payment-provider.interface';
 import { CreateOrderPayPalResponse, PayPalConfig } from './paypal.interface';
 import { PAYPAL_API_URLS, PAYPAL_ENDPOINTS } from './paypal.constants';
@@ -28,6 +32,7 @@ export class PaypalService implements PaymentProviderInterface {
 
   constructor(
     private readonly httpService: HttpService,
+    private readonly jwtSignatureService: JwtSignatureService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {
     this.logger.log('PayPal service initialized');
@@ -60,6 +65,13 @@ export class PaypalService implements PaymentProviderInterface {
     const shipping = Number(orderData.shippingCost).toFixed(2);
     const tax = Number(orderData.tax).toFixed(2);
 
+    const payload: PayloadSignatureToken = {
+      orderId: orderData.id,
+      storeId: orderData.storeId,
+    };
+
+    const signatureToken = this.jwtSignatureService.sign(payload);
+
     const paypalOrderData: CreatePayPalOrderRequest = {
       intent: 'CAPTURE',
       purchase_units: [
@@ -87,8 +99,9 @@ export class PaypalService implements PaymentProviderInterface {
         },
       ],
       application_context: {
-        return_url: `${process.env.FRONTEND_URL}/payments/success`,
-        cancel_url: `${process.env.FRONTEND_URL}/payments/cancel`,
+        // Agregar firma JWT al return/cancel URL para validar al capturar
+        return_url: `${process.env.FRONTEND_URL}/payments/success?sig=${signatureToken}&provider=paypal`,
+        cancel_url: `${process.env.FRONTEND_URL}/payments/cancel?sig=${signatureToken}&provider=paypal`,
         brand_name: orderData.store.name,
         user_action: 'PAY_NOW',
       },
