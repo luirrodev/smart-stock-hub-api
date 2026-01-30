@@ -142,6 +142,13 @@ export class StoresPaymentConfigService {
     };
   }
 
+  /**
+   * Actualiza una configuración de pago de una tienda
+   * @param storeId - ID de la tienda
+   * @param dto - Datos para actualizar la configuración
+   * @throws {NotFoundException} si no se encuentra la configuración de pago con el proveedor y modo especificados
+   * @returns La configuración de pago actualizada
+   */
   async updateStorePaymentConfig(
     storeId: number,
     dto: UpdatePaymentConfigDto,
