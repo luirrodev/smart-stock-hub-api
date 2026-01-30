@@ -132,6 +132,7 @@ export class PaymentsService {
     provider: PaymentProvider,
     sig: string,
   ) {
+    await this.jwtSignatureService.verify(sig);
     // Buscar el pago en tu BD
     const payment = await this.paymentRepository.findOne({
       where: { providerOrderId, provider },
@@ -161,15 +162,6 @@ export class PaymentsService {
       throw new BadRequestException(
         'El período para capturar este pago ha expirado',
       );
-    }
-
-    try {
-      await this.jwtSignatureService.verify(sig);
-    } catch (err) {
-      return {
-        message: 'La firma proporcionada es inválida o ha caducado.',
-        error: err?.message || err,
-      };
     }
 
     // Capturar pago según el proveedor
