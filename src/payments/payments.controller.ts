@@ -121,8 +121,7 @@ export class PaymentsController {
   ) {
     const result = await this.paymentsService.capturePayment(
       String(token),
-      // Forzar Paypal para pruebas
-      PaymentProvider.PAYPAL,
+      provider as PaymentProvider,
       sig,
     );
     return { message: 'Pago capturado', result };
