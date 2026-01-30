@@ -1,44 +1,26 @@
-import {
-  Controller,
-  Post,
-  Get,
-  Put,
-  Body,
-  Param,
-  ParseIntPipe,
-  Query,
-} from '@nestjs/common';
-import { Serialize } from 'src/common/decorators/serialize.decorator';
+import { Controller, Post, Get, Body, Query } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { GetUser } from 'src/auth/decorators/get-user.decorator';
 import { PayloadToken } from 'src/auth/models/token.model';
-import { RefundPaymentDto } from './dto/refund-payment.dto';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { CapturePaymentDto } from './dto/capture-payment.dto';
 import { CreatePaymentResponseDto } from './dto/create-payment-response.dto';
 import {
   ApiTags,
   ApiOperation,
-  ApiOkResponse,
-  ApiParam,
   ApiBody,
-  ApiQuery,
   ApiExcludeEndpoint,
   ApiCreatedResponse,
   ApiBearerAuth,
   ApiBadRequestResponse,
 } from '@nestjs/swagger';
 import { OptionalAuth } from 'src/auth/decorators/optional-auth.decorator';
-import { JwtSignatureService } from './jwt-signature.service';
 import { PaymentProvider } from '../stores/entities/store-payment-config.entity';
 
 @ApiTags('Payments')
 @Controller('payments')
 export class PaymentsController {
-  constructor(
-    private readonly paymentsService: PaymentsService,
-    private readonly jwtSignatureService: JwtSignatureService,
-  ) {}
+  constructor(private readonly paymentsService: PaymentsService) {}
   /**
    * Crear una orden de pago para una tienda.
    * El proceso de pago se inicia creando una orden en PayPal o Stripe
@@ -92,11 +74,14 @@ export class PaymentsController {
     @Body() dto: CapturePaymentDto,
     @Query('sig') sig: string,
   ) {
-    return await this.paymentsService.capturePayment(
+    // Redirigido aquí tras la aprobación del pago por el cliente
+    await this.paymentsService.capturePayment(
       dto.providerOrderId,
       dto.provider,
       sig,
     );
+    // Todo: Redirigir al cliente hacia el frontend después de capturar el pago
+    return { message: 'Pago capturado correctamente' };
   }
 
   // ToDo: Implementar reembolso de pagos
@@ -125,12 +110,5 @@ export class PaymentsController {
       sig,
     );
     return { message: 'Pago capturado', result };
-  }
-  catch(err) {
-    // Retornar un respuesta simple para el frontend; el servicio ya lanza excepciones apropiadas
-    return {
-      message: 'Error al capturar el pago',
-      error: err?.message || err,
-    };
   }
 }
