@@ -26,6 +26,7 @@ import { Order } from '../orders/entities/order.entity';
 import { StoresPaymentConfigService } from '../stores/services/stores-payment-config.service';
 import { PaypalService } from './providers/paypal/paypal.service';
 import { OrdersService } from '../orders/services/orders.service';
+import { JwtSignatureService } from './jwt-signature.service';
 
 @Injectable()
 export class PaymentsService {
@@ -41,6 +42,7 @@ export class PaymentsService {
     private readonly paypalService: PaypalService,
     private readonly ordersService: OrdersService,
     private readonly storePaymentConfigService: StoresPaymentConfigService,
+    private readonly jwtSignatureService: JwtSignatureService,
   ) {}
 
   /**
@@ -125,7 +127,11 @@ export class PaymentsService {
    * @param provider - Proveedor de pago (paypal, stripe, etc.)
    * @returns Datos del pago capturado
    */
-  async capturePayment(providerOrderId: string, provider: PaymentProvider) {
+  async capturePayment(
+    providerOrderId: string,
+    provider: PaymentProvider,
+    sig: string,
+  ) {
     // Buscar el pago en tu BD
     const payment = await this.paymentRepository.findOne({
       where: { providerOrderId, provider },
@@ -155,6 +161,15 @@ export class PaymentsService {
       throw new BadRequestException(
         'El período para capturar este pago ha expirado',
       );
+    }
+
+    try {
+      await this.jwtSignatureService.verify(sig);
+    } catch (err) {
+      return {
+        message: 'La firma proporcionada es inválida o ha caducado.',
+        error: err?.message || err,
+      };
     }
 
     // Capturar pago según el proveedor
