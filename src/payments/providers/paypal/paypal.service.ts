@@ -355,9 +355,4 @@ export class PaypalService implements PaymentProviderInterface {
       throw new BadRequestException('No se pudo autenticar con PayPal');
     }
   }
-
-  /**
-   * Invalidates cached token for a store (useful when store config changes)
-   */
-  async invalidateToken(storeId: number): Promise<void> {}
 }
