@@ -19,6 +19,7 @@ export default registerAs('config', () => {
       refreshTokenSecret: process.env.JWT_REFRESH_SECRET,
       accessTokenExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN,
       refreshTokenExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN,
+      paypalSignToken: process.env.PAYPAL_SIGN_TOKEN,
     },
     mandasaldoAPI: {
       url: process.env.API_URL_GET_PRODUCTS,
