@@ -15,6 +15,7 @@ import { PayloadToken } from 'src/auth/models/token.model';
 import { RefundPaymentDto } from './dto/refund-payment.dto';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { CapturePaymentDto } from './dto/capture-payment.dto';
+import { CreatePaymentResponseDto } from './dto/create-payment-response.dto';
 import {
   ApiTags,
   ApiOperation,
@@ -23,6 +24,9 @@ import {
   ApiBody,
   ApiQuery,
   ApiExcludeEndpoint,
+  ApiCreatedResponse,
+  ApiBearerAuth,
+  ApiBadRequestResponse,
 } from '@nestjs/swagger';
 import { OptionalAuth } from 'src/auth/decorators/optional-auth.decorator';
 import { PaymentProvider } from '../stores/entities/store-payment-config.entity';
@@ -41,8 +45,31 @@ export class PaymentsController {
    * @returns URL de aprobación de PayPal y datos del pago
    */
   @Post('checkout')
-  @ApiOperation({ summary: 'Crear orden de pago' })
+  @ApiOperation({
+    summary: 'Crear orden de pago',
+    description:
+      'Inicia el proceso de pago para una orden. Devuelve la URL de aprobación del proveedor y datos del pago. ' +
+      'El frontend debe redirigir al cliente a `approvalUrl` para completar el pago.',
+  })
   @ApiBody({ type: CreatePaymentDto })
+  @ApiBadRequestResponse({
+    description:
+      'Solicitud inválida. Posibles causas:\n' +
+      '- La orden no está en estado pendiente de pago.\n' +
+      '- Ya existe un pago en proceso para la orden.',
+    schema: {
+      example: {
+        statusCode: 400,
+        message: 'La orden en cuestión no está en estado: Pendiente de Pago',
+        error: 'Bad Request',
+      },
+    },
+  })
+  @ApiBearerAuth()
+  @ApiCreatedResponse({
+    description: 'Orden de pago creada correctamente',
+    type: CreatePaymentResponseDto,
+  })
   async createPayment(
     @Body() payload: CreatePaymentDto,
     @GetUser() user: PayloadToken,
