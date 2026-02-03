@@ -240,4 +240,47 @@ export class UsersService {
       await this.cacheManager.del(this.getEmailCacheKey(email));
     }
   }
+
+  async findByGoogleId(googleId: string): Promise<User | null> {
+    const user = await this.userRepo
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.role', 'role')
+      .leftJoinAndSelect('role.permissions', 'permissions')
+      .where('user.googleId = :googleId', { googleId })
+      .getOne();
+
+    return user || null;
+  }
+
+  async createOAuthUser(data: {
+    email: string;
+    name: string;
+    googleId?: string;
+    authProvider: string;
+    avatar?: string | null;
+    role: number;
+  }): Promise<User> {
+    const existingUser = await this.userRepo.findOne({
+      where: { email: data.email },
+      withDeleted: true,
+    });
+
+    if (existingUser) {
+      throw new ConflictException(
+        'Ya existe una cuenta registrada con este correo electrónico',
+      );
+    }
+
+    const role = await this.roleService.getRoleById(data.role);
+
+    const newUser = new User();
+    newUser.email = data.email;
+    newUser.name = data.name;
+    newUser.googleId = data.googleId || null;
+    newUser.authProvider = data.authProvider;
+    newUser.avatar = data.avatar || null;
+    newUser.role = role;
+
+    return this.userRepo.save(newUser);
+  }
 }
