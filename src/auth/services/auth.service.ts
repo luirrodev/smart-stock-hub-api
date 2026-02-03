@@ -339,7 +339,8 @@ export class AuthService {
     if (user) {
       await this.userService.update(user.id, {
         googleId,
-        authProvider: user.authProvider === 'local' ? 'local,google' : user.authProvider,
+        authProvider:
+          user.authProvider === 'local' ? 'local,google' : user.authProvider,
         avatar: avatar || user.avatar || undefined,
       });
       return await this.userService.findOne(user.id);

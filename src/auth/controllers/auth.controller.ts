@@ -180,8 +180,8 @@ export class AuthController {
     return this.authService.getProfile(user);
   }
 
-  @Get('google')
   @Public()
+  @Get('google/login')
   @UseGuards(GoogleAuthGuard)
   @ApiOperation({ summary: 'Iniciar autenticación con Google' })
   @ApiResponse({
@@ -190,8 +190,8 @@ export class AuthController {
   })
   googleAuth() {}
 
-  @Get('google/callback')
   @Public()
+  @Get('google/callback')
   @UseGuards(GoogleAuthGuard)
   @ApiExcludeEndpoint()
   async googleAuthCallback(@Req() req: Request, @Res() res: Response) {
