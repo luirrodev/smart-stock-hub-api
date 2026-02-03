@@ -34,7 +34,12 @@ export class User {
   @Column({ name: 'google_id', type: 'varchar', length: 255, nullable: true })
   googleId: string | null;
 
-  @Column({ name: 'auth_provider', type: 'varchar', length: 50, default: 'local' })
+  @Column({
+    name: 'auth_provider',
+    type: 'varchar',
+    length: 50,
+    default: 'local',
+  })
   authProvider: string;
 
   @ManyToOne(() => Role, { eager: true })
@@ -53,7 +58,7 @@ export class User {
   @Column({ type: 'varchar', length: 20, nullable: true })
   phone: string;
 
-  @Column({ type: 'varchar', length: 500, nullable: true })
+  @Column({ type: 'text', nullable: true })
   avatar: string | null;
 
   @Column({ type: 'jsonb', nullable: true })
