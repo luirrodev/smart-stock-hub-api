@@ -4,6 +4,7 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  DeleteDateColumn,
 } from 'typeorm';
 
 @Entity({ name: 'stores' })
@@ -50,4 +51,11 @@ export class Store {
     default: () => 'CURRENT_TIMESTAMP',
   })
   updatedAt: Date;
+
+  @DeleteDateColumn({
+    type: 'timestamptz',
+    name: 'deleted_at',
+    nullable: true,
+  })
+  deletedAt: Date | null;
 }
