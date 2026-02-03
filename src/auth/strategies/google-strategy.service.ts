@@ -13,7 +13,10 @@ export interface GoogleUser {
 }
 
 @Injectable()
-export class GoogleStrategyService extends PassportStrategy(Strategy, 'google') {
+export class GoogleStrategyService extends PassportStrategy(
+  Strategy,
+  'google',
+) {
   constructor(
     @Inject(config.KEY) private configService: ConfigType<typeof config>,
   ) {
