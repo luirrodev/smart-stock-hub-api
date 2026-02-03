@@ -28,8 +28,14 @@ export class User {
   name: string;
 
   @Exclude()
-  @Column({ type: 'varchar', length: 255 })
+  @Column({ type: 'varchar', length: 255, nullable: true })
   password: string;
+
+  @Column({ name: 'google_id', type: 'varchar', length: 255, nullable: true })
+  googleId: string | null;
+
+  @Column({ name: 'auth_provider', type: 'varchar', length: 50, default: 'local' })
+  authProvider: string;
 
   @ManyToOne(() => Role, { eager: true })
   @JoinColumn({ name: 'role_id' })
@@ -48,7 +54,7 @@ export class User {
   phone: string;
 
   @Column({ type: 'varchar', length: 500, nullable: true })
-  avatar: string;
+  avatar: string | null;
 
   @Column({ type: 'jsonb', nullable: true })
   preferences: object;
