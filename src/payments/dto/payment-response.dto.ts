@@ -2,18 +2,61 @@ import { Expose, Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { PaymentStatus } from '../entities/payment-status.enum';
 
+class OrderPaymentInfoDto {
+  @ApiProperty({ example: 123, description: 'ID de la orden' })
+  @Expose()
+  id: number;
+
+  @ApiProperty({ example: 'ORD-20260130-001', description: 'Número de orden' })
+  @Expose()
+  orderNumber: string;
+
+  @ApiProperty({ example: 250.75, description: 'Monto total de la orden' })
+  @Expose()
+  total: number;
+
+  @ApiProperty({
+    example: PaymentStatus.PENDING,
+    enum: PaymentStatus,
+    description: 'Estado del pago de la orden',
+  })
+  @Expose()
+  paymentStatus: PaymentStatus;
+}
+
+class StorePaymentInfoDto {
+  @ApiProperty({ example: 1, description: 'ID de la tienda' })
+  @Expose()
+  id: number;
+
+  @ApiProperty({
+    example: 'Tienda Principal',
+    description: 'Nombre de la tienda',
+  })
+  @Expose()
+  name: string;
+}
+
 export class PaymentResponseDto {
   @ApiProperty({ example: 1, description: 'ID del pago' })
   @Expose()
   id: number;
 
-  @ApiProperty({ example: 123, description: 'ID de la orden asociada' })
+  @ApiProperty({
+    description: 'Información básica de la tienda asociada al pago',
+    type: () => StorePaymentInfoDto,
+  })
   @Expose()
-  orderId: number;
+  @Type(() => StorePaymentInfoDto)
+  store: StorePaymentInfoDto;
 
-  @ApiProperty({ example: 1, description: 'ID de la tienda' })
+  @ApiProperty({
+    description: 'Información básica de la orden asociada al pago',
+    type: () => OrderPaymentInfoDto,
+  })
   @Expose()
-  storeId: number;
+  @Type(() => OrderPaymentInfoDto)
+  order: OrderPaymentInfoDto;
 
   @ApiProperty({
     example: 'paypal',
@@ -44,13 +87,6 @@ export class PaymentResponseDto {
   })
   @Expose()
   status: PaymentStatus;
-
-  @ApiProperty({
-    example: '2026-01-30T20:12:00.000Z',
-    description: 'Fecha de creación',
-  })
-  @Expose()
-  createdAt: Date;
 
   @ApiProperty({
     example: '2026-01-30T20:15:00.000Z',

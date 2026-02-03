@@ -648,7 +648,7 @@ export class PaymentsService {
       skip,
       take: limit,
       order,
-      relations: ['order'],
+      relations: ['order', 'store'],
     });
 
     const totalPages = Math.max(1, Math.ceil(total / limit));
