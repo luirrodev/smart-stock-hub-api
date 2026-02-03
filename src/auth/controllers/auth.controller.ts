@@ -32,6 +32,7 @@ import { ResetPasswordDto } from '../dtos/reset-password.dto';
 import { Public } from '../decorators/public.decorator';
 import { GoogleAuthGuard } from '../guards/google-auth.guard';
 import { GoogleUser } from '../strategies/google-strategy.service';
+import { GOOGLE_AUTH_FLOW_DOCUMENTATION } from '../documentation/google-auth-flow.documentation';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -183,10 +184,18 @@ export class AuthController {
   @Public()
   @Get('google/login')
   @UseGuards(GoogleAuthGuard)
-  @ApiOperation({ summary: 'Iniciar autenticación con Google' })
+  @ApiOperation({
+    summary: 'Autenticación con Google OAuth 2.0',
+    description: GOOGLE_AUTH_FLOW_DOCUMENTATION,
+  })
   @ApiResponse({
     status: HttpStatus.FOUND,
-    description: 'Redirige a la página de login de Google',
+    description:
+      'Redirige automáticamente a la página de autenticación de Google',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Error en la autenticación con Google',
   })
   googleAuth() {}
 
@@ -194,13 +203,16 @@ export class AuthController {
   @Get('google/callback')
   @UseGuards(GoogleAuthGuard)
   @ApiExcludeEndpoint()
-  async googleAuthCallback(@Req() req: Request, @Res() res: Response) {
+  async googleAuthCallback(
+    @Req() req: Request,
+    @Res({ passthrough: false }) res: Response,
+  ) {
     const googleUser = req.user as GoogleUser;
     const tokens = await this.authService.googleLogin(googleUser);
 
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const redirectUrl = `${frontendUrl}/auth/callback?access_token=${tokens.access_token}&refresh_token=${tokens.refresh_token}`;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3010';
+    const redirectUrl = `${frontendUrl}/auth/callback?access_token=${encodeURIComponent(tokens.access_token)}&refresh_token=${encodeURIComponent(tokens.refresh_token)}`;
 
-    return res.redirect(redirectUrl);
+    res.redirect(redirectUrl);
   }
 }
