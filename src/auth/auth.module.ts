@@ -10,6 +10,7 @@ import { CustomersModule } from 'src/customers/customers.module';
 import { AuthService } from './services/auth.service';
 import { LocalStrategyService } from './strategies/local-strategy.service';
 import { JwtStrategyService } from './strategies/jwt-strategy.service';
+import { GoogleStrategyService } from './strategies/google-strategy.service';
 import { AuthController } from './controllers/auth.controller';
 import config from 'src/config';
 import { PasswordResetToken } from './entities/password-reset-token.entity';
@@ -42,7 +43,7 @@ import { PasswordResetToken } from './entities/password-reset-token.entity';
         'Ha excedido el límite de intentos. Por favor, inténtalo de nuevo más tarde.',
     } as any),
   ],
-  providers: [AuthService, LocalStrategyService, JwtStrategyService],
+  providers: [AuthService, LocalStrategyService, JwtStrategyService, GoogleStrategyService],
   controllers: [AuthController],
 })
 export class AuthModule {}
