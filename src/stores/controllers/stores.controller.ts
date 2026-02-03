@@ -1,32 +1,98 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseIntPipe,
   Post,
   Put,
+  Query,
 } from '@nestjs/common';
 import {
   ApiOperation,
   ApiCreatedResponse,
   ApiOkResponse,
+  ApiNoContentResponse,
 } from '@nestjs/swagger';
 import { Serialize } from 'src/common/decorators/serialize.decorator';
+import { PaginationDto } from 'src/common/dtos/pagination.dto';
 
+import { CreateStoreDto, UpdateStoreDto } from '../dtos/create-store.dto';
 import {
   CreatePaymentConfigDto,
   UpdatePaymentConfigDto,
 } from '../dtos/payment-config.dto';
 import { StorePaymentConfigResponseDto } from '../dtos/store-payment-config-response.dto';
+import { StoreResponseDto } from '../dtos/store-response.dto';
 
 import { StoresPaymentConfigService } from '../services/stores-payment-config.service';
+import { StoresService } from '../services/stores.service';
 
 @Controller('stores')
 export class StoresController {
   constructor(
     private readonly storesPaymentConfigService: StoresPaymentConfigService,
+    private readonly storesService: StoresService,
   ) {}
+
+  @Get()
+  @ApiOperation({ summary: 'Obtener todas las tiendas paginadas' })
+  @ApiOkResponse({
+    description: 'Lista paginada de tiendas',
+  })
+  async getAllStores(@Query() paginationDto: PaginationDto) {
+    return await this.storesService.findAll(paginationDto);
+  }
+
+  @Get(':id')
+  @Serialize(StoreResponseDto)
+  @ApiOperation({ summary: 'Obtener una tienda por ID' })
+  @ApiOkResponse({
+    description: 'Tienda encontrada',
+    type: StoreResponseDto,
+  })
+  async getStoreById(@Param('id', ParseIntPipe) id: number) {
+    return await this.storesService.findOne(id);
+  }
+
+  @Post()
+  @Serialize(StoreResponseDto)
+  @ApiOperation({ summary: 'Crear una nueva tienda' })
+  @ApiCreatedResponse({
+    description: 'Tienda creada correctamente',
+    type: StoreResponseDto,
+  })
+  async createStore(@Body() dto: CreateStoreDto) {
+    return await this.storesService.create(dto);
+  }
+
+  @Put(':id')
+  @Serialize(StoreResponseDto)
+  @ApiOperation({ summary: 'Actualizar una tienda' })
+  @ApiOkResponse({
+    description: 'Tienda actualizada correctamente',
+    type: StoreResponseDto,
+  })
+  async updateStore(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateStoreDto,
+  ) {
+    return await this.storesService.update(id, dto);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Eliminar una tienda (soft delete)' })
+  @ApiNoContentResponse({
+    description: 'Tienda eliminada correctamente',
+  })
+  async deleteStore(@Param('id', ParseIntPipe) id: number) {
+    await this.storesService.remove(id);
+  }
+
   /**
    * Obtiene las configuraciones de pago de una tienda.
    * @param storeId - ID de la tienda
