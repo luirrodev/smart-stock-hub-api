@@ -19,6 +19,7 @@ import { ForgotPasswordDto } from '../dtos/forgot-password.dto';
 import { PayloadToken } from '../models/token.model';
 import { CustomersService } from 'src/customers/services/customers.service';
 import { PasswordResetToken } from '../entities/password-reset-token.entity';
+import { GoogleUser } from '../strategies/google-strategy.service';
 
 @Injectable()
 export class AuthService {
@@ -318,5 +319,50 @@ export class AuthService {
       role: user.role.name,
       permissions: user.role.permissions.map((permission) => permission.name),
     };
+  }
+
+  async validateGoogleUser(googleUser: GoogleUser): Promise<User> {
+    const { googleId, email, name, avatar } = googleUser;
+
+    let user = await this.userService.findByGoogleId(googleId);
+
+    if (user) {
+      if (avatar && user.avatar !== avatar) {
+        await this.userService.update(user.id, { avatar });
+        user.avatar = avatar;
+      }
+      return user;
+    }
+
+    user = await this.userService.findByEmail(email);
+
+    if (user) {
+      await this.userService.update(user.id, {
+        googleId,
+        authProvider: user.authProvider === 'local' ? 'local,google' : user.authProvider,
+        avatar: avatar || user.avatar || undefined,
+      });
+      return await this.userService.findOne(user.id);
+    }
+
+    const createdUser = await this.userService.createOAuthUser({
+      email,
+      name,
+      googleId,
+      authProvider: 'google',
+      avatar,
+      role: 2,
+    });
+
+    await this.customersService.create({
+      userId: createdUser.id,
+    });
+
+    return createdUser;
+  }
+
+  async googleLogin(googleUser: GoogleUser) {
+    const user = await this.validateGoogleUser(googleUser);
+    return this.generateJWT(user);
   }
 }
