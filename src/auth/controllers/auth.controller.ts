@@ -7,10 +7,17 @@ import {
   Body,
   Get,
   Req,
+  Res,
 } from '@nestjs/common';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBody,
+  ApiExcludeEndpoint,
+} from '@nestjs/swagger';
 import { ThrottlerGuard } from '@nestjs/throttler';
 
 import { AuthService } from '../services/auth.service';
@@ -23,6 +30,8 @@ import { PayloadToken } from '../models/token.model';
 import { ForgotPasswordDto } from '../dtos/forgot-password.dto';
 import { ResetPasswordDto } from '../dtos/reset-password.dto';
 import { Public } from '../decorators/public.decorator';
+import { GoogleAuthGuard } from '../guards/google-auth.guard';
+import { GoogleUser } from '../strategies/google-strategy.service';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -169,5 +178,29 @@ export class AuthController {
   })
   async getProfile(@GetUser() user: PayloadToken) {
     return this.authService.getProfile(user);
+  }
+
+  @Get('google')
+  @Public()
+  @UseGuards(GoogleAuthGuard)
+  @ApiOperation({ summary: 'Iniciar autenticación con Google' })
+  @ApiResponse({
+    status: HttpStatus.FOUND,
+    description: 'Redirige a la página de login de Google',
+  })
+  googleAuth() {}
+
+  @Get('google/callback')
+  @Public()
+  @UseGuards(GoogleAuthGuard)
+  @ApiExcludeEndpoint()
+  async googleAuthCallback(@Req() req: Request, @Res() res: Response) {
+    const googleUser = req.user as GoogleUser;
+    const tokens = await this.authService.googleLogin(googleUser);
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const redirectUrl = `${frontendUrl}/auth/callback?access_token=${tokens.access_token}&refresh_token=${tokens.refresh_token}`;
+
+    return res.redirect(redirectUrl);
   }
 }
