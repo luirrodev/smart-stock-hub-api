@@ -13,9 +13,15 @@ import {
   ApiCreatedResponse,
   ApiBearerAuth,
   ApiBadRequestResponse,
+  ApiOkResponse,
 } from '@nestjs/swagger';
 import { OptionalAuth } from 'src/auth/decorators/optional-auth.decorator';
+import {
+  PaginationDto,
+  PaginatedResponse,
+} from 'src/common/dtos/pagination.dto';
 import { PaymentProvider } from '../stores/entities/store-payment-config.entity';
+import { PaymentResponseDto } from './dto/payment-response.dto';
 
 @ApiTags('Payments')
 @Controller('payments')
@@ -110,5 +116,21 @@ export class PaymentsController {
       sig,
     );
     return { message: 'Pago capturado', result };
+  }
+
+  @Get()
+  @ApiOperation({
+    summary: 'Listar pagos con paginación',
+    description:
+      'Obtiene una lista paginada de pagos. Soporta búsqueda por ID o ID de orden del proveedor, y ordenamiento por diferentes campos.',
+  })
+  @ApiOkResponse({
+    description: 'Lista de pagos paginada',
+    type: PaginatedResponse<PaymentResponseDto>,
+  })
+  async getAllPayments(
+    @Query() paginationDto: PaginationDto,
+  ): Promise<PaginatedResponse<PaymentResponseDto>> {
+    return await this.paymentsService.getAllPayments(paginationDto);
   }
 }

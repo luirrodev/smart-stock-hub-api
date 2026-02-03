@@ -7,10 +7,17 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { plainToInstance } from 'class-transformer';
 
 import { PayloadToken } from '../auth/models/token.model';
 import { RefundPaymentDto } from './dto/refund-payment.dto';
 import { CreatePaymentDto } from './dto/create-payment.dto';
+import { PaymentResponseDto } from './dto/payment-response.dto';
+import {
+  PaginationDto,
+  PaginatedResponse,
+} from '../common/dtos/pagination.dto';
+import { QueryBuilderUtil } from '../common/utils/query-builder.util';
 import { ProviderConfig } from './providers/payment-provider.interface';
 import {
   PaymentTransaction,
@@ -592,5 +599,75 @@ export class PaymentsService {
       status: refundResponse.status,
       amount: refundResponse.amount?.value,
     };
+  }
+
+  /**
+   * Obtiene todos los pagos con paginación, búsqueda y ordenamiento
+   */
+  async getAllPayments(
+    paginationDto: PaginationDto,
+  ): Promise<PaginatedResponse<PaymentResponseDto>> {
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      sortBy = 'createdAt',
+      sortDir = 'DESC',
+    } = paginationDto;
+    const skip = (page - 1) * limit;
+    const dir = (sortDir ?? 'DESC').toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
+
+    // Campos permitidos para ordenamiento
+    const allowedSortFields = [
+      'id',
+      'provider',
+      'amount',
+      'status',
+      'createdAt',
+      'updatedAt',
+      'orderId',
+      'storeId',
+    ];
+
+    const orderField = allowedSortFields.includes(sortBy)
+      ? sortBy
+      : 'createdAt';
+
+    // Type assertion para que TypeScript sepa que es válido
+    const order = { [orderField]: dir } as Record<string, 'ASC' | 'DESC'>;
+
+    // Construir condiciones de búsqueda usando la utilidad
+    // Para Payment, buscamos en: providerOrderId (string)
+    const where = QueryBuilderUtil.buildSearchConditions<Payment>(search, [
+      'id',
+      'providerOrderId',
+    ]);
+
+    const [payments, total] = await this.paymentRepository.findAndCount({
+      where,
+      skip,
+      take: limit,
+      order,
+      relations: ['order'],
+    });
+
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+
+    // Transformar Payment entities a PaymentResponseDto
+    const data = plainToInstance(PaymentResponseDto, payments, {
+      excludeExtraneousValues: true,
+    });
+
+    const response: PaginatedResponse<PaymentResponseDto> = {
+      data,
+      page,
+      limit,
+      total,
+      totalPages,
+      hasPrevious: page > 1,
+      hasNext: page < totalPages,
+    };
+
+    return response;
   }
 }
