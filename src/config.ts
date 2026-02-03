@@ -25,5 +25,10 @@ export default registerAs('config', () => {
       url: process.env.API_URL_GET_PRODUCTS,
       api_key: process.env.API_KEY_GET_PRODUCTS,
     },
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      callbackUrl: process.env.GOOGLE_CALLBACK_URL,
+    },
   };
 });
