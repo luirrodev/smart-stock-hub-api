@@ -5,7 +5,10 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   DeleteDateColumn,
+  OneToMany,
 } from 'typeorm';
+
+import { StoreUser } from '../../access-control/users/entities/store-user.entity';
 
 @Entity({ name: 'stores' })
 export class Store {
@@ -37,6 +40,9 @@ export class Store {
 
   @Column({ type: 'varchar', length: 150, nullable: true })
   email: string | null;
+
+  @OneToMany(() => StoreUser, (storeUser) => storeUser.store, { cascade: true })
+  storeUsers: StoreUser[];
 
   @CreateDateColumn({
     type: 'timestamptz',

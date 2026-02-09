@@ -8,6 +8,7 @@ import {
   Get,
   Req,
   Res,
+  BadRequestException,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
@@ -33,20 +34,27 @@ import { Public } from '../decorators/public.decorator';
 import { GoogleAuthGuard } from '../guards/google-auth.guard';
 import { GoogleUser } from '../strategies/google-strategy.service';
 import { GOOGLE_AUTH_FLOW_DOCUMENTATION } from '../documentation/google-auth-flow.documentation';
+import { StoreUsersService } from 'src/access-control/users/services/store-users.service';
 
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly storeUsersService: StoreUsersService,
+  ) {}
 
   @Post('login')
   @Public()
   @UseGuards(AuthGuard('local'))
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'User login' })
+  @ApiOperation({
+    summary: 'User login - supports both STAFF and CUSTOMER users',
+  })
   @ApiBody({
     type: LoginDto,
-    description: 'Credenciales de usuario para el login',
+    description:
+      'User credentials. For CUSTOMER users, storeId is required in body or header.',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -56,7 +64,52 @@ export class AuthController {
     status: HttpStatus.UNAUTHORIZED,
     description: 'Invalid credentials',
   })
-  login(@GetUser() user: User, @Body() loginDto: LoginDto) {
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Missing storeId for customer login',
+  })
+  async login(
+    @GetUser() user: User,
+    @Body() loginDto: LoginDto,
+    @Req() request: Request,
+  ) {
+    // Check if user is a CUSTOMER
+    if (user.role && user.role.name === 'customer') {
+      // For CUSTOMER login, storeId is required
+      // Can come from request body or X-Store-ID header
+      let storeId = loginDto['storeId'] as number | undefined;
+      if (!storeId) {
+        storeId = request.headers['x-store-id']
+          ? parseInt(request.headers['x-store-id'] as string, 10)
+          : undefined;
+      }
+
+      if (!storeId || isNaN(storeId)) {
+        throw new BadRequestException(
+          'storeId is required for customer login (provide in body or X-Store-ID header)',
+        );
+      }
+
+      // Find the StoreUser record for this customer-store pair
+      if (!user.customerId) {
+        throw new BadRequestException('Customer ID is missing');
+      }
+      const storeUsers = await this.storeUsersService.findStoresForCustomer(
+        user.customerId,
+      );
+      const storeUser = storeUsers.find((su) => su.storeId === storeId);
+
+      if (!storeUser) {
+        throw new BadRequestException(
+          `Customer is not registered for store ${storeId}`,
+        );
+      }
+
+      // Generate CUSTOMER token with store context
+      return this.authService.generateJWT(user, storeId, storeUser.id);
+    }
+
+    // For STAFF users, generate token without store context
     return this.authService.generateJWT(user);
   }
 

@@ -14,6 +14,7 @@ import { Exclude } from 'class-transformer';
 
 import { User } from '../../access-control/users/entities/user.entity';
 import { ShippingAddress } from './shipping-address.entity';
+import { StoreUser } from '../../access-control/users/entities/store-user.entity';
 
 @Entity({ name: 'customers' })
 @Unique(['user'])
@@ -39,6 +40,12 @@ export class Customer {
   )
   @JoinColumn({ name: 'shipping_addresses' }) // Define el nombre de la columna
   shippingAddresses: ShippingAddress[];
+
+  // Relación uno a muchos con StoreUser (credenciales por tienda)
+  @OneToMany(() => StoreUser, (storeUser) => storeUser.customer, {
+    cascade: true,
+  })
+  storeUsers: StoreUser[];
 
   // Campos específicos de clientes
   @Column({ name: 'purchase_count', type: 'int', default: 0 })

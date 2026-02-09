@@ -219,33 +219,102 @@ export class AuthService {
     return { message: 'Contraseña actualizada correctamente' };
   }
 
-  async generateJWT(userData: User) {
+  /**
+   * Generates JWT tokens for a user.
+   *
+   * For STAFF users (role != 'customer'):
+   *  - Returns STAFF token with sub=userId
+   *  - storeId is not included in token
+   *
+   * For CUSTOMER users (role == 'customer'):
+   *  - Requires storeId and storeUserId parameters
+   *  - Returns CUSTOMER token with sub=customerId, storeId, and storeUserId
+   *  - This token is specific to a single store context
+   *
+   * @param userData - User entity with role information
+   * @param storeId - Required for CUSTOMER users, ignored for STAFF
+   * @param storeUserId - Required for CUSTOMER users, ignored for STAFF
+   */
+  async generateJWT(userData: User, storeId?: number, storeUserId?: number) {
     // Actualizar lastLoginAt (solo en login con credenciales)
     await this.userService.updateLastLogin(userData.id);
 
-    // Resolve customerId safely: use relation if present, otherwise fetch only when role is 'customer'
-    let customerId: number | null = null;
-    if (userData.customerId != null) {
-      customerId = userData.customerId;
-    } else if (userData.role && userData.role.name === 'customer') {
-      try {
-        const customer = await this.customersService.findByUserId(userData.id);
-        customerId = customer?.id ?? null;
-      } catch (e) {
-        // If not found or error, ignore and leave customerId null
-        customerId = null;
+    const isCustomer = userData.role && userData.role.name === 'customer';
+
+    // For CUSTOMER users: require and use storeId and storeUserId
+    if (isCustomer) {
+      if (!storeId || !storeUserId) {
+        throw new BadRequestException(
+          'storeId and storeUserId are required for customer login',
+        );
       }
+
+      // Resolve customerId for customer token
+      let customerId: number | null = null;
+      if (userData.customerId != null) {
+        customerId = userData.customerId;
+      } else {
+        try {
+          const customer = await this.customersService.findByUserId(
+            userData.id,
+          );
+          customerId = customer?.id ?? null;
+        } catch (e) {
+          customerId = null;
+        }
+      }
+
+      if (!customerId) {
+        throw new NotFoundException('Customer record not found for user');
+      }
+
+      // CUSTOMER token - always includes store context
+      const customerPayload: PayloadToken = {
+        sub: customerId,
+        customerId: customerId,
+        role: 'customer',
+        roleId: userData.role.id,
+        roleVersion: userData.role.version,
+        storeId: storeId,
+        storeUserId: storeUserId,
+        authMethod: userData.authProvider as 'local' | 'google' | 'service',
+      };
+
+      const access_token = await this.jwtService.sign(customerPayload, {
+        expiresIn: process.env.JWT_ACCESS_EXPIRES_IN,
+        secret: process.env.JWT_ACCESS_SECRET,
+      });
+
+      const refresh_token = await this.jwtService.sign(
+        {
+          sub: customerId,
+          customerId: customerId,
+          role: 'customer',
+          storeId: storeId,
+          storeUserId: storeUserId,
+        },
+        {
+          expiresIn: process.env.JWT_REFRESH_EXPIRES_IN,
+          secret: process.env.JWT_REFRESH_SECRET,
+        },
+      );
+
+      return {
+        access_token,
+        refresh_token,
+      };
     }
 
-    const payload: PayloadToken = {
+    // STAFF token - sub is userId, no store context in token
+    const staffPayload: PayloadToken = {
+      sub: userData.id,
       role: userData.role.name,
       roleId: userData.role.id,
       roleVersion: userData.role.version,
-      sub: userData.id,
-      ...(customerId != null ? { customerId } : {}),
+      authMethod: userData.authProvider as 'local' | 'google' | 'service',
     };
 
-    const access_token = await this.jwtService.sign(payload, {
+    const access_token = await this.jwtService.sign(staffPayload, {
       expiresIn: process.env.JWT_ACCESS_EXPIRES_IN,
       secret: process.env.JWT_ACCESS_SECRET,
     });
@@ -261,12 +330,10 @@ export class AuthService {
       },
     );
 
-    const response = {
+    return {
       access_token,
       refresh_token,
     };
-
-    return response;
   }
 
   async refreshToken(refreshToken: string) {
@@ -274,6 +341,46 @@ export class AuthService {
       const payload = this.jwtService.verify(refreshToken, {
         secret: process.env.JWT_REFRESH_SECRET,
       });
+
+      // Check if this is a CUSTOMER token (has storeId and storeUserId)
+      const isCustomer =
+        payload.role === 'customer' && payload.storeId && payload.storeUserId;
+
+      if (isCustomer) {
+        // CUSTOMER token refresh - maintain store context
+        const newPayload: PayloadToken = {
+          sub: payload.sub,
+          customerId: payload.customerId,
+          role: 'customer',
+          roleId: payload.roleId,
+          roleVersion: payload.roleVersion,
+          storeId: payload.storeId,
+          storeUserId: payload.storeUserId,
+        };
+
+        const access_token = await this.jwtService.sign(newPayload, {
+          expiresIn: process.env.JWT_ACCESS_EXPIRES_IN,
+          secret: process.env.JWT_ACCESS_SECRET,
+        });
+
+        const refresh_token = await this.jwtService.sign(
+          {
+            sub: payload.sub,
+            customerId: payload.customerId,
+            role: 'customer',
+            storeId: payload.storeId,
+            storeUserId: payload.storeUserId,
+          },
+          {
+            expiresIn: process.env.JWT_REFRESH_EXPIRES_IN,
+            secret: process.env.JWT_REFRESH_SECRET,
+          },
+        );
+
+        return { access_token, refresh_token };
+      }
+
+      // STAFF token refresh
       const user = await this.userService.findOne(payload.sub);
 
       const newPayload: PayloadToken = {
