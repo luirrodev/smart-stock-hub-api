@@ -27,33 +27,12 @@ export class User {
   @Column({ type: 'varchar', length: 255, default: null })
   name: string;
 
-  @Exclude()
-  @Column({ type: 'varchar', length: 255, nullable: true })
-  password: string;
-
-  @Column({ name: 'google_id', type: 'varchar', length: 255, nullable: true })
-  googleId: string | null;
-
-  @Column({
-    name: 'auth_provider',
-    type: 'varchar',
-    length: 50,
-    default: 'local',
-  })
-  authProvider: string;
-
   @ManyToOne(() => Role, { eager: true })
   @JoinColumn({ name: 'role_id' })
   role: Role;
 
   @Column({ name: 'role_id', type: 'int' })
   roleId: number;
-
-  @Column({ name: 'is_active', type: 'boolean', default: true })
-  isActive: boolean;
-
-  @Column({ name: 'last_login_at', type: 'timestamptz', nullable: true })
-  lastLoginAt: Date;
 
   @Column({ type: 'varchar', length: 20, nullable: true })
   phone: string;

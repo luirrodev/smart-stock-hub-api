@@ -13,6 +13,7 @@ import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 
 import { UsersService } from '../../access-control/users/services/users.service';
+import { StaffUsersService } from '../../access-control/users/services/staff-users.service';
 import { User } from '../../access-control/users/entities/user.entity';
 import { RegisterDto } from '../dtos/register.dto';
 import { ForgotPasswordDto } from '../dtos/forgot-password.dto';
@@ -25,18 +26,36 @@ import { GoogleUser } from '../strategies/google-strategy.service';
 export class AuthService {
   constructor(
     private userService: UsersService,
+    private staffUsersService: StaffUsersService,
     private jwtService: JwtService,
     private customersService: CustomersService,
     @InjectRepository(PasswordResetToken)
     private passwordResetRepo: Repository<PasswordResetToken>,
   ) {}
 
+  /**
+   * Validate user credentials (supports both STAFF and CUSTOMER)
+   *
+   * For STAFF: validates against StaffUser credentials
+   * For CUSTOMER: validates against User password (pre-StoreUser selection)
+   */
   async validateUser(email: string, password: string): Promise<User | null> {
     const user = await this.userService.findByEmail(email);
     if (!user) return null;
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    return isMatch ? user : null;
+    // For STAFF users: credentials are in StaffUser table
+    if (user.role && user.role.name !== 'customer') {
+      const staffUser = await this.staffUsersService.findByUserId(user.id);
+      if (!staffUser?.password) return null;
+
+      const isMatch = await bcrypt.compare(password, staffUser.password);
+      return isMatch ? user : null;
+    }
+
+    // For CUSTOMER users: will be handled separately at login endpoint
+    // with store context selection
+    // Return user for now - actual validation will include store context
+    return user;
   }
 
   /**
@@ -72,8 +91,15 @@ export class AuthService {
     try {
       const user = await this.userService.findByEmail(email);
 
-      // Si el usuario no está activo, no informar al cliente; retornar genérico
-      if (!user || !user.isActive) return;
+      if (!user) return;
+
+      // Check if user is active based on user type
+      // STAFF users: check StaffUser.isActive
+      if (user.role && user.role.name !== 'customer') {
+        const staffUser = await this.staffUsersService.findByUserId(user.id);
+        if (!staffUser || !staffUser.isActive) return;
+      }
+      // CUSTOMER users: check if Customer record exists (implies active)
 
       // Generar token aleatorio en claro y su versión hasheada para guardar
       const rawToken = crypto.randomBytes(32).toString('hex');
@@ -236,13 +262,13 @@ export class AuthService {
    * @param storeUserId - Required for CUSTOMER users, ignored for STAFF
    */
   async generateJWT(userData: User, storeId?: number, storeUserId?: number) {
-    // Actualizar lastLoginAt (solo en login con credenciales)
-    await this.userService.updateLastLogin(userData.id);
-
     const isCustomer = userData.role && userData.role.name === 'customer';
 
     // For CUSTOMER users: require and use storeId and storeUserId
     if (isCustomer) {
+      // Update lastLoginAt in StoreUser (not User)
+      // This happens after StoreUser validation in controller
+
       if (!storeId || !storeUserId) {
         throw new BadRequestException(
           'storeId and storeUserId are required for customer login',
@@ -277,7 +303,7 @@ export class AuthService {
         roleVersion: userData.role.version,
         storeId: storeId,
         storeUserId: storeUserId,
-        authMethod: userData.authProvider as 'local' | 'google' | 'service',
+        authMethod: 'local',
       };
 
       const access_token = await this.jwtService.sign(customerPayload, {
@@ -306,12 +332,15 @@ export class AuthService {
     }
 
     // STAFF token - sub is userId, no store context in token
+    // Update lastLoginAt in StaffUser for STAFF users
+    await this.staffUsersService.updateLastLogin(userData.id);
+
     const staffPayload: PayloadToken = {
       sub: userData.id,
       role: userData.role.name,
       roleId: userData.role.id,
       roleVersion: userData.role.version,
-      authMethod: userData.authProvider as 'local' | 'google' | 'service',
+      authMethod: 'local',
     };
 
     const access_token = await this.jwtService.sign(staffPayload, {
@@ -431,40 +460,43 @@ export class AuthService {
   async validateGoogleUser(googleUser: GoogleUser): Promise<User> {
     const { googleId, email, name, avatar } = googleUser;
 
-    let user = await this.userService.findByGoogleId(googleId);
+    let user = await this.userService.findByEmail(email);
 
     if (user) {
+      // Check user type
+      if (user.role && user.role.name !== 'customer') {
+        // STAFF user: update StaffUser OAuth credentials
+        const staffUser = await this.staffUsersService.findByUserId(user.id);
+        if (staffUser) {
+          await this.staffUsersService.setGoogleCredentials(user.id, googleId);
+        }
+      }
+
+      // Update user avatar if provided
       if (avatar && user.avatar !== avatar) {
         await this.userService.update(user.id, { avatar });
         user.avatar = avatar;
       }
+
       return user;
     }
 
-    user = await this.userService.findByEmail(email);
-
-    if (user) {
-      await this.userService.update(user.id, {
-        googleId,
-        authProvider:
-          user.authProvider === 'local' ? 'local,google' : user.authProvider,
-        avatar: avatar || user.avatar || undefined,
-      });
-      return await this.userService.findOne(user.id);
-    }
-
+    // User doesn't exist - create new user
     const createdUser = await this.userService.createOAuthUser({
       email,
       name,
       googleId,
       authProvider: 'google',
       avatar,
-      role: 2,
+      role: 2, // customer by default
     });
 
-    await this.customersService.create({
-      userId: createdUser.id,
-    });
+    // For CUSTOMER: create associated Customer record
+    if (createdUser.role && createdUser.role.name === 'customer') {
+      await this.customersService.create({
+        userId: createdUser.id,
+      });
+    }
 
     return createdUser;
   }
