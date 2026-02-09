@@ -86,7 +86,10 @@ export class StaffUsersService {
   /**
    * Update password for STAFF user
    */
-  async updatePassword(userId: number, newPassword: string): Promise<StaffUser> {
+  async updatePassword(
+    userId: number,
+    newPassword: string,
+  ): Promise<StaffUser> {
     const staffUser = await this.findByUserId(userId);
     if (!staffUser) {
       throw new NotFoundException(`No StaffUser found for userId ${userId}`);
@@ -107,7 +110,10 @@ export class StaffUsersService {
   /**
    * Set Google OAuth credentials for STAFF user
    */
-  async setGoogleCredentials(userId: number, googleId: string): Promise<StaffUser> {
+  async setGoogleCredentials(
+    userId: number,
+    googleId: string,
+  ): Promise<StaffUser> {
     const staffUser = await this.findByUserId(userId);
     if (!staffUser) {
       throw new NotFoundException(`No StaffUser found for userId ${userId}`);
@@ -148,7 +154,10 @@ export class StaffUsersService {
   /**
    * Verify password for STAFF user
    */
-  async verifyPassword(userId: number, plainPassword: string): Promise<boolean> {
+  async verifyPassword(
+    userId: number,
+    plainPassword: string,
+  ): Promise<boolean> {
     const staffUser = await this.findByUserId(userId);
     if (!staffUser || !staffUser.password) {
       return false;
