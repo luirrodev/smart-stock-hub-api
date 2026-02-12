@@ -6,11 +6,13 @@ import {
   UpdateDateColumn,
   DeleteDateColumn,
   OneToMany,
+  Unique,
 } from 'typeorm';
 
 import { StoreUser } from '../../access-control/users/entities/store-user.entity';
 
 @Entity({ name: 'stores' })
+@Unique(['apiKey'])
 export class Store {
   @PrimaryGeneratedColumn()
   id: number;
@@ -40,6 +42,10 @@ export class Store {
 
   @Column({ type: 'varchar', length: 150, nullable: true })
   email: string | null;
+
+  // API Key para autenticación
+  @Column({ name: 'api_key', type: 'varchar', length: 255, unique: true })
+  apiKey: string;
 
   @OneToMany(() => StoreUser, (storeUser) => storeUser.store, { cascade: true })
   storeUsers: StoreUser[];
