@@ -155,8 +155,30 @@ export class AuthController {
     status: HttpStatus.CONFLICT,
     description: 'Email already in use',
   })
-  async register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(registerDto);
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Missing or invalid X-Store-ID header',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Store not found',
+  })
+  async register(@Body() registerDto: RegisterDto, @Req() request: Request) {
+    // Read X-Store-ID from header (required)
+    const storeIdHeader = request.headers['x-store-id'];
+    if (!storeIdHeader) {
+      throw new BadRequestException(
+        'X-Store-ID header is required for customer registration',
+      );
+    }
+
+    const storeId = parseInt(storeIdHeader as string, 10);
+    if (isNaN(storeId)) {
+      throw new BadRequestException('X-Store-ID must be a valid number');
+    }
+
+    // Pass storeId to the auth service
+    return this.authService.register(registerDto, storeId);
   }
 
   @Post('forgot-password')

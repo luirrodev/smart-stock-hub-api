@@ -21,6 +21,7 @@ import { PayloadToken } from '../models/token.model';
 import { CustomersService } from 'src/customers/services/customers.service';
 import { PasswordResetToken } from '../entities/password-reset-token.entity';
 import { GoogleUser } from '../strategies/google-strategy.service';
+import { StoreUsersService } from 'src/access-control/users/services/store-users.service';
 
 @Injectable()
 export class AuthService {
@@ -29,6 +30,7 @@ export class AuthService {
     private staffUsersService: StaffUsersService,
     private jwtService: JwtService,
     private customersService: CustomersService,
+    private storeUsersService: StoreUsersService,
     @InjectRepository(PasswordResetToken)
     private passwordResetRepo: Repository<PasswordResetToken>,
   ) {}
@@ -60,11 +62,13 @@ export class AuthService {
 
   /**
    * Registra un nuevo usuario siempre con el rol 'customer' (id: 2)
+   * y automáticamente lo vincula a una tienda creando un StoreUser
    * @param {RegisterDto} dto - Los datos de registro
-   * @returns El JWT generado para el usuario registrado
+   * @param {number} storeId - El ID de la tienda donde se registra el cliente
+   * @returns El JWT generado para el usuario registrado con contexto de tienda
    */
-  async register(dto: RegisterDto) {
-    // Crear usuario usando UsersService (incluye hashing y validación de email)
+  async register(dto: RegisterDto, storeId: number) {
+    // 1. Crear usuario usando UsersService (incluye hashing y validación de email)
     const createdUser = await this.userService.create({
       email: dto.email,
       name: `${dto.firstName} ${dto.lastName}`,
@@ -72,13 +76,21 @@ export class AuthService {
       role: 2, // rol 'customer' por defecto (seed)
     });
 
-    // Crear customer asociado
-    await this.customersService.create({
+    // 2. Crear customer asociado
+    const customer = await this.customersService.create({
       userId: createdUser.id,
     });
 
-    // Generar JWT para el usuario creado
-    return this.generateJWT(createdUser);
+    // 3. Crear StoreUser para vincular el cliente a la tienda con contraseña específica
+    const storeUser = await this.storeUsersService.registerCustomerToStore(
+      storeId,
+      customer.id, // El customer_id que se acaba de crear
+      dto.password, // Misma contraseña, será hasheada nuevamente con bcrypt
+    );
+
+    // 4. Generar JWT con contexto de tienda
+    // El usuario ya está registrado en la tienda, retornar token con storeId y storeUserId
+    return this.generateJWT(createdUser, storeId, storeUser.id);
   }
 
   /**
