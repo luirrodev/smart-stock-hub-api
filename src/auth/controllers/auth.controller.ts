@@ -35,6 +35,7 @@ import { GoogleAuthGuard } from '../guards/google-auth.guard';
 import { GoogleUser } from '../strategies/google-strategy.service';
 import { GOOGLE_AUTH_FLOW_DOCUMENTATION } from '../documentation/google-auth-flow.documentation';
 import { StoreUsersService } from 'src/access-control/users/services/store-users.service';
+import { CustomApiKeyGuard } from 'src/stores/guards/custom-api-key.guard';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -46,7 +47,7 @@ export class AuthController {
 
   @Post('login')
   @Public()
-  @UseGuards(AuthGuard('local'))
+  @UseGuards(AuthGuard('local'), CustomApiKeyGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'User login - supports both STAFF and CUSTOMER users',
@@ -54,7 +55,7 @@ export class AuthController {
   @ApiBody({
     type: LoginDto,
     description:
-      'User credentials. For CUSTOMER users, storeId is required in body or header.',
+      'User credentials. For CUSTOMER users, X-API-Key header is required.',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -62,11 +63,11 @@ export class AuthController {
   })
   @ApiResponse({
     status: HttpStatus.UNAUTHORIZED,
-    description: 'Invalid credentials',
+    description: 'Invalid credentials or missing X-API-Key for customer',
   })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
-    description: 'Missing storeId for customer login',
+    description: 'X-API-Key is required for customer login',
   })
   async login(
     @GetUser() user: User,
@@ -75,22 +76,10 @@ export class AuthController {
   ) {
     // Check if user is a CUSTOMER
     if (user.role && user.role.name === 'customer') {
-      // For CUSTOMER login, storeId is required
-      // Can come from request body or X-Store-ID header
-      let storeId = loginDto['storeId'] as number | undefined;
-      if (!storeId) {
-        storeId = request.headers['x-store-id']
-          ? parseInt(request.headers['x-store-id'] as string, 10)
-          : undefined;
-      }
+      // For CUSTOMER login, request.store is guaranteed to be set by the guard
+      const storeId = (request as any).store.id;
 
-      if (!storeId || isNaN(storeId)) {
-        throw new BadRequestException(
-          'storeId is required for customer login (provide in body or X-Store-ID header)',
-        );
-      }
-
-      // Find the StoreUser record for this customer-store pair
+      // Validate customer is registered for this store
       if (!user.customerId) {
         throw new BadRequestException('Customer ID is missing');
       }
@@ -135,6 +124,7 @@ export class AuthController {
 
   @Post('register')
   @Public()
+  @UseGuards(CustomApiKeyGuard)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Register a new customer' })
   @ApiBody({ type: RegisterDto })
@@ -156,28 +146,17 @@ export class AuthController {
     description: 'Email already in use',
   })
   @ApiResponse({
-    status: HttpStatus.BAD_REQUEST,
-    description: 'Missing or invalid X-Store-ID header',
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Missing or invalid X-API-Key header',
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
     description: 'Store not found',
   })
   async register(@Body() registerDto: RegisterDto, @Req() request: Request) {
-    // Read X-Store-ID from header (required)
-    const storeIdHeader = request.headers['x-store-id'];
-    if (!storeIdHeader) {
-      throw new BadRequestException(
-        'X-Store-ID header is required for customer registration',
-      );
-    }
-
-    const storeId = parseInt(storeIdHeader as string, 10);
-    if (isNaN(storeId)) {
-      throw new BadRequestException('X-Store-ID must be a valid number');
-    }
-
-    // Pass storeId to the auth service
+    // CustomApiKeyGuard validates the X-API-Key header and populates request.store
+    // If we reach here, the store is valid and request.store is available
+    const storeId = (request as any).store.id;
     return this.authService.register(registerDto, storeId);
   }
 
