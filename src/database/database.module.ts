@@ -7,6 +7,7 @@ import { Keyv } from 'keyv';
 
 import config from 'src/config';
 import { SnakeNamingStrategy } from './typeorm-naming-strategy';
+import { DatabaseHealthService } from './database-health.service';
 
 // Constante para el TTL del caché (1 hora)
 const CACHE_TTL = 60 * 60 * 1000; // 3600000 ms
@@ -47,7 +48,11 @@ function buildRedisUrl(
       useFactory: (configService: ConfigType<typeof config>) => {
         return {
           type: 'postgres',
-          url: configService.database.url,
+          host: configService.database.host,
+          port: configService.database.port,
+          username: configService.database.username,
+          password: configService.database.password,
+          database: configService.database.database,
           synchronize: false,
           autoLoadEntities: true,
           namingStrategy: new SnakeNamingStrategy(),
@@ -67,6 +72,7 @@ function buildRedisUrl(
       },
     }),
   ],
+  providers: [DatabaseHealthService],
   exports: [TypeOrmModule, CacheModule],
 })
 export class DatabaseModule {}
