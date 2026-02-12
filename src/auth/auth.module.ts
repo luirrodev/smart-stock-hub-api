@@ -14,11 +14,13 @@ import { GoogleStrategyService } from './strategies/google-strategy.service';
 import { AuthController } from './controllers/auth.controller';
 import config from 'src/config';
 import { PasswordResetToken } from './entities/password-reset-token.entity';
+import { StoresModule } from 'src/stores/stores.module';
 
 @Module({
   imports: [
     AccessControlModule,
     CustomersModule,
+    StoresModule,
     TypeOrmModule.forFeature([PasswordResetToken]),
     PassportModule,
     JwtModule.registerAsync({
@@ -43,7 +45,12 @@ import { PasswordResetToken } from './entities/password-reset-token.entity';
         'Ha excedido el límite de intentos. Por favor, inténtalo de nuevo más tarde.',
     } as any),
   ],
-  providers: [AuthService, LocalStrategyService, JwtStrategyService, GoogleStrategyService],
+  providers: [
+    AuthService,
+    LocalStrategyService,
+    JwtStrategyService,
+    GoogleStrategyService,
+  ],
   controllers: [AuthController],
 })
 export class AuthModule {}
