@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import * as crypto from 'crypto';
 
 import {
   PaginationDto,
@@ -64,8 +65,25 @@ export class StoresService {
   }
 
   async create(data: Partial<Store>): Promise<Store> {
-    const store = this.storeRepo.create(data);
+    const store = this.storeRepo.create({
+      ...data,
+      apiKey: this.generateApiKey(),
+    });
     return await this.storeRepo.save(store);
+  }
+
+  async regenerateApiKey(storeId: number): Promise<Store> {
+    const store = await this.findOne(storeId);
+    store.apiKey = this.generateApiKey();
+    return await this.storeRepo.save(store);
+  }
+
+  async findByApiKey(apiKey: string): Promise<Store | null> {
+    return this.storeRepo.findOne({ where: { apiKey } });
+  }
+
+  private generateApiKey(): string {
+    return crypto.randomBytes(32).toString('hex');
   }
 
   async update(id: number, data: Partial<Store>): Promise<Store> {
