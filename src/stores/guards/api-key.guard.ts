@@ -16,13 +16,13 @@ export class ApiKeyGuard implements CanActivate {
 
     if (!apiKey) {
       throw new UnauthorizedException(
-        'API Key is required in X-API-Key header',
+        'API-KEY es requerido en el header X-API-Key',
       );
     }
 
     const store = await this.storesService.findByApiKey(apiKey as string);
     if (!store) {
-      throw new UnauthorizedException('Invalid API Key');
+      throw new UnauthorizedException('API-KEY inválida');
     }
 
     // Attachar store al request para componentes posteriores
