@@ -12,7 +12,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - '${DB_PORT}:${DB_PORT}'
+      - '${DB_PORT}:5432'
     networks:
       - smart-stock-network
   api:
@@ -22,8 +22,8 @@ services:
       target: development
     container_name: smart-stock-api
     ports:
-      - '${PORT}:${PORT}'
-      - '${DEBUG_PORT}:${DEBUG_PORT}'
+      - '${PORT}:3000'
+      - '${DEBUG_PORT}:9229'
     env_file:
       - ./.env
     environment:
@@ -41,7 +41,7 @@ services:
     image: 'redis:alpine'
     container_name: smart-stock-redis
     ports:
-      - '${REDIS_PORT}:${REDIS_PORT}'
+      - '${REDIS_PORT}:6379'
     restart: unless-stopped
     networks:
       - smart-stock-network

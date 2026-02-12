@@ -2,6 +2,9 @@ import { Injectable, OnModuleInit, Inject, Logger } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { DataSource } from 'typeorm';
+import * as net from 'net';
+import { ConfigType } from '@nestjs/config';
+import config from 'src/config';
 
 interface RedisClient {
   ping: () => Promise<string>;
@@ -21,11 +24,15 @@ export class DatabaseHealthService implements OnModuleInit {
   constructor(
     private readonly dataSource: DataSource,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+    @Inject(config.KEY) private configService: ConfigType<typeof config>,
   ) {}
 
   async onModuleInit() {
     this.checkDatabaseConnection();
-    await this.checkRedisConnection();
+    // No bloquear la inicialización con el chequeo de Redis
+    this.checkRedisConnection().catch((err) => {
+      this.logger.error('Error en verificación de Redis:', err);
+    });
   }
 
   private checkDatabaseConnection(): void {
@@ -39,30 +46,28 @@ export class DatabaseHealthService implements OnModuleInit {
   }
 
   private async checkRedisConnection(): Promise<void> {
-    try {
-      const stores = (this.cacheManager as Cache & { stores?: KeyvStore[] })
-        .stores;
-      const store = stores?.[0];
+    return new Promise((resolve) => {
+      const { host, port } = this.configService.redis;
+      const timeout = 5000; // 5 segundos de timeout
 
-      if (store?.client?.ping) {
-        // Usar PING para verificar la conexión a Redis
-        const response = await store.client.ping();
+      const socket = net.createConnection({ host, port, timeout });
 
-        if (response === 'PONG') {
-          this.logger.log('✓ Redis conectado exitosamente');
-        }
-      } else {
-        // Fallback: hacer un set/get simple si no hay acceso directo al cliente
-        await this.cacheManager.set('health:check', 'ok', 5000);
-        const result = await this.cacheManager.get('health:check');
+      socket.on('connect', () => {
+        this.logger.log('✓ Redis conectado exitosamente');
+        socket.destroy();
+        resolve();
+      });
 
-        if (result === 'ok') {
-          this.logger.log('✓ Redis conectado exitosamente');
-          await this.cacheManager.del('health:check');
-        }
-      }
-    } catch (error) {
-      this.logger.error('✗ Error al conectar con Redis', error);
-    }
+      socket.on('timeout', () => {
+        this.logger.error('✗ Timeout al conectar con Redis');
+        socket.destroy();
+        resolve();
+      });
+
+      socket.on('error', (err) => {
+        this.logger.error(`✗ Error al conectar con Redis: ${err.message}`);
+        resolve();
+      });
+    });
   }
 }
