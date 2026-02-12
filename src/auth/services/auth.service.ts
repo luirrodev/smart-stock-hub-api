@@ -22,6 +22,7 @@ import { CustomersService } from 'src/customers/services/customers.service';
 import { PasswordResetToken } from '../entities/password-reset-token.entity';
 import { GoogleUser } from '../strategies/google-strategy.service';
 import { StoreUsersService } from 'src/access-control/users/services/store-users.service';
+import { Customer } from 'src/customers/entities/customer.entity';
 
 @Injectable()
 export class AuthService {
@@ -61,36 +62,71 @@ export class AuthService {
   }
 
   /**
-   * Registra un nuevo usuario siempre con el rol 'customer' (id: 2)
-   * y automáticamente lo vincula a una tienda creando un StoreUser
+   * Registra un nuevo usuario cliente en una tienda específica.
+   * Permite que el mismo email se registre en múltiples tiendas.
+   *
+   * Flujo:
+   * - Si el email NO existe: Crea User + Customer + StoreUser
+   * - Si el email EXISTE y es CUSTOMER: Reutiliza User + Customer, crea StoreUser
+   * - Si el email EXISTE y es STAFF: Falla (no puede ser CUSTOMER con email de STAFF)
+   *
    * @param {RegisterDto} dto - Los datos de registro
    * @param {number} storeId - El ID de la tienda donde se registra el cliente
-   * @returns El JWT generado para el usuario registrado con contexto de tienda
+   * @returns El JWT generado con contexto de tienda
    */
   async register(dto: RegisterDto, storeId: number) {
-    // 1. Crear usuario usando UsersService (incluye hashing y validación de email)
-    const createdUser = await this.userService.create({
-      email: dto.email,
-      name: `${dto.firstName} ${dto.lastName}`,
-      password: dto.password,
-      role: 2, // rol 'customer' por defecto (seed)
-    });
+    // 1. Buscar si el email ya existe
+    const existingUser = await this.userService.findByEmail(dto.email);
 
-    // 2. Crear customer asociado
-    const customer = await this.customersService.create({
-      userId: createdUser.id,
-    });
+    let user: User;
+    let customer: Customer;
 
-    // 3. Crear StoreUser para vincular el cliente a la tienda con contraseña específica
+    if (existingUser) {
+      // El email ya existe - validar que sea CUSTOMER
+      if (existingUser.role && existingUser.role.name !== 'customer') {
+        throw new BadRequestException(
+          'Este email está registrado como personal administrativo. No puede registrarse como cliente con este email.',
+        );
+      }
+
+      // Es CUSTOMER existente, reutilizar
+      user = existingUser;
+
+      // Obtener el customer_id del usuario existente
+      if (!user.customerId) {
+        // Este caso no debería ocurrir si la integridad de datos es correcta
+        throw new BadRequestException(
+          'Usuario cliente sin registro de customer asociado.',
+        );
+      }
+      customer = await this.customersService.findOne(user.customerId);
+    } else {
+      // Email no existe - crear User + Customer
+      const createdUser = await this.userService.create({
+        email: dto.email,
+        name: `${dto.firstName} ${dto.lastName}`,
+        password: dto.password,
+        role: 2, // rol 'customer' por defecto
+      });
+
+      const createdCustomer = await this.customersService.create({
+        userId: createdUser.id,
+      });
+
+      user = createdUser;
+      customer = createdCustomer;
+    }
+
+    // 2. Crear StoreUser para vincular el cliente a la tienda
+    // Especificar contraseña nueva (o puede ser la misma)
     const storeUser = await this.storeUsersService.registerCustomerToStore(
       storeId,
-      customer.id, // El customer_id que se acaba de crear
-      dto.password, // Misma contraseña, será hasheada nuevamente con bcrypt
+      customer.id,
+      dto.password, // Contraseña hasheada nuevamente para esta tienda
     );
 
-    // 4. Generar JWT con contexto de tienda
-    // El usuario ya está registrado en la tienda, retornar token con storeId y storeUserId
-    return this.generateJWT(createdUser, storeId, storeUser.id);
+    // 3. Generar JWT con contexto de tienda
+    return this.generateJWT(user, storeId, storeUser.id);
   }
 
   /**
