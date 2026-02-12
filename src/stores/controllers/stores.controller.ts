@@ -93,6 +93,18 @@ export class StoresController {
     await this.storesService.remove(id);
   }
 
+  @Post(':id/regenerate-api-key')
+  @Serialize(StoreResponseDto)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Regenerar API key de una tienda' })
+  @ApiOkResponse({
+    description: 'API key regenerada correctamente',
+    type: StoreResponseDto,
+  })
+  async regenerateApiKey(@Param('id', ParseIntPipe) id: number) {
+    return await this.storesService.regenerateApiKey(id);
+  }
+
   /**
    * Obtiene las configuraciones de pago de una tienda.
    * @param storeId - ID de la tienda
