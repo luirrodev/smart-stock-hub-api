@@ -6,13 +6,13 @@ services:
     container_name: smart-stock-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: root
-      POSTGRES_PASSWORD: 12345678
-      POSTGRES_DB: smart_stock_hub_db
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_DATABASE}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - '5433:5432'
+      - '${DB_PORT}:${DB_PORT}'
     networks:
       - smart-stock-network
   api:
@@ -22,8 +22,8 @@ services:
       target: development
     container_name: smart-stock-api
     ports:
-      - '3010:3000'
-      - '9230:9229'
+      - '${PORT}:${PORT}'
+      - '${DEBUG_PORT}:${DEBUG_PORT}'
     env_file:
       - ./.env
     environment:
@@ -41,7 +41,7 @@ services:
     image: 'redis:alpine'
     container_name: smart-stock-redis
     ports:
-      - '6380:6379'
+      - '${REDIS_PORT}:${REDIS_PORT}'
     restart: unless-stopped
     networks:
       - smart-stock-network
