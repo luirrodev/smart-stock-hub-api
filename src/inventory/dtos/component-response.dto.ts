@@ -38,11 +38,35 @@ export class ComponentResponseDto {
   })
   unit: string | null;
 
-  @ApiProperty({
-    description: 'Indica si el componente está activo',
-    example: true,
+  @ApiPropertyOptional({
+    description: 'ID externo del componente en la fuente original',
+    example: 12345,
   })
-  isActive: boolean;
+  externalId: number | null;
+
+  @ApiProperty({
+    description: 'Origen del componente (internal, mariadb, api, etc.)',
+    example: 'internal',
+  })
+  source: string;
+
+  @ApiPropertyOptional({
+    description: 'Payload original del componente desde la fuente',
+    example: { field1: 'value1', field2: 'value2' },
+  })
+  rawData: any | null;
+
+  @ApiPropertyOptional({
+    description: 'Fecha cuando el componente fue mapeado desde la fuente',
+    example: '2025-01-15T14:30:00Z',
+  })
+  mappedAt: Date | null;
+
+  @ApiProperty({
+    description: 'Indica si el componente fue importado desde fuente externa',
+    example: false,
+  })
+  isImported: boolean;
 
   @ApiProperty({
     description: 'Indica si el componente es visible',
