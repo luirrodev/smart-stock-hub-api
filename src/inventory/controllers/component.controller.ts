@@ -10,6 +10,7 @@ import {
   HttpCode,
   HttpStatus,
   ParseIntPipe,
+  Query,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -21,11 +22,13 @@ import {
   ApiBadRequestResponse,
 } from '@nestjs/swagger';
 
-import { InventoryService } from '../services/inventory.service';
+import { ComponentService } from '../services/component.service';
 import { Component } from '../entities/component.entity';
 import { CreateComponentDto } from '../dtos/create-component.dto';
 import { UpdateComponentDto } from '../dtos/update-component.dto';
 import { ComponentResponseDto } from '../dtos/component-response.dto';
+import { ComponentPaginationDto } from '../dtos/component-pagination.dto';
+import { ComponentPaginatedResponse } from '../dtos/component-paginated-response.dto';
 import { PermissionsGuard } from 'src/access-control/permissions/guards/permissions.guard';
 import { RequirePermissions } from 'src/access-control/permissions/decorators/permissions.decorator';
 import { GetUser } from 'src/auth/decorators/get-user.decorator';
@@ -34,8 +37,8 @@ import { GetUser } from 'src/auth/decorators/get-user.decorator';
 @ApiBearerAuth()
 @Controller('inventory/components')
 @UseGuards(PermissionsGuard)
-export class InventoryController {
-  constructor(private readonly inventoryService: InventoryService) {}
+export class ComponentController {
+  constructor(private readonly componentService: ComponentService) {}
 
   @Post()
   @RequirePermissions('create:components')
@@ -55,21 +58,24 @@ export class InventoryController {
     @Body() createComponentDto: CreateComponentDto,
     @GetUser() user: any,
   ): Promise<ComponentResponseDto> {
-    return this.inventoryService.createComponent(createComponentDto, user?.id);
+    return this.componentService.createComponent(createComponentDto, user?.id);
   }
 
   @Get()
   @RequirePermissions('read:components')
   @ApiOperation({
     summary: 'Obtener todos los componentes',
-    description: 'Lista todos los componentes activos en el inventario',
+    description:
+      'Lista todos los componentes activos en el inventario con paginación',
   })
   @ApiOkResponse({
-    description: 'Lista de componentes obtenida exitosamente',
-    type: [ComponentResponseDto],
+    description: 'Lista paginada de componentes obtenida exitosamente',
+    type: ComponentPaginatedResponse,
   })
-  async findAll(): Promise<ComponentResponseDto[]> {
-    return this.inventoryService.findAllComponents();
+  async findAll(
+    @Query() query: ComponentPaginationDto,
+  ): Promise<ComponentPaginatedResponse> {
+    return this.componentService.findAllComponents(query);
   }
 
   @Get(':id')
@@ -88,7 +94,7 @@ export class InventoryController {
   async findOne(
     @Param('id', ParseIntPipe) id: number,
   ): Promise<ComponentResponseDto> {
-    return this.inventoryService.findComponentById(id);
+    return this.componentService.findComponentById(id);
   }
 
   @Patch(':id')
@@ -113,7 +119,7 @@ export class InventoryController {
     @Body() updateComponentDto: UpdateComponentDto,
     @GetUser() user: any,
   ): Promise<ComponentResponseDto> {
-    return this.inventoryService.updateComponent(
+    return this.componentService.updateComponent(
       id,
       updateComponentDto,
       user?.id,
@@ -131,7 +137,7 @@ export class InventoryController {
     description: 'El componente no fue encontrado',
   })
   async delete(@Param('id', ParseIntPipe) id: number): Promise<void> {
-    return this.inventoryService.deleteComponent(id);
+    return this.componentService.deleteComponent(id);
   }
 
   @Patch(':id/restore')
@@ -151,6 +157,6 @@ export class InventoryController {
   async restore(
     @Param('id', ParseIntPipe) id: number,
   ): Promise<ComponentResponseDto> {
-    return this.inventoryService.restoreComponent(id);
+    return this.componentService.restoreComponent(id);
   }
 }
