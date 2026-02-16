@@ -2,6 +2,8 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
+  Optional,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -12,12 +14,17 @@ import { UpdateComponentDto } from '../dtos/update-component.dto';
 import { ComponentPaginationDto } from '../dtos/component-pagination.dto';
 import { PaginatedResponse } from 'src/common/dtos/pagination.dto';
 import { QueryBuilderUtil } from 'src/common/utils/query-builder.util';
+import { MariaDbSyncService } from 'src/database/services/mariadb-sync.service';
+import { PayloadToken } from 'src/auth/models/token.model';
 
 @Injectable()
 export class ComponentService {
+  private readonly logger = new Logger(ComponentService.name);
+
   constructor(
     @InjectRepository(Component)
     private componentRepository: Repository<Component>,
+    @Optional() private mariaDbSync?: MariaDbSyncService,
   ) {}
 
   /**
@@ -170,5 +177,102 @@ export class ComponentService {
   async restoreComponent(id: number): Promise<Component> {
     await this.componentRepository.restore(id);
     return this.findComponentById(id);
+  }
+
+  /**
+   * Sincroniza componentes desde MariaDB a PostgreSQL
+   * @param tableName - Nombre de la tabla en MariaDB
+   * @param columns - Columnas a traer de MariaDB
+   * @param whereClause - Cláusula WHERE opcional
+   * @param userId - ID del usuario que realiza la sincronización
+   */
+  async syncFromMariaDB(user: PayloadToken): Promise<{
+    synced: number;
+    failed: number;
+    errors: string[];
+  }> {
+    if (!this.mariaDbSync) {
+      throw new BadRequestException(
+        'Servicio de sincronización MariaDB no disponible',
+      );
+    }
+
+    const result: { synced: number; failed: number; errors: string[] } = {
+      synced: 0,
+      failed: 0,
+      errors: [],
+    };
+
+    try {
+      this.logger.log(`Iniciando sincronización desde ms_componentes`);
+
+      // Traer datos de MariaDB
+      const records = await this.mariaDbSync.getRecords<any>('ms_componentes', [
+        'codigo',
+        'nombre',
+        'descripcion',
+        'peso',
+        'unidad',
+        'activo',
+        'visible',
+        'archivo',
+      ]);
+
+      this.logger.log(`${records.length} registros encontrados en MariaDB`);
+
+      // Procesar e insertar en PostgreSQL
+      for (const record of records) {
+        try {
+          // Validar que tenga los campos mínimos
+          if (!record.codigo && !record.code) {
+            result.errors.push(
+              `Registro sin código: ${JSON.stringify(record)}`,
+            );
+            result.failed++;
+            continue;
+          }
+
+          const existingComponent = await this.componentRepository.findOne({
+            where: {
+              code: record.codigo || record.code,
+            },
+          });
+
+          // No actualizar si ya existe - solo agregar nuevos
+          if (!existingComponent) {
+            const newComponent = this.componentRepository.create({
+              code: record.codigo || record.code,
+              name: record.nombre || record.name || 'Sin nombre',
+              description: record.descripcion || record.description || null,
+              weight: record.peso || record.weight || null,
+              unit: record.unidad || record.unit || null,
+              isActive: record.activo !== false && record.is_active !== false,
+              isVisible:
+                record.visible !== false && record.is_visible !== false,
+              isArchived:
+                record.archivo === true || record.is_archived === true,
+              createdBy: user.sub,
+            });
+
+            await this.componentRepository.save(newComponent);
+            result.synced++;
+          }
+        } catch (error) {
+          result.failed++;
+          result.errors.push(`Error procesando registro: ${error.message}`);
+          this.logger.error(`Error con registro: ${error.message}`);
+        }
+      }
+
+      this.logger.log(
+        `Sincronización completada: ${result.synced} sincronizados, ${result.failed} fallos`,
+      );
+      return result;
+    } catch (error) {
+      this.logger.error(`Error en sincronización: ${error.message}`);
+      throw new BadRequestException(
+        `Error sincronizando componentes: ${error.message}`,
+      );
+    }
   }
 }
