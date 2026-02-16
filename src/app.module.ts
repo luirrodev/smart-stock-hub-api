@@ -11,6 +11,7 @@ import { DatabaseModule } from './database/database.module';
 import { CustomersModule } from './customers/customers.module';
 import { ProductsModule } from './products/products.module';
 import { CartsModule } from './carts/carts.module';
+import { InventoryModule } from './inventory/inventory.module';
 
 import { AppController } from './app.controller';
 import { APP_GUARD } from '@nestjs/core';
@@ -46,6 +47,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     CustomersModule,
     ProductsModule,
     CartsModule,
+    InventoryModule,
     OrdersModule,
     StoresModule,
     PaymentsModule,
