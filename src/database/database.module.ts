@@ -7,7 +7,7 @@ import { Keyv } from 'keyv';
 
 import config from 'src/config';
 import { SnakeNamingStrategy } from './typeorm-naming-strategy';
-import { DatabaseHealthService } from './database-health.service';
+import { DatabaseHealthService } from './services/database-health.service';
 
 // Constante para el TTL del caché (1 hora)
 const CACHE_TTL = 60 * 60 * 1000; // 3600000 ms
