@@ -9,9 +9,12 @@ import { Repository } from 'typeorm';
 import { Component } from '../entities/component.entity';
 import { CreateComponentDto } from '../dtos/create-component.dto';
 import { UpdateComponentDto } from '../dtos/update-component.dto';
+import { ComponentPaginationDto } from '../dtos/component-pagination.dto';
+import { PaginatedResponse } from 'src/common/dtos/pagination.dto';
+import { QueryBuilderUtil } from 'src/common/utils/query-builder.util';
 
 @Injectable()
-export class InventoryService {
+export class ComponentService {
   constructor(
     @InjectRepository(Component)
     private componentRepository: Repository<Component>,
@@ -43,13 +46,50 @@ export class InventoryService {
   }
 
   /**
-   * Obtiene todos los componentes
+   * Obtiene todos los componentes con paginación
    */
-  async findAllComponents(): Promise<Component[]> {
-    return this.componentRepository.find({
-      where: { isActive: true },
-      order: { createdAt: 'DESC' },
+  async findAllComponents(
+    query: ComponentPaginationDto,
+  ): Promise<PaginatedResponse<Component>> {
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      sortBy = 'id',
+      sortDir = 'ASC',
+    } = query;
+    const skip = (page - 1) * limit;
+    const dir = (sortDir ?? 'ASC').toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
+
+    // Type assertion para que TypeScript sepa que es válido
+    const order = { [sortBy]: dir } as Record<string, 'ASC' | 'DESC'>;
+
+    let where = QueryBuilderUtil.buildSearchConditions<Component>(search, [
+      'id',
+      'name',
+      'code',
+    ]);
+
+    const [data, total] = await this.componentRepository.findAndCount({
+      where: { ...where, isActive: true },
+      skip,
+      take: limit,
+      order,
     });
+
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+
+    const response: PaginatedResponse<Component> = {
+      data,
+      page,
+      limit,
+      total,
+      totalPages,
+      hasPrevious: page > 1,
+      hasNext: page < totalPages,
+    };
+
+    return response;
   }
 
   /**
