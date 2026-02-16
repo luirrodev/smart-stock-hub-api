@@ -25,6 +25,14 @@ async function seed() {
       name: 'products:write',
       description: 'Crear, actualizar o eliminar productos',
     },
+    { name: 'create:components', description: 'Crear componentes' },
+    { name: 'read:components', description: 'Leer componentes' },
+    { name: 'update:components', description: 'Actualizar componentes' },
+    { name: 'delete:components', description: 'Eliminar componentes' },
+    {
+      name: 'restore:components',
+      description: 'Restaurar componentes eliminados',
+    },
   ];
 
   // Roles básicos
