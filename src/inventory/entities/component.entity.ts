@@ -29,6 +29,11 @@ export class Component {
   @Column({ type: 'text', nullable: true })
   description: string | null;
 
+  // Campos de mapeo desde fuente externa (MariaDB, API, etc.)
+  @Index()
+  @Column({ name: 'external_id', type: 'bigint', nullable: true, unique: true })
+  externalId: number | null;
+
   @Column({
     type: 'numeric',
     precision: 10,
@@ -43,6 +48,21 @@ export class Component {
     nullable: true,
   })
   unit: string | null;
+
+  // Campos del sistema para trazar el origen y el payload original
+  @Column({ type: 'varchar', length: 50, default: 'internal' })
+  source: string;
+
+  // Almacenar el payload original de la fuente
+  @Column({ name: 'raw_data', type: 'jsonb', nullable: true })
+  rawData: any | null;
+
+  @Column({ name: 'mapped_at', type: 'timestamptz', nullable: true })
+  mappedAt: Date | null;
+
+  // Indica si el componente fue importado desde una fuente externa
+  @Column({ name: 'is_imported', type: 'boolean', default: false })
+  isImported: boolean;
 
   @Column({
     name: 'is_active',
