@@ -61,6 +61,24 @@ export class ComponentController {
     return this.componentService.createComponent(createComponentDto, user?.id);
   }
 
+  @Post('sync-from-mariadb')
+  @RequirePermissions('create:components')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Sincronizar componentes desde MariaDB',
+    description:
+      'Sincroniza componentes desde una tabla en MariaDB a PostgreSQL',
+  })
+  @ApiOkResponse({
+    description: 'Sincronización completada',
+  })
+  @ApiBadRequestResponse({
+    description: 'Tabla no especificada o error en sincronización',
+  })
+  async syncFromMariaDB(@GetUser() user: any) {
+    return this.componentService.syncFromMariaDB(user);
+  }
+
   @Get()
   @RequirePermissions('read:components')
   @ApiOperation({
