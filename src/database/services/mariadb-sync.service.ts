@@ -8,14 +8,45 @@ import { MariaDbDataSource } from '../mariadb-data-source';
 @Injectable()
 export class MariaDbSyncService {
   private readonly logger = new Logger(MariaDbSyncService.name);
+  private connectionAttempts = 0;
+  private maxRetries = 3;
 
   /**
-   * Inicializa la conexión a MariaDB
+   * Inicializa la conexión a MariaDB con reintentos
    */
   async initializeConnection(): Promise<void> {
     if (!MariaDbDataSource.isInitialized) {
-      await MariaDbDataSource.initialize();
-      this.logger.log('Conexión a MariaDB establecida');
+      try {
+        this.connectionAttempts = 0;
+        await this.connectWithRetry();
+        this.logger.log('Conexión a MariaDB establecida exitosamente');
+      } catch (error) {
+        throw error;
+      }
+    }
+  }
+
+  /**
+   * Intenta conectar a MariaDB con reintentos
+   */
+  private async connectWithRetry(): Promise<void> {
+    while (this.connectionAttempts < this.maxRetries) {
+      try {
+        await MariaDbDataSource.initialize();
+        return;
+      } catch (error) {
+        this.connectionAttempts++;
+        if (this.connectionAttempts >= this.maxRetries) {
+          throw new Error(
+            `No se pudo conectar a MariaDB después de ${this.maxRetries} intentos - Error: ${error.message}`,
+          );
+        }
+        this.logger.warn(
+          `Intento ${this.connectionAttempts}/${this.maxRetries} de conexión fallido. Reintentando...`,
+        );
+        // Esperar 2 segundos antes de reintentar
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
     }
   }
 
@@ -32,7 +63,7 @@ export class MariaDbSyncService {
       return result;
     } catch (error) {
       this.logger.error(`Error ejecutando query en MariaDB: ${error.message}`);
-      throw error;
+      throw new Error(`Error en query MariaDB: ${error.message}.`);
     }
   }
 
@@ -64,7 +95,9 @@ export class MariaDbSyncService {
       this.logger.error(
         `Error obteniendo registros de ${table}: ${error.message}`,
       );
-      throw error;
+      throw new Error(
+        `Error al obtener registros de '${table}': ${error.message}`,
+      );
     }
   }
 
@@ -89,7 +122,9 @@ export class MariaDbSyncService {
       this.logger.error(
         `Error obteniendo registro de ${table}: ${error.message}`,
       );
-      throw error;
+      throw new Error(
+        `Error al obtener registro de '${table}': ${error.message}`,
+      );
     }
   }
 
