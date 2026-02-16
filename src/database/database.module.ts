@@ -73,6 +73,6 @@ function buildRedisUrl(
     }),
   ],
   providers: [DatabaseHealthService],
-  exports: [TypeOrmModule, CacheModule],
+  exports: [CacheModule],
 })
 export class DatabaseModule {}
