@@ -117,24 +117,7 @@ export class ComponentService {
   }
 
   /**
-   * Obtiene un componente por código
-   */
-  async findComponentByCode(code: string): Promise<Component> {
-    const component = await this.componentRepository.findOne({
-      where: { code },
-    });
-
-    if (!component) {
-      throw new NotFoundException(
-        `El componente con código ${code} no fue encontrado`,
-      );
-    }
-
-    return component;
-  }
-
-  /**
-   * Actualiza un componente
+   * Actualiza un componente existente
    */
   async updateComponent(
     id: number,
@@ -143,7 +126,7 @@ export class ComponentService {
   ): Promise<Component> {
     const component = await this.findComponentById(id);
 
-    // Si se intenta cambiar el código, verificar que el nuevo no exista
+    // Validar que el nuevo código no esté en uso
     if (updateComponentDto.code && updateComponentDto.code !== component.code) {
       const existingComponent = await this.componentRepository.findOne({
         where: { code: updateComponentDto.code },
@@ -180,11 +163,10 @@ export class ComponentService {
   }
 
   /**
-   * Sincroniza componentes desde MariaDB a PostgreSQL
-   * @param tableName - Nombre de la tabla en MariaDB
-   * @param columns - Columnas a traer de MariaDB
-   * @param whereClause - Cláusula WHERE opcional
-   * @param userId - ID del usuario que realiza la sincronización
+   * Sincroniza componentes desde MariaDB (tabla ms_componentes) a PostgreSQL
+   * Trae TODOS los componentes (activos, inactivos y eliminados)
+   * Los eliminados se importan con soft delete
+   * @param user - Token del usuario que realiza la sincronización
    */
   async syncFromMariaDB(user: PayloadToken): Promise<{
     synced: number;
@@ -206,61 +188,102 @@ export class ComponentService {
     try {
       this.logger.log(`Iniciando sincronización desde ms_componentes`);
 
-      // Traer datos de MariaDB
-      const records = await this.mariaDbSync.getRecords<any>('ms_componentes', [
-        'codigo',
-        'nombre',
-        'descripcion',
-        'peso',
-        'unidad',
-        'activo',
-        'visible',
-        'archivo',
-      ]);
+      // Traer TODOS los registros (incluyendo eliminados)
+      const records = await this.mariaDbSync.getRecords<any>(
+        'ms_componentes',
+        [
+          'xcomponente_id',
+          'xcomponente',
+          'xobs',
+          'xpeso',
+          'xactivo',
+          'xvisible',
+          'xarchivado',
+          'xeliminado',
+          'xdatealta',
+          'xdatemodif',
+          'xuseralta_id',
+          'xusermodif_id',
+        ],
+        // Sin filtro - traer TODOS incluyendo eliminados
+      );
 
       this.logger.log(`${records.length} registros encontrados en MariaDB`);
 
       // Procesar e insertar en PostgreSQL
       for (const record of records) {
         try {
-          // Validar que tenga los campos mínimos
-          if (!record.codigo && !record.code) {
+          // Validar que tenga el nombre del componente
+          if (!record.xcomponente) {
             result.errors.push(
-              `Registro sin código: ${JSON.stringify(record)}`,
+              `Registro sin nombre: ${JSON.stringify(record)}`,
             );
             result.failed++;
             continue;
           }
 
+          // Verificar que no exista por externalId
           const existingComponent = await this.componentRepository.findOne({
             where: {
-              code: record.codigo || record.code,
+              externalId: record.xcomponente_id,
             },
+            withDeleted: true, // Incluir soft-deleted
           });
 
           // No actualizar si ya existe - solo agregar nuevos
           if (!existingComponent) {
+            // Función auxiliar para convertir S/N a booleano
+            const toBoolean = (value: any): boolean => {
+              if (typeof value === 'string') {
+                return value.toUpperCase() === 'S';
+              }
+              return value === 1 || value === true;
+            };
+
             const newComponent = this.componentRepository.create({
-              code: record.codigo || record.code,
-              name: record.nombre || record.name || 'Sin nombre',
-              description: record.descripcion || record.description || null,
-              weight: record.peso || record.weight || null,
-              unit: record.unidad || record.unit || null,
-              isActive: record.activo !== false && record.is_active !== false,
-              isVisible:
-                record.visible !== false && record.is_visible !== false,
-              isArchived:
-                record.archivo === true || record.is_archived === true,
+              code: `COMP-${record.xcomponente_id}`,
+              name: record.xcomponente,
+              description: record.xobs || null,
+              weight: record.xpeso ? parseFloat(record.xpeso) : null,
+              unit: null, // No disponible en la tabla origen
+              isActive: toBoolean(record.xactivo),
+              isVisible: toBoolean(record.xvisible),
+              isArchived: toBoolean(record.xarchivado),
+              // Campos de rastreo de fuente externa
+              externalId: record.xcomponente_id,
+              source: 'mariadb',
+              rawData: record, // Guardar el registro original completo
+              mappedAt: new Date(),
+              isImported: true,
               createdBy: user.sub,
+              updatedBy: user.sub,
+              // Aplicar soft delete si el registro está eliminado en MariaDB
+              deletedAt: toBoolean(record.xeliminado) ? new Date() : null,
             });
 
             await this.componentRepository.save(newComponent);
             result.synced++;
+
+            if (toBoolean(record.xeliminado)) {
+              this.logger.debug(
+                `Componente sincronizado (ELIMINADO): ${record.xcomponente} (ID: ${record.xcomponente_id})`,
+              );
+            } else {
+              this.logger.debug(
+                `Componente sincronizado: ${record.xcomponente} (ID: ${record.xcomponente_id})`,
+              );
+            }
+          } else {
+            this.logger.debug(
+              `Componente ya existe (externalId: ${record.xcomponente_id}), omitiendo`,
+            );
           }
         } catch (error) {
           result.failed++;
           result.errors.push(`Error procesando registro: ${error.message}`);
-          this.logger.error(`Error con registro: ${error.message}`);
+          this.logger.error(
+            `Error con registro ${record.xcomponente_id}: ${error.message}`,
+          );
         }
       }
 
