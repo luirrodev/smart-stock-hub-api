@@ -1,0 +1,101 @@
+import {
+  Column,
+  Entity,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  DeleteDateColumn,
+  Index,
+} from 'typeorm';
+import { Exclude } from 'class-transformer';
+
+/**
+ * Entidad Component
+ * Representa los componentes que pueden ser asociados a los productos.
+ * El control de stock se maneja a través de almacenes.
+ */
+@Entity({ name: 'components' })
+export class Component {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Index()
+  @Column({ type: 'varchar', length: 100, unique: true })
+  code: string;
+
+  @Column({ type: 'varchar', length: 255 })
+  name: string;
+
+  @Column({ type: 'text', nullable: true })
+  description: string | null;
+
+  @Column({
+    type: 'numeric',
+    precision: 10,
+    scale: 4,
+    nullable: true,
+  })
+  weight: number | null;
+
+  @Column({
+    type: 'varchar',
+    length: 50,
+    nullable: true,
+  })
+  unit: string | null;
+
+  @Column({
+    name: 'is_active',
+    type: 'boolean',
+    default: true,
+  })
+  isActive: boolean;
+
+  @Column({
+    name: 'is_visible',
+    type: 'boolean',
+    default: true,
+  })
+  isVisible: boolean;
+
+  @Column({
+    name: 'is_archived',
+    type: 'boolean',
+    default: false,
+  })
+  isArchived: boolean;
+
+  @Column({
+    name: 'created_by',
+    type: 'integer',
+    nullable: true,
+  })
+  createdBy: number | null;
+
+  @Column({
+    name: 'updated_by',
+    type: 'integer',
+    nullable: true,
+  })
+  updatedBy: number | null;
+
+  @CreateDateColumn({
+    name: 'created_at',
+    type: 'timestamp',
+  })
+  createdAt: Date;
+
+  @UpdateDateColumn({
+    name: 'updated_at',
+    type: 'timestamp',
+  })
+  updatedAt: Date;
+
+  @Exclude()
+  @DeleteDateColumn({
+    name: 'deleted_at',
+    type: 'timestamp',
+    nullable: true,
+  })
+  deletedAt: Date | null;
+}
