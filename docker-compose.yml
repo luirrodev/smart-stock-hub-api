@@ -43,6 +43,31 @@ services:
     restart: unless-stopped
     networks:
       - smart-stock-network
+  # DBHub - Database Management UI
+  dbhub:
+    image: bytebase/dbhub:latest
+    container_name: smart-stock-dbhub
+    ports:
+      - '8080:8080'
+    environment:
+      - DBHUB_LOG_LEVEL=info
+    command:
+      - --transport
+      - http
+      - --port
+      - '8080'
+      - --dsn
+      - 'postgresql://${DB_USERNAME}:${DB_PASSWORD}@postgres:${DB_PORT}/${DB_DATABASE}'
+    restart: unless-stopped
+    networks:
+      - smart-stock-network
+    depends_on:
+      - postgres
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8080/api/v1/databases']
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:
