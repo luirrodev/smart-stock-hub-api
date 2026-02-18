@@ -126,7 +126,7 @@ export class CartsController {
 
   @Patch('items/:itemId/quantity')
   @OptionalAuth()
-  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
+  @UseGuards(CustomApiKeyGuard)
   @ApiOperation({ summary: 'Actualizar cantidad de un item del carrito' })
   @ApiParam({
     name: 'itemId',
@@ -165,7 +165,7 @@ export class CartsController {
 
   @Delete('items/:itemId')
   @OptionalAuth()
-  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
+  @UseGuards(CustomApiKeyGuard)
   @ApiOperation({ summary: 'Eliminar un item del carrito' })
   @ApiParam({
     name: 'itemId',
