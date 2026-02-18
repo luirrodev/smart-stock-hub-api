@@ -97,7 +97,7 @@ export class CartService {
     storeId: number,
     storeUserId: number | null,
     sessionId: string | null,
-  ): Promise<Cart | null> {
+  ): Promise<Cart> {
     if (!storeUserId && !sessionId) {
       throw new BadRequestException(
         'Debe proporcionar al menos uno de los siguientes: storeUserId o sessionId',
@@ -121,6 +121,12 @@ export class CartService {
       where: whereCondition,
       relations: ['items', 'items.product', 'store', 'storeUser'],
     });
+
+    if (!cart) {
+      throw new NotFoundException(
+        'No se encontró un carrito activo para este usuario/sesión',
+      );
+    }
 
     return cart;
   }

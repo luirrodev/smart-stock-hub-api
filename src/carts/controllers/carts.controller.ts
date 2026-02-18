@@ -48,7 +48,6 @@ export class CartsController {
   @Get()
   @OptionalAuth()
   @UseGuards(CustomApiKeyGuard)
-  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
   @ApiOperation({ summary: 'Obtener carrito activo del cliente o invitado' })
   @ApiQuery({
     name: 'sessionId',
@@ -64,7 +63,7 @@ export class CartsController {
     @Query() query: CartQueryDto,
     @GetUser() user?: PayloadToken,
     @Req() request?: Request,
-  ): Promise<CartResponseDto | null> {
+  ): Promise<CartResponseDto> {
     const storeId = request!.store!.id;
     const storeUserId = user?.storeUserId ?? null;
     const cart = await this.cartsService.getCart(
@@ -72,11 +71,9 @@ export class CartsController {
       storeUserId,
       query.sessionId ?? null,
     );
-    return cart
-      ? plainToInstance(CartResponseDto, cart, {
-          excludeExtraneousValues: true,
-        })
-      : null;
+    return plainToInstance(CartResponseDto, cart, {
+      excludeExtraneousValues: true,
+    });
   }
 
   @Post()
