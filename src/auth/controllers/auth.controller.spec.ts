@@ -45,6 +45,8 @@ describe('AuthController', () => {
     mockAuthService = {
       generateJWT: jest.fn(),
       validateUser: jest.fn(),
+      validateStaffLogin: jest.fn(),
+      validateCustomerLogin: jest.fn(),
       register: jest.fn(),
       forgotPassword: jest.fn(),
       resetPassword: jest.fn(),
@@ -110,6 +112,8 @@ describe('AuthController', () => {
 
       const mockRequest: Partial<Request> = { headers: {} };
 
+      mockAuthService.validateStaffLogin.mockResolvedValue(staffUser);
+
       mockAuthService.generateJWT.mockResolvedValue({
         access_token: 'staff_access_token_12345',
         refresh_token: 'staff_refresh_token_67890',
@@ -128,14 +132,17 @@ describe('AuthController', () => {
         refresh_token: 'staff_refresh_token_67890',
       });
 
+      // Verificar que validateStaffLogin fue llamado para STAFF
+      expect(mockAuthService.validateStaffLogin).toHaveBeenCalledWith(
+        staffUser,
+      );
+
       // Verificar que generateJWT fue llamado SIN storeId para STAFF
       expect(mockAuthService.generateJWT).toHaveBeenCalledWith(staffUser);
       expect(mockAuthService.generateJWT).toHaveBeenCalledTimes(1);
 
-      // Verificar que StoreUsersService NUNCA fue consultado para STAFF
-      expect(
-        mockStoreUsersService.findStoresForCustomer,
-      ).not.toHaveBeenCalled();
+      // Verificar que validateCustomerLogin NUNCA fue llamado para STAFF
+      expect(mockAuthService.validateCustomerLogin).not.toHaveBeenCalled();
     });
 
     // ----- RUTA 2: CUSTOMER + StoreId en Body -----
@@ -166,9 +173,10 @@ describe('AuthController', () => {
         isActive: true,
       };
 
-      mockStoreUsersService.findStoresForCustomer.mockResolvedValue([
-        mockStoreUser,
-      ]);
+      mockAuthService.validateCustomerLogin.mockResolvedValue({
+        user: customerUser,
+        storeUser: mockStoreUser,
+      });
 
       mockAuthService.generateJWT.mockResolvedValue({
         access_token: 'customer_access_token_12345',
@@ -188,9 +196,11 @@ describe('AuthController', () => {
         refresh_token: 'customer_refresh_token_67890',
       });
 
-      // Verificar que se consultó al StoreUsersService
-      expect(mockStoreUsersService.findStoresForCustomer).toHaveBeenCalledWith(
-        10,
+      // Verificar que validateCustomerLogin fue llamado con contraseña
+      expect(mockAuthService.validateCustomerLogin).toHaveBeenCalledWith(
+        customerUser,
+        'password123', // plain password from loginDto
+        5, // storeId from request
       );
 
       // Verificar generateJWT llamado CON storeId y storeUserId
@@ -199,6 +209,9 @@ describe('AuthController', () => {
         5, // storeId
         15, // storeUserId
       );
+
+      // Verificar que validateStaffLogin NUNCA fue llamado para CUSTOMER
+      expect(mockAuthService.validateStaffLogin).not.toHaveBeenCalled();
     });
 
     // ----- RUTA 3: CUSTOMER + StoreId en Header (X-Store-ID) -----
@@ -233,9 +246,10 @@ describe('AuthController', () => {
         isActive: true,
       };
 
-      mockStoreUsersService.findStoresForCustomer.mockResolvedValue([
-        mockStoreUser,
-      ]);
+      mockAuthService.validateCustomerLogin.mockResolvedValue({
+        user: customerUser,
+        storeUser: mockStoreUser,
+      });
 
       mockAuthService.generateJWT.mockResolvedValue({
         access_token: 'token_from_header',
@@ -251,9 +265,14 @@ describe('AuthController', () => {
 
       // Assert
       expect(result).toHaveProperty('access_token');
+      expect(mockAuthService.validateCustomerLogin).toHaveBeenCalledWith(
+        customerUser,
+        'password123',
+        7, // Parsed from request.store or header
+      );
       expect(mockAuthService.generateJWT).toHaveBeenCalledWith(
         customerUser,
-        7, // ← Parsed from header
+        7, // ← Parsed from header/request
         20,
       );
     });
@@ -284,19 +303,15 @@ describe('AuthController', () => {
         },
       };
 
+      mockAuthService.validateCustomerLogin.mockRejectedValue(
+        new BadRequestException('storeId is required'),
+      );
+
       // Act & Assert
       await expect(
         controller.login(customerUser, loginDto, mockRequest as Request),
       ).rejects.toThrow(BadRequestException);
 
-      // Verificar mensaje de error explícito
-      try {
-        await controller.login(customerUser, loginDto, mockRequest as Request);
-      } catch (error) {
-        expect(error.message).toContain('storeId is required');
-      }
-
-      // Verificar que NUNCA se intentó generar token
       expect(mockAuthService.generateJWT).not.toHaveBeenCalled();
     });
 
@@ -321,6 +336,10 @@ describe('AuthController', () => {
       };
 
       const mockRequest: Partial<Request> = { headers: {} };
+
+      mockAuthService.validateCustomerLogin.mockRejectedValue(
+        new BadRequestException('Invalid storeId'),
+      );
 
       // Act & Assert
       await expect(
@@ -353,16 +372,14 @@ describe('AuthController', () => {
 
       const mockRequest: Partial<Request> = { headers: {} };
 
+      mockAuthService.validateCustomerLogin.mockRejectedValue(
+        new BadRequestException('Customer ID is missing from user record'),
+      );
+
       // Act & Assert
       await expect(
         controller.login(customerUser, loginDto, mockRequest as Request),
       ).rejects.toThrow(BadRequestException);
-
-      try {
-        await controller.login(customerUser, loginDto, mockRequest as Request);
-      } catch (error) {
-        expect(error.message).toContain('Customer ID is missing');
-      }
 
       expect(mockAuthService.generateJWT).not.toHaveBeenCalled();
     });
@@ -390,21 +407,14 @@ describe('AuthController', () => {
 
       const mockRequest: Partial<Request> = { headers: {} };
 
-      // Simular que existen otras tiendas pero NO la 999
-      mockStoreUsersService.findStoresForCustomer.mockResolvedValue([
-        { id: 15, storeId: 5, customerId: 10, isActive: true }, // ← Otra tienda
-      ]);
+      mockAuthService.validateCustomerLogin.mockRejectedValue(
+        new BadRequestException('Customer is not registered for store 999'),
+      );
 
       // Act & Assert
       await expect(
         controller.login(customerUser, loginDto, mockRequest as Request),
       ).rejects.toThrow(BadRequestException);
-
-      try {
-        await controller.login(customerUser, loginDto, mockRequest as Request);
-      } catch (error) {
-        expect(error.message).toContain('not registered for store');
-      }
 
       expect(mockAuthService.generateJWT).not.toHaveBeenCalled();
     });
@@ -440,9 +450,10 @@ describe('AuthController', () => {
         isActive: true,
       };
 
-      mockStoreUsersService.findStoresForCustomer.mockResolvedValue([
-        mockStoreUser,
-      ]);
+      mockAuthService.validateCustomerLogin.mockResolvedValue({
+        user: customerUser,
+        storeUser: mockStoreUser,
+      });
 
       mockAuthService.generateJWT.mockResolvedValue({
         access_token: 'customer_complete_token',
@@ -462,10 +473,14 @@ describe('AuthController', () => {
         refresh_token: 'customer_complete_refresh',
       });
 
-      // Verificar secuencia completa de validaciones
-      expect(mockStoreUsersService.findStoresForCustomer).toHaveBeenCalledWith(
-        10,
+      // Verificar que validateCustomerLogin fue llamado correctamente
+      expect(mockAuthService.validateCustomerLogin).toHaveBeenCalledWith(
+        customerUser,
+        'password123',
+        5,
       );
+
+      // Verificar que generateJWT fue llamado con los parámetros correctos
       expect(mockAuthService.generateJWT).toHaveBeenCalledWith(
         customerUser,
         5,
@@ -489,17 +504,27 @@ describe('AuthController', () => {
         password: 'password123',
       };
 
+      const mockRequest: Partial<Request> = {
+        headers: {
+          'x-api-key': 'test-api-key',
+        },
+      } as any;
+      (mockRequest as any).store = { id: 1 };
+
       mockAuthService.register.mockResolvedValue({
         access_token: 'new_customer_access_token',
         refresh_token: 'new_customer_refresh_token',
       });
 
       // Act
-      const result = await controller.register(registerDto);
+      const result = await controller.register(
+        registerDto,
+        mockRequest as Request,
+      );
 
       // Assert
       expect(result).toHaveProperty('access_token');
-      expect(mockAuthService.register).toHaveBeenCalledWith(registerDto);
+      expect(mockAuthService.register).toHaveBeenCalledWith(registerDto, 1);
     });
 
     it('debe_manejar_conflicto_email_duplicado', async () => {
@@ -511,14 +536,21 @@ describe('AuthController', () => {
         password: 'password123',
       };
 
+      const mockRequest: Partial<Request> = {
+        headers: {
+          'x-api-key': 'test-api-key',
+        },
+      } as any;
+      (mockRequest as any).store = { id: 1 };
+
       mockAuthService.register.mockRejectedValue(
         new BadRequestException('Email already in use'),
       );
 
       // Act & Assert
-      await expect(controller.register(registerDto)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        controller.register(registerDto, mockRequest as Request),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 

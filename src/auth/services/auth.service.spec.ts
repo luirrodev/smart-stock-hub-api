@@ -460,7 +460,7 @@ describe('AuthService', () => {
         .mockReturnValueOnce('new_refresh_token');
 
       // Act
-      const result = await service.register(registerDto);
+      const result = await service.register(registerDto, 1); // storeId = 1
 
       // Assert
       expect(result).toHaveProperty('access_token');
