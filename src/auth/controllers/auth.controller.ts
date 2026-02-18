@@ -34,16 +34,12 @@ import { Public } from '../decorators/public.decorator';
 import { GoogleAuthGuard } from '../guards/google-auth.guard';
 import { GoogleUser } from '../strategies/google-strategy.service';
 import { GOOGLE_AUTH_FLOW_DOCUMENTATION } from '../documentation/google-auth-flow.documentation';
-import { StoreUsersService } from 'src/access-control/users/services/store-users.service';
 import { CustomApiKeyGuard } from 'src/stores/guards/custom-api-key.guard';
 
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
-  constructor(
-    private readonly authService: AuthService,
-    private readonly storeUsersService: StoreUsersService,
-  ) {}
+  constructor(private readonly authService: AuthService) {}
 
   @Post('login')
   @Public()
@@ -74,31 +70,19 @@ export class AuthController {
     @Body() loginDto: LoginDto,
     @Req() request: Request,
   ) {
-    // Check if user is a CUSTOMER
+    // Handle CUSTOMER login
     if (user.role && user.role.name === 'customer') {
-      // For CUSTOMER login, request.store is guaranteed to be set by the guard
-      const storeId = (request as any).store.id;
-
-      // Validate customer is registered for this store
-      if (!user.customerId) {
-        throw new BadRequestException('Customer ID is missing');
-      }
-      const storeUsers = await this.storeUsersService.findStoresForCustomer(
-        user.customerId,
+      const storeId = (request as any).store?.id;
+      const { storeUser } = await this.authService.validateCustomerLogin(
+        user,
+        loginDto.password,
+        storeId,
       );
-      const storeUser = storeUsers.find((su) => su.storeId === storeId);
-
-      if (!storeUser) {
-        throw new BadRequestException(
-          `Customer is not registered for store ${storeId}`,
-        );
-      }
-
-      // Generate CUSTOMER token with store context
       return this.authService.generateJWT(user, storeId, storeUser.id);
     }
 
-    // For STAFF users, generate token without store context
+    // Handle STAFF login
+    await this.authService.validateStaffLogin(user);
     return this.authService.generateJWT(user);
   }
 

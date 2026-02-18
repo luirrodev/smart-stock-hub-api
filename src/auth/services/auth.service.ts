@@ -41,6 +41,9 @@ export class AuthService {
    *
    * For STAFF: validates against StaffUser credentials
    * For CUSTOMER: validates against User password (pre-StoreUser selection)
+   *
+   * NOTE: This is called by LocalStrategy and does NOT validate CUSTOMER password
+   * against StoreUser. Password validation for CUSTOMER happens in validateCustomerLogin().
    */
   async validateUser(email: string, password: string): Promise<User | null> {
     const user = await this.userService.findByEmail(email);
@@ -55,10 +58,98 @@ export class AuthService {
       return isMatch ? user : null;
     }
 
-    // For CUSTOMER users: will be handled separately at login endpoint
-    // with store context selection
-    // Return user for now - actual validation will include store context
+    // For CUSTOMER users: password will be validated at login endpoint
+    // with store context selection (validateCustomerLogin)
     return user;
+  }
+
+  /**
+   * Validates STAFF user login.
+   * Checks that user is active and updates lastLoginAt timestamp.
+   *
+   * @param user - User entity with STAFF role
+   * @param storeId - Optional store ID (for audit purposes, not used for STAFF)
+   * @returns The validated user
+   * @throws NotFoundException if user is not found or not active
+   */
+  async validateStaffLogin(user: User, storeId?: number): Promise<User> {
+    if (!user || !user.id) {
+      throw new NotFoundException('User not found');
+    }
+
+    const staffUser = await this.staffUsersService.findByUserId(user.id);
+
+    if (!staffUser || !staffUser.isActive) {
+      throw new UnauthorizedException('Staff user is not active');
+    }
+
+    // Update last login timestamp
+    await this.staffUsersService.updateLastLogin(user.id);
+
+    return user;
+  }
+
+  /**
+   * Validates CUSTOMER user login for a specific store.
+   *
+   * This method:
+   * 1. Validates customer exists and is associated with user
+   * 2. Finds StoreUser record for the specific store
+   * 3. Validates StoreUser exists and is active
+   * 4. Validates password against StoreUser.password
+   * 5. Updates lastLoginAt timestamp in StoreUser
+   *
+   * @param user - User entity with CUSTOMER role
+   * @param plainPassword - Plain text password to validate
+   * @param storeId - Store ID for context
+   * @returns Object containing validated user and storeUser
+   * @throws BadRequestException if customer ID is missing
+   * @throws NotFoundException if StoreUser not found for this store
+   * @throws UnauthorizedException if password is invalid
+   */
+  async validateCustomerLogin(
+    user: User,
+    plainPassword: string,
+    storeId: number,
+  ): Promise<{ user: User; storeUser: any }> {
+    // Validate customer ID exists
+    if (!user.customerId) {
+      throw new BadRequestException('Customer ID is missing from user record');
+    }
+
+    // Find StoreUser for this customer and store
+    const storeUsers = await this.storeUsersService.findStoresForCustomer(
+      user.customerId,
+    );
+    const storeUser = storeUsers.find((su) => su.storeId === storeId);
+
+    if (!storeUser) {
+      throw new NotFoundException(
+        `Customer is not registered for store ${storeId}`,
+      );
+    }
+
+    // Validate StoreUser is active
+    if (!storeUser.isActive) {
+      throw new UnauthorizedException(
+        'Customer access is disabled for this store',
+      );
+    }
+
+    // Validate password against StoreUser password
+    const isPasswordValid = await this.storeUsersService.verifyPassword(
+      storeUser.id,
+      plainPassword,
+    );
+
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid password');
+    }
+
+    // Update last login timestamp
+    await this.storeUsersService.updateLastLogin(storeUser.id);
+
+    return { user, storeUser };
   }
 
   /**
@@ -415,7 +506,7 @@ export class AuthService {
 
   async refreshToken(refreshToken: string) {
     try {
-      const payload = this.jwtService.verify(refreshToken, {
+      const payload: PayloadToken = this.jwtService.verify(refreshToken, {
         secret: process.env.JWT_REFRESH_SECRET,
       });
 
