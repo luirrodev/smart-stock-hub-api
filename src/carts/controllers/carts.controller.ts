@@ -12,6 +12,7 @@ import {
   HttpCode,
   UseGuards,
   BadRequestException,
+  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -36,28 +37,17 @@ import { OptionalAuth } from 'src/auth/decorators/optional-auth.decorator';
 import { GetUser } from 'src/auth/decorators/get-user.decorator';
 import { PayloadToken } from 'src/auth/models/token.model';
 import { JWTAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { Request } from 'express';
+import { CustomApiKeyGuard } from 'src/stores/guards/custom-api-key.guard';
 
 @ApiTags('Carts')
 @Controller('carts')
 export class CartsController {
   constructor(private readonly cartsService: CartService) {}
 
-  // @Get()
-  // @ApiOperation({ summary: 'Obtener todos los carritos (mínimo para pruebas)' })
-  // @ApiOkResponse({ description: 'Lista de carritos' })
-  // async getAll() {
-  //   return await this.cartsService.findAll();
-  // }
-
-  // @Get(':id')
-  // @ApiOperation({ summary: 'Obtener un carrito por id' })
-  // @ApiOkResponse({ description: 'Carrito encontrado' })
-  // async getOne(@Param('id') id: string): Promise<Cart> {
-  //   return await this.cartsService.getCart(id);
-  // }
-
   @Get()
   @OptionalAuth()
+  @UseGuards(CustomApiKeyGuard)
   @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
   @ApiOperation({ summary: 'Obtener carrito activo del cliente o invitado' })
   @ApiQuery({
@@ -73,10 +63,13 @@ export class CartsController {
   async getActiveCart(
     @Query() query: CartQueryDto,
     @GetUser() user?: PayloadToken,
+    @Req() request?: Request,
   ): Promise<CartResponseDto | null> {
-    const customerId = user?.customerId ?? null;
+    const storeId = request!.store!.id;
+    const storeUserId = user?.storeUserId ?? null;
     const cart = await this.cartsService.getCart(
-      customerId,
+      storeId,
+      storeUserId,
       query.sessionId ?? null,
     );
     return cart
@@ -88,6 +81,7 @@ export class CartsController {
 
   @Post()
   @OptionalAuth()
+  @UseGuards(CustomApiKeyGuard)
   @ApiOperation({ summary: 'Añadir un producto al carrito' })
   @ApiQuery({
     name: 'sessionId',
@@ -113,15 +107,21 @@ export class CartsController {
     @Body() dto: AddToCartDto,
     @Query() query: CartQueryDto,
     @GetUser() user?: PayloadToken,
+    @Req() request?: Request,
   ): Promise<CartResponseDto> {
-    // Si el request viene autenticado, usamos el user.customerId sobre el body y la query
-    const payload: AddToCartDto = {
-      ...dto,
-      customerId: user?.customerId ?? null,
-      sessionId: query.sessionId ?? null,
-    };
+    // CustomApiKeyGuard garantiza que request.store está present
+    const storeId = request!.store!.id;
+    const storeUserId = user?.storeUserId ?? null;
+    const sessionId = query.sessionId ?? null;
 
-    const cart = await this.cartsService.addToCart(payload);
+    const cart = await this.cartsService.addToCart({
+      productId: dto.productId,
+      quantity: dto.quantity,
+      storeId,
+      storeUserId,
+      sessionId,
+    });
+
     return plainToInstance(CartResponseDto, cart, {
       excludeExtraneousValues: true,
     });
@@ -148,13 +148,16 @@ export class CartsController {
     @Body() dto: UpdateCartItemQuantityDto,
     @Query() query: CartQueryDto,
     @GetUser() user?: PayloadToken,
+    @Req() request?: Request,
   ): Promise<CartResponseDto> {
-    const customerId = user?.customerId ?? null;
+    const storeId = request!.store!.id;
+    const storeUserId = user?.storeUserId ?? null;
     const session = query.sessionId ?? null;
     const cart = await this.cartsService.updateCartItemQuantity(
       params.itemId,
       dto.quantity,
-      customerId,
+      storeId,
+      storeUserId,
       session,
     );
 
@@ -184,11 +187,14 @@ export class CartsController {
     @Param() params: ItemParamDto,
     @Query() query: CartQueryDto,
     @GetUser() user?: PayloadToken,
+    @Req() request?: Request,
   ): Promise<void> {
-    const customerId = user?.customerId ?? null;
+    const storeId = request!.store!.id;
+    const storeUserId = user?.storeUserId ?? null;
     await this.cartsService.removeCartItem(
       params.itemId,
-      customerId,
+      storeId,
+      storeUserId,
       query.sessionId ?? null,
     );
   }
@@ -208,9 +214,15 @@ export class CartsController {
   async clearCart(
     @Query() query: CartQueryDto,
     @GetUser() user?: PayloadToken,
+    @Req() request?: Request,
   ): Promise<void> {
-    const customerId = user?.customerId ?? null;
-    await this.cartsService.clearCart(customerId, query.sessionId ?? null);
+    const storeId = request!.store!.id;
+    const storeUserId = user?.storeUserId ?? null;
+    await this.cartsService.clearCart(
+      storeId,
+      storeUserId,
+      query.sessionId ?? null,
+    );
   }
 
   @Post('merge')
@@ -229,8 +241,10 @@ export class CartsController {
   async mergeGuestCart(
     @Query() query: CartQueryDto,
     @GetUser() user: PayloadToken,
+    @Req() request?: Request,
   ): Promise<CartResponseDto> {
-    const customerId = user.customerId;
+    const storeId = request!.store!.id;
+    const storeUserId = user?.storeUserId;
     const sessionId = query.sessionId ?? null;
 
     if (!sessionId) {
@@ -239,14 +253,15 @@ export class CartsController {
       );
     }
 
-    if (!customerId) {
+    if (!storeUserId) {
       throw new BadRequestException(
-        'customerId es requerido para fusionar carritos',
+        'storeUserId es requerido para fusionar carritos',
       );
     }
 
     const cart = await this.cartsService.mergeGuestCartWithUserCart(
-      customerId,
+      storeId,
+      storeUserId,
       sessionId,
     );
 
