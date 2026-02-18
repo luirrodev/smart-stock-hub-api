@@ -13,7 +13,8 @@ import {
 import { Exclude } from 'class-transformer';
 
 import { CartItem } from './cart-item.entity';
-import { Customer } from '../../customers/entities/customer.entity';
+import { StoreUser } from '../../access-control/users/entities/store-user.entity';
+import { Store } from '../../stores/entities/store.entity';
 
 export enum CartStatus {
   ACTIVE = 'active',
@@ -34,14 +35,23 @@ export class Cart {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  // Cliente asociado, NULLABLE para carritos de invitados
+  // Store association - always present, not nullable
   @Index()
-  @ManyToOne(() => Customer, { nullable: true })
-  @JoinColumn({ name: 'customer_id' })
-  customer?: Customer | null;
+  @ManyToOne(() => Store, { eager: true, onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'store_id' })
+  store: Store;
 
-  @Column({ name: 'customer_id', type: 'int', nullable: true })
-  customerId: number | null;
+  @Column({ name: 'store_id', type: 'int' })
+  storeId: number;
+
+  // StoreUser association - nullable for guest carts
+  @Index()
+  @ManyToOne(() => StoreUser, { nullable: true, eager: true })
+  @JoinColumn({ name: 'store_user_id' })
+  storeUser?: StoreUser | null;
+
+  @Column({ name: 'store_user_id', type: 'int', nullable: true })
+  storeUserId: number | null;
 
   @Index()
   @Column({ name: 'session_id', type: 'uuid', nullable: true })
