@@ -198,7 +198,7 @@ export class CartsController {
 
   @Delete()
   @OptionalAuth()
-  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
+  @UseGuards(CustomApiKeyGuard)
   @ApiOperation({ summary: 'Vaciar el carrito del cliente o invitado' })
   @ApiQuery({
     name: 'sessionId',
