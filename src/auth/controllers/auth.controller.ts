@@ -43,15 +43,14 @@ export class AuthController {
 
   @Post('login')
   @Public()
-  @UseGuards(AuthGuard('local'), CustomApiKeyGuard)
+  @UseGuards(CustomApiKeyGuard, AuthGuard('local')) // ← CustomApiKeyGuard FIRST
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'User login - supports both STAFF and CUSTOMER users',
   })
   @ApiBody({
     type: LoginDto,
-    description:
-      'User credentials. For CUSTOMER users, X-API-Key header is required.',
+    description: 'User credentials with X-API-Key header',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -59,30 +58,20 @@ export class AuthController {
   })
   @ApiResponse({
     status: HttpStatus.UNAUTHORIZED,
-    description: 'Invalid credentials or missing X-API-Key for customer',
-  })
-  @ApiResponse({
-    status: HttpStatus.BAD_REQUEST,
-    description: 'X-API-Key is required for customer login',
+    description: 'Invalid credentials or invalid X-API-Key',
   })
   async login(
     @GetUser() user: User,
     @Body() loginDto: LoginDto,
     @Req() request: Request,
   ) {
-    // Handle CUSTOMER login
+    const store = (request as any).store;
+    const storeUser = (request as any).storeUser;
+
     if (user.role && user.role.name === 'customer') {
-      const storeId = (request as any).store?.id;
-      const { storeUser } = await this.authService.validateCustomerLogin(
-        user,
-        loginDto.password,
-        storeId,
-      );
-      return this.authService.generateJWT(user, storeId, storeUser.id);
+      return this.authService.generateJWT(user, store.id, storeUser.id);
     }
 
-    // Handle STAFF login
-    await this.authService.validateStaffLogin(user);
     return this.authService.generateJWT(user);
   }
 
@@ -140,8 +129,8 @@ export class AuthController {
   async register(@Body() registerDto: RegisterDto, @Req() request: Request) {
     // CustomApiKeyGuard validates the X-API-Key header and populates request.store
     // If we reach here, the store is valid and request.store is available
-    const storeId = (request as any).store.id;
-    return this.authService.register(registerDto, storeId);
+    const store = (request as any).store;
+    return this.authService.register(registerDto, store.id);
   }
 
   @Post('forgot-password')

@@ -37,6 +37,32 @@ export class AuthService {
   ) {}
 
   /**
+   * Find user by email (without password validation)
+   * Used by LocalStrategy to locate the user before validation
+   */
+  async findUserByEmail(email: string): Promise<User | null> {
+    return this.userService.findByEmail(email);
+  }
+
+  /**
+   * Validate STAFF user password
+   * Called by LocalStrategy for STAFF users
+   *
+   * @param userId - User ID
+   * @param plainPassword - Plain text password to validate
+   * @returns true if password is valid, false otherwise
+   */
+  async validateStaffPassword(
+    userId: number,
+    plainPassword: string,
+  ): Promise<boolean> {
+    const staffUser = await this.staffUsersService.findByUserId(userId);
+    if (!staffUser?.password) return false;
+
+    return bcrypt.compare(plainPassword, staffUser.password);
+  }
+
+  /**
    * Validate user credentials (supports both STAFF and CUSTOMER)
    *
    * For STAFF: validates against StaffUser credentials
@@ -44,6 +70,8 @@ export class AuthService {
    *
    * NOTE: This is called by LocalStrategy and does NOT validate CUSTOMER password
    * against StoreUser. Password validation for CUSTOMER happens in validateCustomerLogin().
+   *
+   * @deprecated Use findUserByEmail() and validateStaffPassword() instead
    */
   async validateUser(email: string, password: string): Promise<User | null> {
     const user = await this.userService.findByEmail(email);
@@ -455,6 +483,8 @@ export class AuthService {
           sub: customerId,
           customerId: customerId,
           role: 'customer',
+          roleId: userData.role.id,
+          roleVersion: userData.role.version,
           storeId: storeId,
           storeUserId: storeUserId,
         },
@@ -524,6 +554,7 @@ export class AuthService {
           roleVersion: payload.roleVersion,
           storeId: payload.storeId,
           storeUserId: payload.storeUserId,
+          authMethod: 'local',
         };
 
         const access_token = await this.jwtService.sign(newPayload, {
@@ -556,6 +587,7 @@ export class AuthService {
         roleId: user.role.id,
         roleVersion: user.role.version,
         sub: user.id,
+        authMethod: 'local',
       };
 
       const access_token = await this.jwtService.sign(newPayload, {

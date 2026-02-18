@@ -6,6 +6,7 @@ import { ThrottlerGuard } from '@nestjs/throttler';
 import { AuthController } from './auth.controller';
 import { AuthService } from '../services/auth.service';
 import { StoreUsersService } from 'src/access-control/users/services/store-users.service';
+import { CustomApiKeyGuard } from 'src/stores/guards/custom-api-key.guard';
 import {
   createMockStaffUser,
   createMockCustomerUser,
@@ -75,9 +76,19 @@ describe('AuthController', () => {
             canActivate: jest.fn(() => true),
           },
         },
+        {
+          provide: CustomApiKeyGuard,
+          useValue: {
+            canActivate: jest.fn(() => true),
+          },
+        },
       ],
     })
       .overrideGuard(ThrottlerGuard)
+      .useValue({
+        canActivate: jest.fn(() => true),
+      })
+      .overrideGuard(CustomApiKeyGuard)
       .useValue({
         canActivate: jest.fn(() => true),
       })
@@ -110,9 +121,12 @@ describe('AuthController', () => {
         storeId: undefined, // ← Sin storeId
       };
 
-      const mockRequest: Partial<Request> = { headers: {} };
-
-      mockAuthService.validateStaffLogin.mockResolvedValue(staffUser);
+      // All validation happens in LocalStrategy now
+      // Mock request with store (populated by CustomApiKeyGuard)
+      const mockRequest: Partial<Request> = {
+        headers: {},
+        store: { id: 1, name: 'Main Store' },
+      } as any;
 
       mockAuthService.generateJWT.mockResolvedValue({
         access_token: 'staff_access_token_12345',
@@ -132,16 +146,12 @@ describe('AuthController', () => {
         refresh_token: 'staff_refresh_token_67890',
       });
 
-      // Verificar que validateStaffLogin fue llamado para STAFF
-      expect(mockAuthService.validateStaffLogin).toHaveBeenCalledWith(
-        staffUser,
-      );
-
       // Verificar que generateJWT fue llamado SIN storeId para STAFF
       expect(mockAuthService.generateJWT).toHaveBeenCalledWith(staffUser);
       expect(mockAuthService.generateJWT).toHaveBeenCalledTimes(1);
 
-      // Verificar que validateCustomerLogin NUNCA fue llamado para STAFF
+      // No validation should be called in controller (happens in LocalStrategy)
+      expect(mockAuthService.validateStaffLogin).not.toHaveBeenCalled();
       expect(mockAuthService.validateCustomerLogin).not.toHaveBeenCalled();
     });
 
@@ -164,8 +174,6 @@ describe('AuthController', () => {
         storeId: 5, // ← StoreId explícitamente en body
       };
 
-      const mockRequest: Partial<Request> = { headers: {} };
-
       const mockStoreUser = {
         id: 15,
         storeId: 5,
@@ -173,10 +181,13 @@ describe('AuthController', () => {
         isActive: true,
       };
 
-      mockAuthService.validateCustomerLogin.mockResolvedValue({
-        user: customerUser,
+      // All validation happens in LocalStrategy now
+      // Mock request with store and storeUser (populated by CustomApiKeyGuard + LocalStrategy)
+      const mockRequest: Partial<Request> = {
+        headers: {},
+        store: { id: 5, name: 'Store 5' },
         storeUser: mockStoreUser,
-      });
+      } as any;
 
       mockAuthService.generateJWT.mockResolvedValue({
         access_token: 'customer_access_token_12345',
@@ -196,13 +207,6 @@ describe('AuthController', () => {
         refresh_token: 'customer_refresh_token_67890',
       });
 
-      // Verificar que validateCustomerLogin fue llamado con contraseña
-      expect(mockAuthService.validateCustomerLogin).toHaveBeenCalledWith(
-        customerUser,
-        'password123', // plain password from loginDto
-        5, // storeId from request
-      );
-
       // Verificar generateJWT llamado CON storeId y storeUserId
       expect(mockAuthService.generateJWT).toHaveBeenCalledWith(
         customerUser,
@@ -210,7 +214,8 @@ describe('AuthController', () => {
         15, // storeUserId
       );
 
-      // Verificar que validateStaffLogin NUNCA fue llamado para CUSTOMER
+      // No validation should be called in controller (happens in LocalStrategy)
+      expect(mockAuthService.validateCustomerLogin).not.toHaveBeenCalled();
       expect(mockAuthService.validateStaffLogin).not.toHaveBeenCalled();
     });
 

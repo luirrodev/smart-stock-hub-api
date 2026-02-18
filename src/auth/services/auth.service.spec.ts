@@ -7,6 +7,7 @@ import { Repository } from 'typeorm';
 import { AuthService } from './auth.service';
 import { UsersService } from 'src/access-control/users/services/users.service';
 import { StaffUsersService } from 'src/access-control/users/services/staff-users.service';
+import { StoreUsersService } from 'src/access-control/users/services/store-users.service';
 import { CustomersService } from 'src/customers/services/customers.service';
 import { PasswordResetToken } from '../entities/password-reset-token.entity';
 import {
@@ -31,6 +32,7 @@ describe('AuthService', () => {
   // Mocks de servicios inyectados
   let mockUsersService: any;
   let mockStaffUsersService: any;
+  let mockStoreUsersService: any;
   let mockCustomersService: any;
   let mockJwtService: any;
   let mockPasswordResetRepo: any;
@@ -55,6 +57,14 @@ describe('AuthService', () => {
       findByUserId: jest.fn(),
       updateLastLogin: jest.fn(),
       setGoogleCredentials: jest.fn(),
+    };
+
+    // Mock StoreUsersService
+    mockStoreUsersService = {
+      findStoresForCustomer: jest.fn(),
+      verifyPassword: jest.fn(),
+      updateLastLogin: jest.fn(),
+      registerCustomerToStore: jest.fn(),
     };
 
     // Mock CustomersService
@@ -85,6 +95,7 @@ describe('AuthService', () => {
         AuthService,
         { provide: UsersService, useValue: mockUsersService },
         { provide: StaffUsersService, useValue: mockStaffUsersService },
+        { provide: StoreUsersService, useValue: mockStoreUsersService },
         { provide: CustomersService, useValue: mockCustomersService },
         { provide: JwtService, useValue: mockJwtService },
         {
@@ -454,6 +465,7 @@ describe('AuthService', () => {
 
       mockUsersService.create.mockResolvedValue(createdUser);
       mockCustomersService.create.mockResolvedValue({ id: 20, userId: 5 });
+      mockStoreUsersService.registerCustomerToStore.mockResolvedValue({ id: 50, customerId: 20, storeId: 1 });
 
       mockJwtService.sign
         .mockReturnValueOnce('new_access_token')
