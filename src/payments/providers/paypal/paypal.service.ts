@@ -245,7 +245,7 @@ export class PaypalService implements PaymentProviderInterface {
     captureId: string,
     credentials: PayPalCredentials,
     storeId: number,
-    refundData?: PayPalRefundRequest,
+    refundData: PayPalRefundRequest,
   ): Promise<PayPalRefundResponse> {
     const baseUrl = this.getBaseUrl(credentials.mode);
     const url = `${baseUrl}${PAYPAL_ENDPOINTS.REFUND(captureId)}`;
