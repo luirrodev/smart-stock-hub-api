@@ -56,7 +56,6 @@ export class CreateOrderBaseDto {
   })
   items: CreateOrderItemDto[];
 
-  @IsOptional()
   @IsString()
   @MinLength(3)
   @MaxLength(3)
@@ -68,7 +67,7 @@ export class CreateOrderBaseDto {
     example: 'USD',
     required: false,
   })
-  currency?: string;
+  currency: string;
 
   @IsOptional()
   @IsString()
