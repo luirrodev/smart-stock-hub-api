@@ -7,7 +7,7 @@ import { PayloadToken } from '../../auth/models/token.model';
  * @param user - Token del usuario autenticado
  * @throws BadRequestException si falta storeId o storeUserId
  */
-export function validateUserStoreContext(user: PayloadToken): void {
+export function validateUserStoreContext(user: PayloadToken) {
   if (!user.storeId) {
     throw new BadRequestException(
       'El token no contiene storeId. No se puede realizar la operación sin contexto de tienda.',
@@ -19,4 +19,9 @@ export function validateUserStoreContext(user: PayloadToken): void {
       'El token no contiene storeUserId. El usuario debe estar autenticado en el contexto de una tienda.',
     );
   }
+
+  return {
+    storeId: user.storeId,
+    storeUserId: user.storeUserId,
+  };
 }
