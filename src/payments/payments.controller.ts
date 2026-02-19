@@ -1,4 +1,13 @@
-import { Controller, Post, Get, Body, Query } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Query,
+  Param,
+  ParseIntPipe,
+  UseGuards,
+} from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { GetUser } from 'src/auth/decorators/get-user.decorator';
 import { PayloadToken } from 'src/auth/models/token.model';
@@ -14,6 +23,7 @@ import {
   ApiBearerAuth,
   ApiBadRequestResponse,
   ApiOkResponse,
+  ApiParam,
 } from '@nestjs/swagger';
 import { OptionalAuth } from 'src/auth/decorators/optional-auth.decorator';
 import {
@@ -22,6 +32,9 @@ import {
 } from 'src/common/dtos/pagination.dto';
 import { PaymentProvider } from '../stores/entities/store-payment-config.entity';
 import { PaymentResponseDto } from './dto/payment-response.dto';
+import { RefundPaymentDto } from './dto/refund-payment.dto';
+import { RequirePermissions } from 'src/access-control/permissions/decorators/permissions.decorator';
+import { PermissionsGuard } from 'src/access-control/permissions/guards/permissions.guard';
 
 @ApiTags('Payments')
 @Controller('payments')
@@ -91,15 +104,17 @@ export class PaymentsController {
   }
 
   // ToDo: Implementar reembolso de pagos
-  // @Post('/refund/:paymentId')
-  // @ApiOperation({ summary: 'Procesar reembolso (total o parcial)' })
-  // @ApiParam({ name: 'paymentId', required: true, description: 'ID del pago' })
-  // async refundPayment(
-  //   @Param('paymentId', ParseIntPipe) paymentId: number,
-  //   @Body() dto: RefundPaymentDto,
-  // ) {
-  //   return await this.paymentsService.refundPayment(paymentId, dto);
-  // }
+  @Post('/refund/:paymentId')
+  @RequirePermissions('payments:refunds')
+  @UseGuards(PermissionsGuard)
+  @ApiOperation({ summary: 'Procesar reembolso (total o parcial)' })
+  @ApiParam({ name: 'paymentId', required: true, description: 'ID del pago' })
+  async refundPayment(
+    @Param('paymentId', ParseIntPipe) paymentId: number,
+    @Body() dto: RefundPaymentDto,
+  ) {
+    return await this.paymentsService.refundPayment(paymentId, dto);
+  }
 
   @Get('success')
   @OptionalAuth()

@@ -467,34 +467,14 @@ export class PaymentsService {
     }
   }
 
-  // Procesa un reembolso total o parcial
-  async refundPayment(
-    paymentId: number | string,
-    dtoOrAmount?: RefundPaymentDto | number,
-    reason?: string,
-  ) {
-    // Normalizar parámetros para soportar llamadas desde controller (dto) o directamente (amount, reason)
-    let amount: number | undefined;
-    let reasonText: string | undefined;
-
-    if (typeof dtoOrAmount === 'object' && dtoOrAmount !== null) {
-      amount = dtoOrAmount.amount
-        ? Number(parseFloat(dtoOrAmount.amount))
-        : undefined;
-      reasonText = dtoOrAmount.reason;
-    } else if (typeof dtoOrAmount === 'number') {
-      amount = dtoOrAmount;
-      reasonText = reason;
-    }
-
+  /**
+   * Procesa un reembolso total o parcial delegando al proveedor específico
+   * @param paymentId - ID del pago
+   * @param payload - Datos del reembolso (monto opcional, razón requerida)
+   */
+  async refundPayment(paymentId: number, payload: RefundPaymentDto) {
     // 1. Buscar pago
-    const payment = await this.paymentRepository.findOne({
-      where: { id: Number(paymentId) },
-    });
-
-    if (!payment) {
-      throw new NotFoundException(`Pago ${paymentId} no encontrado`);
-    }
+    const payment = await this.getPaymentById(paymentId);
 
     // 2. Validar que esté completado
     if (payment.status !== PaymentStatus.COMPLETED) {
@@ -512,81 +492,73 @@ export class PaymentsService {
     }
 
     // 4. Validar monto si es parcial
-    if (amount !== undefined && amount > Number(payment.amount)) {
+    if (payload.amount > Number(payment.amount)) {
       throw new BadRequestException(
         'El monto a reembolsar no puede ser mayor al monto del pago',
       );
     }
 
-    // 5. Obtener configuración de PayPal
-    const paypalConfig =
-      await this.storePaymentConfigService.getStoreProviderConfig(
-        payment.storeId,
-        PaymentProvider.PAYPAL,
-      );
+    // 5. Obtener configuración del proveedor
+    const config = await this.storePaymentConfigService.getStoreProviderConfig(
+      payment.storeId,
+      payment.provider as PaymentProvider,
+    );
 
-    // 6. Preparar datos de reembolso
-    const refundData = amount
-      ? {
-          amount: {
-            currency_code: payment.currency,
-            value: amount.toFixed(2),
-          },
-          note_to_payer: reasonText || 'Reembolso procesado',
-        }
-      : {
-          note_to_payer: reasonText || 'Reembolso total procesado',
-        };
-
-    // 7. Procesar reembolso en PayPal
+    // 6. Delegar reembolso al proveedor específico
     let refundResponse: any;
     try {
-      refundResponse = await this.paypalService.refundCapture(
+      refundResponse = await this.processProviderRefund(
+        payment.provider as PaymentProvider,
+        config,
         captureId,
-        paypalConfig,
-        payment.storeId,
-        refundData,
+        payment,
+        payload,
       );
     } catch (error) {
-      this.logger.error(`Error procesando reembolso: ${error.message}`);
+      this.logger.error(
+        `Error procesando reembolso con ${payment.provider}: ${error.message}`,
+      );
 
       // Guardar transacción fallida
       await this.transactionRepository.save({
         paymentId: payment.id,
         transactionType: TransactionType.REFUND,
         providerTransactionId: error.response?.data?.id || null,
-        requestPayload: refundData,
+        requestPayload: { captureId, amount: payload.amount },
         responsePayload: error.response?.data || { error: error.message },
         status: 'FAILED',
       });
 
-      throw new BadRequestException('Error al procesar el reembolso en PayPal');
+      throw new BadRequestException(
+        `Error al procesar el reembolso en ${payment.provider}`,
+      );
     }
 
-    // 8. Actualizar Payment
+    // 7. Actualizar Payment
     payment.status = PaymentStatus.REFUNDED;
     await this.paymentRepository.save(payment);
 
-    // 9. Guardar transacción
+    // 8. Guardar transacción exitosa
     await this.transactionRepository.save({
       paymentId: payment.id,
       transactionType: TransactionType.REFUND,
       providerTransactionId: refundResponse.id,
-      requestPayload: refundData,
+      requestPayload: { captureId, amount: payload.amount },
       responsePayload: refundResponse,
       status: 'SUCCESS',
     });
 
-    // 10. Actualizar orden si es reembolso total
-    if (amount === undefined || amount === Number(payment.amount)) {
-      // Marcar la orden como 'refunded' usando el status code
+    // 9. Actualizar orden si es reembolso total
+    if (
+      payload.amount === undefined ||
+      payload.amount === Number(payment.amount)
+    ) {
       try {
         await this.ordersService.changeStatusByCode(
           payment.orderId,
           'refunded',
         );
       } catch (err) {
-        // No queremos fallar el refund por un problema al actualizar el estado de la orden
         this.logger.warn(
           `No se pudo actualizar el estado de la orden: ${err?.message || err}`,
         );
@@ -599,6 +571,52 @@ export class PaymentsService {
       status: refundResponse.status,
       amount: refundResponse.amount?.value,
     };
+  }
+
+  /**
+   * Delega el reembolso al proveedor de pago correspondiente
+   * @param provider - Proveedor de pago (PayPal, Stripe, etc.)
+   * @param config - Configuración del proveedor para la tienda
+   * @param captureId - ID de la captura en el proveedor
+   * @param payment - Entidad Payment
+   * @param payload - Datos del reembolso
+   */
+  private async processProviderRefund(
+    provider: PaymentProvider,
+    config: ProviderConfig,
+    captureId: string,
+    payment: Payment,
+    payload: RefundPaymentDto,
+  ): Promise<any> {
+    switch (provider) {
+      case PaymentProvider.PAYPAL:
+        // Preparar datos de reembolso para PayPal
+        const refundData = {
+          amount: {
+            currency_code: payment.currency,
+            value: payload.amount.toFixed(2),
+          },
+          note_to_payer: payload.reason,
+        };
+
+        return await this.paypalService.refundCapture(
+          captureId,
+          config,
+          payment.storeId,
+          refundData,
+        );
+
+      case PaymentProvider.STRIPE:
+        // TODO: Implementar reembolso de Stripe
+        throw new BadRequestException(
+          'Reembolso con Stripe aún no está implementado',
+        );
+
+      default:
+        throw new BadRequestException(
+          `Proveedor de pago no soportado: ${provider}`,
+        );
+    }
   }
 
   /**
@@ -669,5 +687,17 @@ export class PaymentsService {
     };
 
     return response;
+  }
+
+  async getPaymentById(paymentId: number) {
+    const payment = await this.paymentRepository.findOne({
+      where: { id: paymentId },
+    });
+
+    if (!payment) {
+      throw new NotFoundException(`Pago ${paymentId} no encontrado`);
+    }
+
+    return payment;
   }
 }
