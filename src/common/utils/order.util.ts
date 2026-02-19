@@ -55,7 +55,7 @@ export function calculateOrderTotals(items: OrderItem[]): {
 
   // TODO: Aplicar tax, shippingCost y discount según lógica de negocio
   const tax = 0;
-  const shippingCost = 0;
+  const shippingCost = 5.95; // Ejemplo de costo de envío fijo
   const discount = 0;
   const total = Number((subtotal + tax + shippingCost - discount).toFixed(2));
 
