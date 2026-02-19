@@ -7,6 +7,7 @@ import { PickupPoint } from './entities/pickup-point.entity';
 import { OrderStatus } from './entities/order-status.entity';
 import { Product } from '../products/entities/product.entity';
 import { OrdersService } from './services/orders.service';
+import { OrderStatusService } from './services/order-status.service';
 import { OrdersController } from './controllers/orders.controller';
 import { ProductsModule } from 'src/products/products.module';
 import { AccessControlModule } from 'src/access-control/access-control.module';
@@ -26,7 +27,7 @@ import { StoresModule } from 'src/stores/stores.module';
     StoresModule,
   ],
   controllers: [OrdersController],
-  providers: [OrdersService],
-  exports: [OrdersService, TypeOrmModule],
+  providers: [OrdersService, OrderStatusService],
+  exports: [OrdersService, OrderStatusService, TypeOrmModule],
 })
 export class OrdersModule {}
