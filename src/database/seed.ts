@@ -37,6 +37,10 @@ async function seed() {
       name: 'payments:refunds',
       description: 'Realizar reembolsos de pagos',
     },
+    {
+      name: 'payments:view',
+      description: 'Ver información de pagos',
+    },
   ];
 
   // Roles básicos
