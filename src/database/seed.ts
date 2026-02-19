@@ -33,6 +33,10 @@ async function seed() {
       name: 'restore:components',
       description: 'Restaurar componentes eliminados',
     },
+    {
+      name: 'payments:refunds',
+      description: 'Realizar reembolsos de pagos',
+    },
   ];
 
   // Roles básicos
