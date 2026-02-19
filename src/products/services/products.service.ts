@@ -6,7 +6,7 @@ import {
   Inject,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { ConfigType } from '@nestjs/config';
@@ -180,5 +180,24 @@ export class ProductsService {
     }
 
     return product;
+  }
+
+  /**
+   * Valida que todos los productos existan en la base de datos
+   */
+  async validateProductsExist(productIds: number[]): Promise<Product[]> {
+    const products = await this.productRepo.find({
+      where: { id: In(productIds) },
+    });
+
+    if (products.length !== productIds.length) {
+      const foundIds = products.map((p) => p.id);
+      const missing = productIds.filter((id) => !foundIds.includes(id));
+      throw new NotFoundException(
+        `Productos no encontrados: ${missing.join(', ')}`,
+      );
+    }
+
+    return products;
   }
 }
