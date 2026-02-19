@@ -2,6 +2,7 @@ import { Expose, Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { OrderItemResponseDto } from './order-item-response.dto';
 import { StoreResponseDto } from '../../stores/dtos/store-response.dto';
+import { OrderStatusResponseDto } from './order-status-resp.dto';
 
 export class OrderResponseDto {
   @ApiProperty({ example: 396973 })
@@ -22,6 +23,14 @@ export class OrderResponseDto {
   @ApiProperty({ example: 'card', required: false })
   @Expose()
   paymentMethod: string | null;
+
+  @ApiProperty({
+    type: OrderStatusResponseDto,
+    description: 'Estado actual del pedido con nombre y descripción',
+  })
+  @Expose()
+  @Type(() => OrderStatusResponseDto)
+  status: OrderStatusResponseDto;
 
   @ApiProperty({ example: 388 })
   @Expose()
