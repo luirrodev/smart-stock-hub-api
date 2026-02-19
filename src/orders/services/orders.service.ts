@@ -17,6 +17,8 @@ import {
 } from '../dtos/create-order.dto';
 import { UsersService } from 'src/access-control/users/services/users.service';
 import { StoresService } from 'src/stores/services/stores.service';
+import { OrderStatusService } from './order-status.service';
+import { PickupPointService } from './pickup-point.service';
 import { PayloadToken } from 'src/auth/models/token.model';
 import { ChangePaymentInfoDto } from '../dtos/change-payment-info.dto';
 import { PaymentStatus } from 'src/payments/entities/payment-status.enum';
@@ -28,19 +30,16 @@ import {
   isPickupOrder,
 } from '../../common/utils/order.util';
 import { validateUserStoreContext } from '../../common/utils/validation.util';
+import { ProductsService } from 'src/products/services/products.service';
 
 @Injectable()
 export class OrdersService {
   constructor(
     @InjectRepository(Order) private orderRepo: Repository<Order>,
-    @InjectRepository(OrderItem) private orderItemRepo: Repository<OrderItem>,
-    @InjectRepository(Product) private productRepo: Repository<Product>,
-    @InjectRepository(OrderStatus)
-    private orderStatusRepo: Repository<OrderStatus>,
-    @InjectRepository(PickupPoint)
-    private pickupPointRepo: Repository<PickupPoint>,
-    private usersService: UsersService,
     private storeService: StoresService,
+    private orderStatusService: OrderStatusService,
+    private pickupPointService: PickupPointService,
+    private productService: ProductsService,
   ) {}
 
   private async generateOrderNumber(): Promise<string> {
@@ -58,42 +57,6 @@ export class OrdersService {
   }
 
   /**
-   * Valida que todos los productos existan en la base de datos
-   */
-  private async validateProductsExist(
-    productIds: number[],
-  ): Promise<Product[]> {
-    const products = await this.productRepo.find({
-      where: { id: In(productIds) },
-    });
-
-    if (products.length !== productIds.length) {
-      const foundIds = products.map((p) => p.id);
-      const missing = productIds.filter((id) => !foundIds.includes(id));
-      throw new NotFoundException(
-        `Productos no encontrados: ${missing.join(', ')}`,
-      );
-    }
-
-    return products;
-  }
-
-  /**
-   * Valida que el estado inicial 'pending' exista
-   */
-  private async validateInitialStatus(): Promise<OrderStatus> {
-    const status = await this.orderStatusRepo.findOne({
-      where: { code: 'pending' },
-    });
-
-    if (!status) {
-      throw new NotFoundException('No hay estados de pedido configurados');
-    }
-
-    return status;
-  }
-
-  /**
    * Valida que el punto de retiro exista (si es orden PICKUP)
    */
   private async validatePickupPoint(dto: CreateOrderDto): Promise<void> {
@@ -101,13 +64,7 @@ export class OrdersService {
       return;
     }
 
-    const pickupPoint = await this.pickupPointRepo.findOne({
-      where: { id: dto.pickupPointId },
-    });
-
-    if (!pickupPoint) {
-      throw new NotFoundException('Punto de retiro no encontrado');
-    }
+    await this.pickupPointService.findOne(dto.pickupPointId!);
   }
 
   /**
@@ -130,24 +87,25 @@ export class OrdersService {
    */
   async createOrder(dto: CreateOrderDto, user: PayloadToken): Promise<Order> {
     // Fase 1: Validaciones
-    validateUserStoreContext(user);
+    const { storeId, storeUserId } = validateUserStoreContext(user);
 
     const productIds = dto.items.map((i) => i.productId);
-    const products = await this.validateProductsExist(productIds);
+    const products =
+      await this.productService.validateProductsExist(productIds);
 
-    const status = await this.validateInitialStatus();
+    const status = await this.orderStatusService.findOne('pending');
     await this.validatePickupPoint(dto);
 
     // Fase 2: Construcción de datos usando utilidades
     const items = buildOrderItems(dto.items, products);
     const totals = calculateOrderTotals(items as OrderItem[]);
     const orderNumber = await this.generateOrderNumber();
-    const store = await this.storeService.findOne(user.storeId!);
+    const store = await this.storeService.findOne(storeId);
 
     // Fase 3: Creación del objeto de orden
     const orderToSave: Partial<Order> = {
       orderNumber,
-      storeUserId: user.storeUserId,
+      storeUserId,
       store,
       fulfillmentType: dto.fulfillmentType,
       statusId: status.id,
@@ -165,14 +123,11 @@ export class OrdersService {
     assignOrderTypeFields(orderToSave, dto);
 
     // Fase 4: Persistencia y retorno
-    const saved = await this.orderRepo.save(orderToSave as Order);
+    const saved = await this.orderRepo.save(orderToSave);
 
-    const order = await this.orderRepo.findOne({
-      where: { id: saved.id },
-      relations: ['items', 'store', 'status'],
-    });
+    const order = await this.findOne(saved.id, user);
 
-    return order!;
+    return order;
   }
 
   /**
@@ -218,14 +173,8 @@ export class OrdersService {
     // Reusar la validación de permisos y existencia de pedido
     const order = await this.findOne(orderId, user);
 
-    // Buscar estado por código y activo
-    const status = await this.orderStatusRepo.findOne({
-      where: { code: statusCode, isActive: true },
-    });
-
-    if (!status) {
-      throw new NotFoundException('Estado no encontrado o inactivo');
-    }
+    // Buscar estado por código y activo usando el servicio
+    const status = await this.orderStatusService.findOneActive(statusCode);
 
     if (order.statusId === status.id) {
       throw new BadRequestException('El pedido ya posee ese estado');
