@@ -100,8 +100,8 @@ export class PaypalService implements PaymentProviderInterface {
       ],
       application_context: {
         // Agregar firma JWT al return/cancel URL para validar al capturar
-        return_url: `${process.env.FRONTEND_URL}/payments/success?sig=${signatureToken}&provider=paypal`,
-        cancel_url: `${process.env.FRONTEND_URL}/payments/cancel?sig=${signatureToken}&provider=paypal`,
+        return_url: `${process.env.FRONTEND_URL}/api/v1/payments/success?sig=${signatureToken}&provider=paypal`,
+        cancel_url: `${process.env.FRONTEND_URL}/api/v1/payments/cancel?sig=${signatureToken}&provider=paypal`,
         brand_name: orderData.store.name,
         user_action: 'PAY_NOW',
       },
