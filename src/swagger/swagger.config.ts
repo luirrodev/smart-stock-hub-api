@@ -37,7 +37,10 @@ function getReferencedSchemas(doc: any): Set<string> {
 
   // Also extract from schema definitions that are already referenced
   // This handles nested references (e.g., ProductListDto inside ProductPaginatedResponse)
-  const addSchemaReferences = (schemaName: string, visited = new Set<string>()) => {
+  const addSchemaReferences = (
+    schemaName: string,
+    visited = new Set<string>(),
+  ) => {
     if (visited.has(schemaName) || !doc.components?.schemas?.[schemaName]) {
       return;
     }
