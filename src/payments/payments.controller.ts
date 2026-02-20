@@ -143,8 +143,8 @@ export class PaymentsController {
     description: 'Lista de pagos paginada',
     type: PaginatedResponse<PaymentResponseDto>,
   })
-  @UseGuards(PermissionsGuard)
   @RequirePermissions('payments:view')
+  @UseGuards(PermissionsGuard)
   async getAllPayments(
     @Query() paginationDto: PaginationDto,
   ): Promise<PaginatedResponse<PaymentResponseDto>> {
