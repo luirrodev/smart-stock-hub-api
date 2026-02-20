@@ -11,7 +11,7 @@ import { Cache } from 'cache-manager';
 import {
   JwtSignatureService,
   PayloadSignatureToken,
-} from 'src/payments/jwt-signature.service';
+} from 'src/payments/services/jwt-signature.service';
 import { PaymentProviderInterface } from '../payment-provider.interface';
 import { CreateOrderPayPalResponse, PayPalConfig } from './paypal.interface';
 import { PAYPAL_API_URLS, PAYPAL_ENDPOINTS } from './paypal.constants';
