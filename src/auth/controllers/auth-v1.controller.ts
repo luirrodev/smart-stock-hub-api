@@ -220,19 +220,38 @@ export class AuthV1Controller {
   }
 
   @Get('profile')
+  @UseGuards(CustomApiKeyGuard)
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Get user profile' })
+  @ApiOperation({
+    summary: 'Get customer profile in store',
+    description: 'Retrieves profile information for a customer in a specific store context',
+  })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'User profile retrieved successfully',
+    description: 'Customer profile retrieved successfully',
+    schema: {
+      example: {
+        id: 1,
+        userId: 5,
+        customerId: 10,
+        storeId: 1,
+        storeName: 'Main Store',
+        firstName: 'John',
+        lastName: 'Doe',
+        email: 'john.doe@example.com',
+        role: 'customer',
+        isActive: true,
+        createdAt: '2024-01-15T10:00:00Z',
+      },
+    },
   })
   @ApiResponse({
     status: HttpStatus.UNAUTHORIZED,
-    description: 'Unauthorized access or invalid token',
+    description: 'Unauthorized access, invalid token, or invalid X-API-Key',
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
-    description: 'User not found',
+    description: 'Customer profile not found',
   })
   async getProfile(@GetUser() user: PayloadToken) {
     return this.authService.getProfile(user);

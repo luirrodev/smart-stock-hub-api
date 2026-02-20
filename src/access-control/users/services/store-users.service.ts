@@ -464,6 +464,38 @@ export class StoreUsersService {
   }
 
   /**
+   * Get profile information for a store user (customer)
+   * Used by v1 controller for customer profile endpoint
+   */
+  async getProfileStoreUser(storeUserId: number) {
+    const storeUser = await this.storeUsersRepository.findOne({
+      where: { id: storeUserId },
+      relations: ['customer', 'customer.user', 'store'],
+    });
+
+    if (!storeUser) {
+      throw new NotFoundException('StoreUser not found');
+    }
+
+    const { customer, store } = storeUser;
+    const user = customer?.user;
+
+    if (!user) {
+      throw new NotFoundException('User information not found');
+    }
+
+    return {
+      storeName: store.name,
+      firstName: user.name?.split(' ')[0] || '',
+      lastName: user.name?.split(' ').slice(1).join(' ') || '',
+      email: user.email,
+      role: 'customer',
+      isActive: storeUser.isActive,
+      createdAt: storeUser.createdAt,
+    };
+  }
+
+  /**
    * Unregister customer from store (soft delete)
    */
   async unregisterFromStore(storeUserId: number): Promise<void> {

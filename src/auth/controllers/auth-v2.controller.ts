@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Body,
   Req,
+  Get,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
@@ -22,6 +23,7 @@ import {
   ForgotPasswordDto,
   ResetPasswordDto,
 } from '../dtos';
+import { PayloadToken } from '../models/token.model';
 
 @ApiTags('Authentication')
 @Controller({
@@ -103,5 +105,40 @@ export class AuthV2Controller {
     );
 
     return { message: 'Contraseña actualizada correctamente' };
+  }
+
+  @Get('profile')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get staff user profile',
+    description: 'Retrieves profile information for a staff/admin user',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Staff user profile retrieved successfully',
+    schema: {
+      example: {
+        id: 1,
+        userId: 5,
+        firstName: 'John',
+        lastName: 'Doe',
+        email: 'john.doe@example.com',
+        role: 'admin',
+        permissions: ['manage_users', 'manage_stores'],
+        isActive: true,
+        createdAt: '2024-01-15T10:00:00Z',
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Unauthorized access or invalid token',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Staff user not found',
+  })
+  async getProfile(@GetUser() user: PayloadToken) {
+    return this.authService.getProfile(user);
   }
 }

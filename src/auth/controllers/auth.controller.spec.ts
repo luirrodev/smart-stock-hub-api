@@ -609,6 +609,7 @@ describe('AuthController', () => {
       const resetPasswordDto = {
         token: 'valid_reset_token',
         newPassword: 'newPassword123',
+        storeId: 1,
       };
 
       const mockRequest: Partial<Request> = {
@@ -636,6 +637,7 @@ describe('AuthController', () => {
       expect(mockAuthService.resetPassword).toHaveBeenCalledWith(
         'valid_reset_token',
         'newPassword123',
+        1,
         '127.0.0.1',
         'Mozilla/5.0',
       );

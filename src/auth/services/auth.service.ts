@@ -563,19 +563,14 @@ export class AuthService {
   }
 
   async getProfile(userData: PayloadToken) {
-    const user = await this.userService.findOne(userData.sub);
-
-    if (!user) {
-      throw new NotFoundException('User not found');
+    // Polimorphic delegation based on user type (StoreUser vs StaffUser)
+    if (userData.storeUserId) {
+      // CUSTOMER (StoreUser): has storeUserId in payload
+      return this.storeUsersService.getProfileStoreUser(userData.storeUserId);
     }
 
-    return {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role.name,
-      permissions: user.role.permissions.map((permission) => permission.name),
-    };
+    // STAFF (StaffUser): no storeUserId in payload
+    return this.staffUsersService.getProfileStaff(userData.sub);
   }
 
   async validateGoogleUser(googleUser: GoogleUser): Promise<User> {

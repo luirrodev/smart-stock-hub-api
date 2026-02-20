@@ -381,4 +381,37 @@ export class StaffUsersService {
 
     return staffUser;
   }
+
+  /**
+   * Get profile information for a staff user
+   * Used by v2 controller for staff user profile endpoint
+   */
+  async getProfileStaff(userId: number) {
+    const staffUser = await this.staffUsersRepository.findOne({
+      where: { userId },
+      relations: ['user', 'user.role', 'user.role.permissions'],
+    });
+
+    if (!staffUser) {
+      throw new NotFoundException('StaffUser not found');
+    }
+
+    const { user } = staffUser;
+
+    if (!user) {
+      throw new NotFoundException('User information not found');
+    }
+
+    return {
+      id: staffUser.id,
+      userId: user.id,
+      firstName: user.name?.split(' ')[0] || '',
+      lastName: user.name?.split(' ').slice(1).join(' ') || '',
+      email: user.email,
+      role: user.role?.name || 'staff',
+      permissions: user.role?.permissions?.map((p) => p.name) || [],
+      isActive: staffUser.isActive,
+      createdAt: staffUser.createdAt,
+    };
+  }
 }
