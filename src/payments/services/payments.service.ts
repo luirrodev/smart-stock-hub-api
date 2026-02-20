@@ -9,30 +9,30 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { plainToInstance } from 'class-transformer';
 
-import { PayloadToken } from '../auth/models/token.model';
-import { RefundPaymentDto } from './dto/refund-payment.dto';
-import { CreatePaymentDto } from './dto/create-payment.dto';
-import { PaymentResponseDto } from './dto/payment-response.dto';
+import { PayloadToken } from '../../auth/models/token.model';
+import { RefundPaymentDto } from '../dto/refund-payment.dto';
+import { CreatePaymentDto } from '../dto/create-payment.dto';
+import { PaymentResponseDto } from '../dto/payment-response.dto';
 import {
   PaginationDto,
   PaginatedResponse,
-} from '../common/dtos/pagination.dto';
-import { QueryBuilderUtil } from '../common/utils/query-builder.util';
-import { ProviderConfig } from './providers/payment-provider.interface';
+} from '../../common/dtos/pagination.dto';
+import { QueryBuilderUtil } from '../../common/utils/query-builder.util';
+import { ProviderConfig } from '../providers/payment-provider.interface';
 import {
   PaymentTransaction,
   TransactionType,
-} from './entities/payment-transaction.entity';
-import { CreateProviderOrderResponseDto } from './dto/create-provider-order-response.dto';
-import { PaymentStatus } from './entities/payment-status.enum';
+} from '../entities/payment-transaction.entity';
+import { CreateProviderOrderResponseDto } from '../dto/create-provider-order-response.dto';
+import { PaymentStatus } from '../entities/payment-status.enum';
 
-import { PaymentProvider } from '../stores/entities/store-payment-config.entity';
-import { Payment } from './entities/payment.entity';
-import { Order } from '../orders/entities/order.entity';
+import { PaymentProvider } from '../../stores/entities/store-payment-config.entity';
+import { Payment } from '../entities/payment.entity';
+import { Order } from '../../orders/entities/order.entity';
 
-import { StoresPaymentConfigService } from '../stores/services/stores-payment-config.service';
-import { PaypalService } from './providers/paypal/paypal.service';
-import { OrdersService } from '../orders/services/orders.service';
+import { StoresPaymentConfigService } from '../../stores/services/stores-payment-config.service';
+import { PaypalService } from '../providers/paypal/paypal.service';
+import { OrdersService } from '../../orders/services/orders.service';
 import { JwtSignatureService } from './jwt-signature.service';
 
 @Injectable()
