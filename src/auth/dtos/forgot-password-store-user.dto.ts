@@ -6,9 +6,4 @@ export class ForgotPasswordStoreUserDto {
   @IsNotEmpty()
   @ApiProperty({ example: 'customer@example.com' })
   email: string;
-
-  @IsNumber()
-  @IsNotEmpty()
-  @ApiProperty({ example: 1 })
-  storeId: number;
 }

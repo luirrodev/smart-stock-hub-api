@@ -146,6 +146,7 @@ export class AuthV1Controller {
 
   @Post('forgot-password')
   @Public()
+  @UseGuards(CustomApiKeyGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Request password reset for store customer',
@@ -170,17 +171,12 @@ export class AuthV1Controller {
       (req.headers['x-forwarded-for'] as string) ||
       '') as string;
     const userAgent = (req.headers['user-agent'] || '') as string;
+    const storeId = req.store!.id;
 
-    await this.authService.forgotPassword(
-      dto.email,
-      dto.storeId,
-      ip,
-      userAgent,
-    );
+    await this.authService.forgotPassword(dto.email, storeId, ip, userAgent);
 
     return {
-      message:
-        'Si existe una cuenta con ese correo en esta tienda, se enviarán instrucciones para restablecer la contraseña.',
+      message: `Se enviaran las instrucciones para restablecer la contraseña al email ${dto.email}`,
     };
   }
 

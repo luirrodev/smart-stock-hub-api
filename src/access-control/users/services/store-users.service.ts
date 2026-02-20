@@ -36,13 +36,17 @@ export class StoreUsersService {
     storeId: number,
     email: string,
   ): Promise<StoreUser | null> {
-    return this.storeUsersRepository
-      .createQueryBuilder('su')
-      .innerJoinAndSelect('su.customer', 'c')
-      .innerJoinAndSelect('c.user', 'u')
-      .where('su.store_id = :storeId', { storeId })
-      .andWhere('u.email = :email', { email })
-      .getOne();
+    return this.storeUsersRepository.findOne({
+      where: {
+        storeId,
+        customer: {
+          user: {
+            email,
+          },
+        },
+      },
+      relations: ['customer', 'customer.user', 'store'],
+    });
   }
 
   /**
@@ -311,6 +315,9 @@ export class StoreUsersService {
       // TODO: Send email with rawToken
       // const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${rawToken}&storeId=${storeId}`;
       // await this.mailerService.sendPasswordResetEmail(email, resetLink);
+      console.log(
+        `Password reset token for StoreUser ${storeUser.id}: ${rawToken} (expires at ${expiresAt.toISOString()})`,
+      );
     } catch (error) {
       // Log the error but don't throw (generic response for security)
       console.error('Error in forgotPasswordStoreUser:', error);

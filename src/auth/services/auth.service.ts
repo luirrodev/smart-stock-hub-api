@@ -249,17 +249,17 @@ export class AuthService {
   }
 
   /**
-   * Genera y guarda un token para restablecimiento de contraseña.
-   * Si se proporciona storeId, delega al servicio de StoreUser.
-   * Devuelve void; la respuesta al cliente es siempre genérica por seguridad.
+   * Orquestador de reset de contraseña.
+   * Delega a StoreUsersService si hay storeId (reset de StoreUser)
+   * De lo contrario, delega a StaffUsersService (reset de Staff/User)
    */
   async forgotPassword(
     email: string,
     storeId?: number,
     ipAddress?: string,
     userAgent?: string,
-  ) {
-    // If storeId is provided, delegate to StoreUsersService
+  ): Promise<void> {
+    // If storeId is provided: delegate to StoreUsersService (per-store customer)
     if (storeId) {
       return this.storeUsersService.forgotPasswordStoreUser(
         email,
@@ -269,65 +269,12 @@ export class AuthService {
       );
     }
 
-    // Original logic for User/Staff password reset
-    try {8
-      const user = await this.userService.findByEmail(email);
-
-      if (!user) return;
-
-      // Check if user is active based on user type
-      // STAFF users: check StaffUser.isActive
-      if (user.role && user.role.name !== 'customer') {
-        const staffUser = await this.staffUsersService.findByUserId(user.id);
-        if (!staffUser || !staffUser.isActive) return;
-      }
-      // CUSTOMER users: check if Customer record exists (implies active)
-
-      // Generar token aleatorio en claro y su versión hasheada para guardar
-      const rawToken = crypto.randomBytes(32).toString('hex');
-      const hashedToken = await bcrypt.hash(rawToken, 10);
-
-      const expiresInMs = process.env.PASSWORD_RESET_EXPIRES_IN
-        ? Number(process.env.PASSWORD_RESET_EXPIRES_IN) * 1000
-        : 3600_000; // 1 hora por defecto
-
-      const expiresAt = new Date(Date.now() + expiresInMs);
-
-      // Invalidar tokens previos del usuario: marcarlos como usados y registrar revocado
-      const prevTokens = await this.passwordResetRepo.find({
-        where: { user: { id: user.id }, used: false, revokedAt: IsNull() },
-      });
-
-      if (prevTokens && prevTokens.length) {
-        const now = new Date();
-        prevTokens.forEach((t) => {
-          t.used = true;
-          t.revokedAt = now;
-        });
-        await this.passwordResetRepo.save(prevTokens);
-      }
-
-      const tokenEntity = this.passwordResetRepo.create({
-        token: hashedToken,
-        user: user,
-        expiresAt,
-        sentAt: new Date(),
-        ipAddress,
-        userAgent,
-      } as Partial<PasswordResetToken>);
-
-      await this.passwordResetRepo.save(tokenEntity);
-
-      // TODO: Enviar correo con `rawToken` mediante servicio de email. Ej:
-      // const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${rawToken}&id=${user.id}`;
-      // await this.mailerService.sendPasswordResetEmail(user.email, resetLink);
-
-      // No devolver el token ni detalles: la respuesta al cliente será genérica
-      return;
-    } catch (error) {
-      // Si ocurre un error inesperado, no diferenciamos la respuesta: devolver genérico igualmente
-      return;
-    }
+    // Otherwise: delegate to StaffUsersService (global staff/admin user)
+    return this.staffUsersService.forgotPasswordStaff(
+      email,
+      ipAddress,
+      userAgent,
+    );
   }
 
   /**
@@ -382,8 +329,9 @@ export class AuthService {
   }
 
   /**
-   * Consume un token de restablecimiento y actualiza la contraseña del usuario.
-   * Si se proporciona storeId, delega al servicio de StoreUser.
+   * Orquestador de reseteo de contraseña.
+   * Delega a StoreUsersService si hay storeId (reset de StoreUser)
+   * De lo contrario, delega a StaffUsersService (reset de Staff/User)
    */
   async resetPassword(
     rawToken: string,
@@ -391,8 +339,8 @@ export class AuthService {
     storeId?: number,
     ipAddress?: string,
     userAgent?: string,
-  ) {
-    // If storeId is provided, delegate to StoreUsersService
+  ): Promise<{ message: string }> {
+    // If storeId is provided: delegate to StoreUsersService (per-store customer)
     if (storeId) {
       await this.storeUsersService.resetPasswordForStoreUser(
         rawToken,
@@ -404,45 +352,13 @@ export class AuthService {
       return { message: 'Contraseña actualizada correctamente' };
     }
 
-    // Original logic for User/Staff password reset
-    // Validar token y obtener la entidad
-    const tokenEntity = await this.validatePasswordResetToken(
+    // Otherwise: delegate to StaffUsersService (global staff/admin user)
+    await this.staffUsersService.resetPasswordStaff(
       rawToken,
+      newPassword,
       ipAddress,
       userAgent,
     );
-
-    if (!tokenEntity.user) {
-      throw new BadRequestException('Token inválido: Usuario no encontrado');
-    }
-
-    const userId = tokenEntity.user.id;
-
-    // Cambiar contraseña (UsersService se encarga del hash)
-    await this.userService.changePassword(userId, newPassword);
-
-    // Marcar token como usado y registrar usadoAt/revocado
-    tokenEntity.used = true;
-    tokenEntity.usedAt = new Date();
-    tokenEntity.revokedAt = new Date();
-    if (ipAddress) tokenEntity.ipAddress = ipAddress;
-    if (userAgent) tokenEntity.userAgent = userAgent;
-
-    await this.passwordResetRepo.save(tokenEntity);
-
-    // Invalidar otros tokens activos para ese usuario
-    const otherTokens = await this.passwordResetRepo.find({
-      where: { user: { id: userId }, used: false, revokedAt: IsNull() },
-    });
-    if (otherTokens && otherTokens.length) {
-      const now = new Date();
-      otherTokens.forEach((t) => {
-        t.used = true;
-        t.revokedAt = now;
-      });
-      await this.passwordResetRepo.save(otherTokens);
-    }
-
     return { message: 'Contraseña actualizada correctamente' };
   }
 

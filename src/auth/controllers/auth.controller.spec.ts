@@ -3,7 +3,7 @@ import { BadRequestException, HttpStatus } from '@nestjs/common';
 import { Request } from 'express';
 import { ThrottlerGuard } from '@nestjs/throttler';
 
-import { AuthController } from './auth-v1.controller';
+import { AuthV1Controller } from './auth-v1.controller';
 import { AuthService } from '../services/auth.service';
 import { StoreUsersService } from 'src/access-control/users/services/store-users.service';
 import { CustomApiKeyGuard } from 'src/stores/guards/custom-api-key.guard';
@@ -32,7 +32,7 @@ import {
  */
 
 describe('AuthController', () => {
-  let controller: AuthController;
+  let controller: AuthV1Controller;
 
   // Mocks
   let mockAuthService: any;
@@ -66,7 +66,7 @@ describe('AuthController', () => {
     // ============================================
 
     const module: TestingModule = await Test.createTestingModule({
-      controllers: [AuthController],
+      controllers: [AuthV1Controller],
       providers: [
         { provide: AuthService, useValue: mockAuthService },
         { provide: StoreUsersService, useValue: mockStoreUsersService },
@@ -94,7 +94,7 @@ describe('AuthController', () => {
       })
       .compile();
 
-    controller = module.get<AuthController>(AuthController);
+    controller = module.get<AuthV1Controller>(AuthV1Controller);
   });
 
   // ===============================================
