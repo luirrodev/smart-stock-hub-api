@@ -13,6 +13,47 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
  *
  * @param app NestJS application instance
  */
+
+/**
+ * Extract all referenced schema names from the endpoints
+ */
+function getReferencedSchemas(doc: any): Set<string> {
+  const referenced = new Set<string>();
+
+  const extractReferences = (obj: any) => {
+    if (!obj) return;
+    if (typeof obj === 'string') {
+      const match = obj.match(/#\/components\/schemas\/(\w+)/);
+      if (match) referenced.add(match[1]);
+    } else if (typeof obj === 'object') {
+      Object.values(obj).forEach((value: any) => extractReferences(value));
+    }
+  };
+
+  // Extract from all paths
+  Object.values(doc.paths || {}).forEach((path: any) => {
+    extractReferences(path);
+  });
+
+  return referenced;
+}
+
+/**
+ * Remove unused schemas from document
+ */
+function cleanUnusedSchemas(doc: any): void {
+  if (!doc.components?.schemas) return;
+
+  const referenced = getReferencedSchemas(doc);
+  const allSchemas = Object.keys(doc.components.schemas);
+
+  allSchemas.forEach((schema) => {
+    if (!referenced.has(schema)) {
+      delete doc.components.schemas[schema];
+    }
+  });
+}
+
 export function setupSwaggerDocumentation(app: INestApplication): void {
   // ============================================
   // V1: Minimal API
@@ -36,6 +77,9 @@ export function setupSwaggerDocumentation(app: INestApplication): void {
     }
   });
   documentV1.paths = v1Paths;
+
+  // Clean unused DTOs/schemas from v1
+  cleanUnusedSchemas(documentV1);
 
   SwaggerModule.setup('docs/v1', app, documentV1);
 
@@ -61,6 +105,9 @@ export function setupSwaggerDocumentation(app: INestApplication): void {
     }
   });
   documentV2.paths = v2Paths;
+
+  // Clean unused DTOs/schemas from v2
+  cleanUnusedSchemas(documentV2);
 
   SwaggerModule.setup('docs/v2', app, documentV2);
 }
