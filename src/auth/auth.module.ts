@@ -5,24 +5,23 @@ import { ConfigType } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
 
-import { AccessControlModule } from 'src/access-control/access-control.module';
+import config from 'src/config';
+
 import { CustomersModule } from 'src/customers/customers.module';
+import { StoresModule } from 'src/stores/stores.module';
+
+import { PasswordResetToken } from './entities/password-reset-token.entity';
+
 import { AuthService } from './services/auth.service';
 import { LocalStrategyService } from './strategies/local-strategy.service';
 import { JwtStrategyService } from './strategies/jwt-strategy.service';
 import { GoogleStrategyService } from './strategies/google-strategy.service';
-import { AuthController } from './controllers/auth.controller';
-import config from 'src/config';
-import { PasswordResetToken } from './entities/password-reset-token.entity';
-import { StoresModule } from 'src/stores/stores.module';
+
+import { AuthV1Controller } from './controllers';
 
 @Module({
   imports: [
-    AccessControlModule,
-    CustomersModule,
-    StoresModule,
     TypeOrmModule.forFeature([PasswordResetToken]),
-    PassportModule,
     JwtModule.registerAsync({
       inject: [config.KEY],
       useFactory: (configService: ConfigType<typeof config>) => {
@@ -44,6 +43,9 @@ import { StoresModule } from 'src/stores/stores.module';
       errorMessage:
         'Ha excedido el límite de intentos. Por favor, inténtalo de nuevo más tarde.',
     } as any),
+    CustomersModule,
+    StoresModule,
+    PassportModule,
   ],
   providers: [
     AuthService,
@@ -51,6 +53,6 @@ import { StoresModule } from 'src/stores/stores.module';
     JwtStrategyService,
     GoogleStrategyService,
   ],
-  controllers: [AuthController],
+  controllers: [AuthV1Controller],
 })
 export class AuthModule {}
