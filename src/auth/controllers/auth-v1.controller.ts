@@ -8,7 +8,6 @@ import {
   Get,
   Req,
   Res,
-  BadRequestException,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
@@ -21,24 +20,33 @@ import {
 } from '@nestjs/swagger';
 import { ThrottlerGuard } from '@nestjs/throttler';
 
-import { AuthService } from '../services/auth.service';
 import { User } from 'src/access-control/users/entities/user.entity';
+
+import { AuthService } from '../services/auth.service';
+
 import { GetUser } from '../decorators/get-user.decorator';
-import { LoginDto, RefreshTokenDto } from '../dtos/auth.dto';
-import { RegisterDto } from '../dtos/register.dto';
-import { JWTAuthGuard } from '../guards/jwt-auth.guard';
-import { PayloadToken } from '../models/token.model';
-import { ForgotPasswordDto } from '../dtos/forgot-password.dto';
-import { ResetPasswordDto } from '../dtos/reset-password.dto';
 import { Public } from '../decorators/public.decorator';
+
 import { GoogleAuthGuard } from '../guards/google-auth.guard';
-import { GoogleUser } from '../strategies/google-strategy.service';
-import { GOOGLE_AUTH_FLOW_DOCUMENTATION } from '../documentation/google-auth-flow.documentation';
 import { CustomApiKeyGuard } from 'src/stores/guards/custom-api-key.guard';
+
+import { GoogleUser } from '../strategies/google-strategy.service';
+
+import { PayloadToken } from '../models/token.model';
+
+import { GOOGLE_AUTH_FLOW_DOCUMENTATION } from '../documentation/google-auth-flow.documentation';
+
+import {
+  LoginDto,
+  RefreshTokenDto,
+  RegisterDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
+} from '../dtos';
 
 @ApiTags('Authentication')
 @Controller('auth')
-export class AuthController {
+export class AuthV1Controller {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')

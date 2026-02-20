@@ -1,1 +1,1 @@
-export { AuthV1Controller } from './auth.controller';
+export { AuthV1Controller } from './auth-v1.controller';

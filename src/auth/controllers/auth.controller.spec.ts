@@ -3,7 +3,7 @@ import { BadRequestException, HttpStatus } from '@nestjs/common';
 import { Request } from 'express';
 import { ThrottlerGuard } from '@nestjs/throttler';
 
-import { AuthController } from './auth.controller';
+import { AuthController } from './auth-v1.controller';
 import { AuthService } from '../services/auth.service';
 import { StoreUsersService } from 'src/access-control/users/services/store-users.service';
 import { CustomApiKeyGuard } from 'src/stores/guards/custom-api-key.guard';
