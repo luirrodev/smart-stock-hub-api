@@ -21,7 +21,7 @@ import { PaymentProvider } from '../../stores/entities/store-payment-config.enti
   path: 'payments',
   version: '1',
 })
-export class PaymentsController {
+export class PaymentsV1Controller {
   constructor(private readonly paymentsService: PaymentsService) {}
   /**
    * Crear una orden de pago para una tienda.
