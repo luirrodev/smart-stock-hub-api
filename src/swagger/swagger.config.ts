@@ -15,7 +15,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
  */
 
 /**
- * Extract all referenced schema names from the endpoints
+ * Extract all referenced schema names from the endpoints and other schemas
  */
 function getReferencedSchemas(doc: any): Set<string> {
   const referenced = new Set<string>();
@@ -33,6 +33,31 @@ function getReferencedSchemas(doc: any): Set<string> {
   // Extract from all paths
   Object.values(doc.paths || {}).forEach((path: any) => {
     extractReferences(path);
+  });
+
+  // Also extract from schema definitions that are already referenced
+  // This handles nested references (e.g., ProductListDto inside ProductPaginatedResponse)
+  const addSchemaReferences = (schemaName: string, visited = new Set<string>()) => {
+    if (visited.has(schemaName) || !doc.components?.schemas?.[schemaName]) {
+      return;
+    }
+    visited.add(schemaName);
+
+    const schema = doc.components.schemas[schemaName];
+    extractReferences(schema);
+
+    // Recursively check newly added references
+    Array.from(referenced).forEach((ref) => {
+      if (!visited.has(ref)) {
+        addSchemaReferences(ref, visited);
+      }
+    });
+  };
+
+  // Start recursive extraction from all referenced schemas
+  const initiallyReferenced = Array.from(referenced);
+  initiallyReferenced.forEach((schema) => {
+    addSchemaReferences(schema);
   });
 
   return referenced;
