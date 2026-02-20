@@ -20,16 +20,16 @@ import { PaymentsV1Controller, PaymentsV2Controller } from './controllers';
 
 @Module({
   imports: [
-    HttpModule,
     TypeOrmModule.forFeature([Payment, PaymentTransaction]),
-    StoresModule,
-    OrdersModule,
     JwtModule.registerAsync({
       inject: [config.KEY],
       useFactory: (configService: ConfigType<typeof config>) => ({
         secret: configService.jwt.paypalSignToken,
       }),
     }),
+    HttpModule,
+    StoresModule,
+    OrdersModule,
   ],
   controllers: [PaymentsV1Controller, PaymentsV2Controller],
   providers: [PaymentsService, PaypalService, JwtSignatureService],
