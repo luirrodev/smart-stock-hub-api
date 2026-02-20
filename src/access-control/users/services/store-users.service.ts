@@ -103,7 +103,7 @@ export class StoreUsersService {
     });
     if (existing) {
       throw new ConflictException(
-        `Customer ${customerId} already registered in store ${storeId}`,
+        `Este cliente ya está registrado en esta tienda`,
       );
     }
 
