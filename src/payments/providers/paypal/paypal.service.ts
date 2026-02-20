@@ -37,15 +37,6 @@ export class PaypalService implements PaymentProviderInterface {
   ) {
     this.logger.log('PayPal service initialized');
   }
-  async init(config: PayPalConfig): Promise<void> {
-    // TODO: Inicializar SDK de PayPal con config
-    return;
-  }
-
-  async refund(paymentId: number, amount?: string): Promise<any> {
-    // TODO: Llamar a la API de PayPal para crear el reembolso
-    return { success: true };
-  }
 
   /**
    * Crea una orden de pago en PayPal
