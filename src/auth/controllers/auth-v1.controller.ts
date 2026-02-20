@@ -42,6 +42,7 @@ import {
   RegisterDto,
   ForgotPasswordStoreUserDto,
   ResetPasswordStoreUserDto,
+  StoreUserProfileResponseDto,
 } from '../dtos';
 
 @ApiTags('Authentication')
@@ -220,30 +221,16 @@ export class AuthV1Controller {
   }
 
   @Get('profile')
-  @UseGuards(CustomApiKeyGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Get customer profile in store',
-    description: 'Retrieves profile information for a customer in a specific store context',
+    description:
+      'Retrieves detailed profile information for a customer in a specific store context, including purchase statistics and active cart',
   })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'Customer profile retrieved successfully',
-    schema: {
-      example: {
-        id: 1,
-        userId: 5,
-        customerId: 10,
-        storeId: 1,
-        storeName: 'Main Store',
-        firstName: 'John',
-        lastName: 'Doe',
-        email: 'john.doe@example.com',
-        role: 'customer',
-        isActive: true,
-        createdAt: '2024-01-15T10:00:00Z',
-      },
-    },
+    description: 'Customer profile retrieved successfully with statistics',
+    type: StoreUserProfileResponseDto,
   })
   @ApiResponse({
     status: HttpStatus.UNAUTHORIZED,

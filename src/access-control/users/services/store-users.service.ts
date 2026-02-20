@@ -15,6 +15,8 @@ import { StoreUser } from '../entities/store-user.entity';
 import { Customer } from '../../../customers/entities/customer.entity';
 import { Store } from '../../../stores/entities/store.entity';
 import { PasswordResetToken } from '../../../auth/entities/password-reset-token.entity';
+import { Order } from '../../../orders/entities/order.entity';
+import { Cart, CartStatus } from '../../../carts/entities/cart.entity';
 
 @Injectable()
 export class StoreUsersService {
@@ -27,6 +29,10 @@ export class StoreUsersService {
     private storesRepository: Repository<Store>,
     @InjectRepository(PasswordResetToken)
     private passwordResetRepo: Repository<PasswordResetToken>,
+    @InjectRepository(Order)
+    private ordersRepository: Repository<Order>,
+    @InjectRepository(Cart)
+    private cartsRepository: Repository<Cart>,
   ) {}
 
   /**
@@ -484,14 +490,98 @@ export class StoreUsersService {
       throw new NotFoundException('User information not found');
     }
 
+    // Get statistics in parallel for better performance
+    // ALL statistics are scoped to THIS STORE ONLY
+    const [ordersInStore, activeCart, recentOrders, shippingAddresses] =
+      await Promise.all([
+        // Orders in this specific store
+        this.ordersRepository.find({
+          where: { storeUser: { id: storeUserId } },
+          select: ['id', 'total', 'status', 'paymentStatus'],
+          relations: ['status'],
+        }),
+        // Active cart in this store
+        this.cartsRepository.findOne({
+          where: {
+            storeUser: { id: storeUserId },
+            status: CartStatus.ACTIVE,
+          },
+          relations: ['items', 'items.product'],
+        }),
+        // Recent orders (last 5) for quick view
+        this.ordersRepository.find({
+          where: { storeUser: { id: storeUserId } },
+          relations: ['status'],
+          order: { createdAt: 'DESC' },
+          take: 5,
+        }),
+        // Check shipping addresses
+        this.customersRepository
+          .createQueryBuilder('c')
+          .leftJoinAndSelect('c.shippingAddresses', 'addr')
+          .where('c.id = :customerId', { customerId: customer.id })
+          .getOne(),
+      ]);
+
+    // Calculate store-specific stats
+    const ordersCount = ordersInStore.length;
+    const totalSpentInStore = ordersInStore.reduce(
+      (sum, order) => sum + (parseFloat(order.total as any) || 0),
+      0,
+    );
+    const averageOrderValue =
+      ordersCount > 0 ? totalSpentInStore / ordersCount : 0;
+
+    // Calculate cart stats
+    const cartItemsCount = activeCart?.items?.length || 0;
+    const cartTotal =
+      activeCart?.items?.reduce(
+        (sum, item) =>
+          sum + (parseFloat(item.price as any) || 0) * item.quantity,
+        0,
+      ) || 0;
+
     return {
       storeName: store.name,
       firstName: user.name?.split(' ')[0] || '',
       lastName: user.name?.split(' ').slice(1).join(' ') || '',
       email: user.email,
-      role: 'customer',
-      isActive: storeUser.isActive,
-      createdAt: storeUser.createdAt,
+      lastLoginAt: storeUser.lastLoginAt,
+      registeredAt: storeUser.createdAt,
+
+      // Store-specific statistics ONLY (no cross-store data)
+      stats: {
+        // Purchase history in this store
+        purchases: {
+          totalOrders: ordersCount,
+          totalSpent: parseFloat(totalSpentInStore.toFixed(2)),
+          averageOrderValue: parseFloat(averageOrderValue.toFixed(2)),
+        },
+      },
+
+      // Active cart information in this store
+      cart: activeCart
+        ? {
+            id: activeCart.id,
+            itemsCount: cartItemsCount,
+            total: parseFloat(cartTotal.toFixed(2)),
+            lastActivityAt: activeCart.lastActivityAt,
+          }
+        : null,
+
+      // Shipping information for this customer
+      shipping: {
+        savedAddresses: shippingAddresses?.shippingAddresses?.length || 0,
+      },
+
+      // Recent orders in this store (last 5)
+      recentOrders: recentOrders.slice(0, 3).map((order) => ({
+        id: order.id,
+        orderNumber: (order as any).orderNumber,
+        total: parseFloat(order.total as any),
+        status: order.status?.name || 'Unknown',
+        createdAt: order.createdAt,
+      })),
     };
   }
 

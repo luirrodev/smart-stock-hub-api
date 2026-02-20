@@ -22,6 +22,7 @@ import {
   RegisterDto,
   ForgotPasswordDto,
   ResetPasswordDto,
+  StaffUserProfileResponseDto,
 } from '../dtos';
 import { PayloadToken } from '../models/token.model';
 
@@ -116,19 +117,7 @@ export class AuthV2Controller {
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Staff user profile retrieved successfully',
-    schema: {
-      example: {
-        id: 1,
-        userId: 5,
-        firstName: 'John',
-        lastName: 'Doe',
-        email: 'john.doe@example.com',
-        role: 'admin',
-        permissions: ['manage_users', 'manage_stores'],
-        isActive: true,
-        createdAt: '2024-01-15T10:00:00Z',
-      },
-    },
+    type: StaffUserProfileResponseDto,
   })
   @ApiResponse({
     status: HttpStatus.UNAUTHORIZED,
