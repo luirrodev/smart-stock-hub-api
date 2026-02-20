@@ -3,17 +3,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { HttpModule } from '@nestjs/axios';
 
 import { Product } from './entities/product.entity';
-import { AccessControlModule } from '../access-control/access-control.module';
 import { ProductsService } from './services/products.service';
-import { ProductsController } from './controllers/products.controller';
+import { ProductsV1Controller, ProductsV2Controller } from './controllers';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Product]),
-    AccessControlModule,
-    HttpModule,
-  ],
-  controllers: [ProductsController],
+  imports: [TypeOrmModule.forFeature([Product]), HttpModule],
+  controllers: [ProductsV1Controller, ProductsV2Controller],
   providers: [ProductsService],
   exports: [ProductsService],
 })

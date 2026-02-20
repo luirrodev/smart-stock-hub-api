@@ -39,8 +39,11 @@ import { Serialize } from 'src/common/decorators/serialize.decorator';
 @ApiTags('products')
 @UseGuards(PermissionsGuard)
 @ApiExtraModels(ProductPaginatedResponse, ProductPublicDto, ProductAdminDto)
-@Controller('products')
-export class ProductsController {
+@Controller({
+  path: 'products',
+  version: '2',
+})
+export class ProductsV2Controller {
   constructor(private readonly productsService: ProductsService) {}
 
   @Post('sync')
