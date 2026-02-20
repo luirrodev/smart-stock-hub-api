@@ -8,9 +8,13 @@ import {
   Get,
   Req,
   Res,
+  Inject,
+  Query,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import {
   ApiTags,
   ApiOperation,
@@ -23,6 +27,7 @@ import { ThrottlerGuard } from '@nestjs/throttler';
 import { User } from 'src/access-control/users/entities/user.entity';
 
 import { AuthService } from '../services/auth.service';
+import { StoreUsersService } from 'src/access-control/users/services/store-users.service';
 
 import { GetUser } from '../decorators/get-user.decorator';
 import { Public } from '../decorators/public.decorator';
@@ -51,7 +56,11 @@ import {
   version: '1',
 })
 export class AuthV1Controller {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly storeUsersService: StoreUsersService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  ) {}
 
   @Post('login')
   @Public()
@@ -246,10 +255,18 @@ export class AuthV1Controller {
 
   @Public()
   @Get('google/login')
-  @UseGuards(GoogleAuthGuard)
+  @UseGuards(CustomApiKeyGuard, GoogleAuthGuard)
   @ApiOperation({
-    summary: 'Autenticación con Google OAuth 2.0',
-    description: GOOGLE_AUTH_FLOW_DOCUMENTATION,
+    summary: 'Autenticación con Google OAuth 2.0 para clientes de tienda (v1)',
+    description:
+      'Inicia el flujo de autenticación OAuth con Google. Requiere header X-API-Key para identificar la tienda.\n\n' +
+      'El flujo es:\n' +
+      '1. Cliente hace GET a este endpoint con X-API-Key header\n' +
+      '2. Sistema redirige a Google para autenticación\n' +
+      '3. Google redirige de vuelta a /auth/v1/google/callback\n' +
+      '4. El callback procesa credenciales y redirige al frontend con JWT\n\n' +
+      'Nota: La tienda se obtiene del X-API-Key header por CustomApiKeyGuard\n' +
+      '(En desarrollo, también se puede usar query param ?storeId=1 para testing)',
   })
   @ApiResponse({
     status: HttpStatus.FOUND,
@@ -258,24 +275,95 @@ export class AuthV1Controller {
   })
   @ApiResponse({
     status: HttpStatus.UNAUTHORIZED,
-    description: 'Error en la autenticación con Google',
+    description: 'Error: X-API-Key header inválido o ausente',
   })
-  googleAuth() {}
+  async googleAuthStoreUser(
+    @Req() request: any,
+    @Query('storeId') queryStoreId?: string,
+  ) {
+    // Store context is populated by CustomApiKeyGuard
+    const store = request.store;
+    const clientIp =
+      request.ip || request.connection.remoteAddress || 'unknown';
+
+    // Determine storeId to use:
+    // - Primary: from store context (validated by CustomApiKeyGuard)
+    // - Fallback (dev only): from query parameter for testing
+    let storeIdToUse = store?.id;
+
+    if (!storeIdToUse && queryStoreId && process.env.NODE_ENV !== 'prod') {
+      storeIdToUse = Number(queryStoreId);
+    }
+
+    // Store storeId in Redis using client IP as key (expires after 10 minutes)
+    if (storeIdToUse) {
+      const cacheKey = `google_oauth_store:${clientIp}`;
+      await this.cacheManager.set(cacheKey, storeIdToUse, 10 * 60 * 1000); // 10 minutes TTL
+    }
+  }
 
   @Public()
   @Get('google/callback')
   @UseGuards(GoogleAuthGuard)
   @ApiExcludeEndpoint()
-  async googleAuthCallback(
-    @Req() req: Request,
+  async googleAuthCallbackStoreUser(
+    @Req() req: any,
     @Res({ passthrough: false }) res: Response,
   ) {
     const googleUser = req.user as GoogleUser;
-    const tokens = await this.authService.googleLogin(googleUser);
+    const clientIp = req.ip || req.connection.remoteAddress || 'unknown';
 
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3010';
-    const redirectUrl = `${frontendUrl}/auth/callback?access_token=${encodeURIComponent(tokens.access_token)}&refresh_token=${encodeURIComponent(tokens.refresh_token)}`;
+    try {
+      // Retrieve storeId from Redis
+      const cacheKey = `google_oauth_store:${clientIp}`;
+      const storeId = (await this.cacheManager.get(cacheKey)) as
+        | number
+        | undefined;
 
-    res.redirect(redirectUrl);
+      // Clean up immediately after retrieval
+      await this.cacheManager.del(cacheKey);
+
+      if (!storeId) {
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3010';
+        const redirectUrl = `${frontendUrl}/auth/callback?error=missing_store_id`;
+        return res.redirect(redirectUrl);
+      }
+
+      // 1. Validate/create StoreUser and get User
+      const user = await this.authService.validateGoogleStoreUser(
+        googleUser,
+        storeId,
+      );
+
+      if (!user.customerId) {
+        throw new Error('User does not have customerId');
+      }
+
+      // 2. Create or update StoreUser with Google credentials
+      const storeUser =
+        await this.storeUsersService.createOrUpdateGoogleCredentials(
+          storeId,
+          user.customerId,
+          googleUser.googleId,
+        );
+
+      // 3. Generate JWT with store context
+      const tokens = await this.authService.generateJWT(
+        user,
+        storeId,
+        storeUser.id,
+      );
+
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3010';
+      const redirectUrl = `${frontendUrl}/auth/callback?access_token=${encodeURIComponent(tokens.access_token)}&refresh_token=${encodeURIComponent(tokens.refresh_token)}`;
+
+      res.redirect(redirectUrl);
+    } catch (error) {
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3010';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      const redirectUrl = `${frontendUrl}/auth/callback?error=${encodeURIComponent(errorMessage)}`;
+      res.redirect(redirectUrl);
+    }
   }
 }

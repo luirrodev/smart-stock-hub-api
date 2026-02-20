@@ -573,19 +573,76 @@ export class AuthService {
     return this.staffUsersService.getProfileStaff(userData.sub);
   }
 
-  async validateGoogleUser(googleUser: GoogleUser): Promise<User> {
+  /**
+   * Validate Google OAuth for STAFF users (v2)
+   * Creates/updates StaffUser with Google credentials
+   *
+   * @param googleUser - Google OAuth profile data
+   * @returns User entity with STAFF role
+   */
+  async validateGoogleStaffUser(googleUser: GoogleUser): Promise<User> {
     const { googleId, email, name, avatar } = googleUser;
 
     let user = await this.userService.findByEmail(email);
 
     if (user) {
-      // Check user type
+      // User exists - update STAFF Google credentials
       if (user.role && user.role.name !== 'customer') {
-        // STAFF user: update StaffUser OAuth credentials
         const staffUser = await this.staffUsersService.findByUserId(user.id);
         if (staffUser) {
           await this.staffUsersService.setGoogleCredentials(user.id, googleId);
         }
+      }
+
+      // Update avatar if provided
+      if (avatar && user.avatar !== avatar) {
+        await this.userService.update(user.id, { avatar });
+        user.avatar = avatar;
+      }
+
+      return user;
+    }
+
+    // User doesn't exist - create new STAFF user with Google
+    const createdUser = await this.userService.createOAuthUser({
+      email,
+      name,
+      googleId,
+      authProvider: 'google',
+      avatar,
+      role: 3, // staff role (adjust role ID as needed for your system)
+    });
+
+    // Create StaffUser record for this new user
+    await this.staffUsersService.create(createdUser.id, undefined, googleId);
+
+    return createdUser;
+  }
+
+  /**
+   * Validate Google OAuth for STORE USERS (v1)
+   * Creates/updates StoreUser with Google credentials stored in JSONB
+   * Requires storeId context
+   *
+   * @param googleUser - Google OAuth profile data
+   * @param storeId - Store context (required for StoreUser)
+   * @returns User entity with CUSTOMER role
+   * @throws BadRequestException if user is STAFF (only customers can be StoreUsers)
+   */
+  async validateGoogleStoreUser(
+    googleUser: GoogleUser,
+    storeId: number,
+  ): Promise<User> {
+    const { googleId, email, name, avatar } = googleUser;
+
+    let user = await this.userService.findByEmail(email);
+
+    if (user) {
+      // User exists - validate it's a CUSTOMER (not STAFF)
+      if (user.role && user.role.name !== 'customer') {
+        throw new BadRequestException(
+          'Este email está registrado como personal administrativo. No puede autenticarse como cliente con este email.',
+        );
       }
 
       // Update user avatar if provided
@@ -597,7 +654,7 @@ export class AuthService {
       return user;
     }
 
-    // User doesn't exist - create new user
+    // User doesn't exist - create new CUSTOMER user with Google
     const createdUser = await this.userService.createOAuthUser({
       email,
       name,
@@ -607,18 +664,43 @@ export class AuthService {
       role: 2, // customer by default
     });
 
-    // For CUSTOMER: create associated Customer record
-    if (createdUser.role && createdUser.role.name === 'customer') {
-      await this.customersService.create({
-        userId: createdUser.id,
-      });
-    }
+    // Create Customer record
+    await this.customersService.create({
+      userId: createdUser.id,
+    });
 
     return createdUser;
   }
 
-  async googleLogin(googleUser: GoogleUser) {
-    const user = await this.validateGoogleUser(googleUser);
-    return this.generateJWT(user);
+  /**
+   * Generic Google login orchestrator
+   * Routes to v1 (StoreUser) or v2 (StaffUser) based on userType parameter
+   *
+   * @param googleUser - Google OAuth profile
+   * @param userType - 'staff' for StaffUser (v2) or 'store' for StoreUser (v1)
+   * @param storeId - Required for userType='store'
+   */
+  async googleLogin(
+    googleUser: GoogleUser,
+    userType: 'staff' | 'store' = 'staff',
+    storeId?: number,
+  ) {
+    let user: User;
+
+    if (userType === 'store') {
+      if (!storeId) {
+        throw new BadRequestException(
+          'storeId is required for store user OAuth',
+        );
+      }
+      user = await this.validateGoogleStoreUser(googleUser, storeId);
+      // Generate JWT with store context
+      return this.generateJWT(user, storeId);
+    } else {
+      // userType === 'staff'
+      user = await this.validateGoogleStaffUser(googleUser);
+      // Generate JWT without store context
+      return this.generateJWT(user);
+    }
   }
 }

@@ -197,6 +197,58 @@ export class StoreUsersService {
   }
 
   /**
+   * Create or update Google OAuth credentials for a customer in a store
+   * If StoreUser doesn't exist, creates it with google credentials
+   * If StoreUser exists, updates its google credentials
+   */
+  async createOrUpdateGoogleCredentials(
+    storeId: number,
+    customerId: number,
+    googleId: string,
+  ): Promise<StoreUser> {
+    // Try to find existing StoreUser
+    let storeUser = await this.storeUsersRepository.findOne({
+      where: { storeId, customerId },
+    });
+
+    if (!storeUser) {
+      // Create new StoreUser with Google credentials (no password)
+      const store = await this.storesRepository.findOne({
+        where: { id: storeId },
+      });
+      if (!store) {
+        throw new NotFoundException(`Store ${storeId} not found`);
+      }
+
+      const customer = await this.customersRepository.findOne({
+        where: { id: customerId },
+      });
+      if (!customer) {
+        throw new NotFoundException(`Customer ${customerId} not found`);
+      }
+
+      storeUser = this.storeUsersRepository.create({
+        storeId,
+        customerId,
+        credentials: {
+          googleId,
+          authProvider: 'google',
+        },
+        isActive: true,
+      });
+    } else {
+      // Update existing StoreUser with Google credentials
+      storeUser.credentials = {
+        ...storeUser.credentials,
+        googleId,
+        authProvider: 'google',
+      };
+    }
+
+    return this.storeUsersRepository.save(storeUser);
+  }
+
+  /**
    * Deactivate a customer in a store
    */
   async deactivate(storeUserId: number): Promise<StoreUser> {
