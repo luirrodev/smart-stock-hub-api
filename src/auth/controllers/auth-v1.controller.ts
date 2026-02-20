@@ -40,8 +40,8 @@ import {
   LoginDto,
   RefreshTokenDto,
   RegisterDto,
-  ForgotPasswordDto,
-  ResetPasswordDto,
+  ForgotPasswordStoreUserDto,
+  ResetPasswordStoreUserDto,
 } from '../dtos';
 
 @ApiTags('Authentication')
@@ -147,28 +147,40 @@ export class AuthV1Controller {
   @Post('forgot-password')
   @Public()
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Request password reset' })
-  @ApiBody({ type: ForgotPasswordDto })
+  @ApiOperation({
+    summary: 'Request password reset for store customer',
+    description:
+      'Initiates password reset process for a customer in a specific store',
+  })
+  @ApiBody({ type: ForgotPasswordStoreUserDto })
   @ApiResponse({
     status: HttpStatus.OK,
     description:
-      'Si existe una cuenta con ese correo, se enviarán instrucciones para restablecer la contraseña. (respuesta genérica por seguridad)',
+      'Si existe una cuenta con ese correo en esta tienda, se enviarán instrucciones para restablecer la contraseña. (respuesta genérica por seguridad)',
   })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
-    description: 'El correo electrónico no tiene un formato válido',
+    description: 'El correo electrónico o storeId no tienen un formato válido',
   })
-  async forgotPassword(@Body() dto: ForgotPasswordDto, @Req() req: Request) {
+  async forgotPassword(
+    @Body() dto: ForgotPasswordStoreUserDto,
+    @Req() req: Request,
+  ) {
     const ip = (req.ip ||
       (req.headers['x-forwarded-for'] as string) ||
       '') as string;
     const userAgent = (req.headers['user-agent'] || '') as string;
 
-    await this.authService.forgotPassword(dto.email, ip, userAgent);
+    await this.authService.forgotPassword(
+      dto.email,
+      dto.storeId,
+      ip,
+      userAgent,
+    );
 
     return {
       message:
-        'Si existe una cuenta con ese correo, se enviarán instrucciones para restablecer la contraseña.',
+        'Si existe una cuenta con ese correo en esta tienda, se enviarán instrucciones para restablecer la contraseña.',
     };
   }
 
@@ -177,14 +189,24 @@ export class AuthV1Controller {
   @Public()
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Reset user password using token' })
-  @ApiBody({ type: ResetPasswordDto })
+  @ApiOperation({
+    summary: 'Reset store customer password using token',
+    description: 'Completes password reset for a customer in a specific store',
+  })
+  @ApiBody({ type: ResetPasswordStoreUserDto })
   @ApiResponse({ status: HttpStatus.OK, description: 'Password updated' })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
     description: 'Invalid token or request',
   })
-  async resetPassword(@Body() dto: ResetPasswordDto, @Req() req: Request) {
+  @ApiResponse({
+    status: HttpStatus.GONE,
+    description: 'Token expired',
+  })
+  async resetPassword(
+    @Body() dto: ResetPasswordStoreUserDto,
+    @Req() req: Request,
+  ) {
     const ip = (req.ip ||
       (req.headers['x-forwarded-for'] as string) ||
       '') as string;
@@ -193,6 +215,7 @@ export class AuthV1Controller {
     await this.authService.resetPassword(
       dto.token,
       dto.newPassword,
+      dto.storeId,
       ip,
       userAgent,
     );

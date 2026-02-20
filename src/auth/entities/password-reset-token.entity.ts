@@ -10,11 +10,16 @@ import {
 import { Exclude } from 'class-transformer';
 
 import { User } from '../../access-control/users/entities/user.entity';
+import { StoreUser } from '../../access-control/users/entities/store-user.entity';
 
 @Entity({ name: 'password_reset_tokens' })
-@Index('ux_password_reset_active_per_user', ['user'], {
+@Index('ux_password_reset_active_per_user_global', ['user'], {
   unique: true,
-  where: 'used = false AND revoked_at IS NULL',
+  where: 'used = false AND revoked_at IS NULL AND user_id IS NOT NULL',
+})
+@Index('ux_password_reset_active_per_store_user', ['storeUser'], {
+  unique: true,
+  where: 'used = false AND revoked_at IS NULL AND store_user_id IS NOT NULL',
 })
 export class PasswordResetToken {
   @PrimaryGeneratedColumn()
@@ -61,9 +66,19 @@ export class PasswordResetToken {
   @Column({ type: 'jsonb', nullable: true })
   metadata: object;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'user_id' })
-  user: User;
+  user?: User;
+
+  @Column({ name: 'user_id', type: 'int', nullable: true })
+  userId?: number;
+
+  @ManyToOne(() => StoreUser, { nullable: true, onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'store_user_id' })
+  storeUser?: StoreUser;
+
+  @Column({ name: 'store_user_id', type: 'int', nullable: true })
+  storeUserId?: number;
 
   @CreateDateColumn({
     type: 'timestamptz',

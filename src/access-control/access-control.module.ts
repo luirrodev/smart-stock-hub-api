@@ -8,6 +8,7 @@ import { Role } from './roles/entities/role.entity';
 import { Permission } from './permissions/entities/permission.entity';
 import { Customer } from '../customers/entities/customer.entity';
 import { Store } from '../stores/entities/store.entity';
+import { PasswordResetToken } from '../auth/entities/password-reset-token.entity';
 
 import { UsersController } from './users/controllers/users.controller';
 import { RolesController } from './roles/controllers/roles.controller';
@@ -30,6 +31,7 @@ import { PermissionsService } from './permissions/services/permissions.service';
       Permission,
       Customer,
       Store,
+      PasswordResetToken,
     ]),
   ],
   controllers: [UsersController, RolesController, PermissionsController],

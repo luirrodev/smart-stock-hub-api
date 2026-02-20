@@ -17,7 +17,7 @@ import { LocalStrategyService } from './strategies/local-strategy.service';
 import { JwtStrategyService } from './strategies/jwt-strategy.service';
 import { GoogleStrategyService } from './strategies/google-strategy.service';
 
-import { AuthV1Controller } from './controllers';
+import { AuthV1Controller, AuthV2Controller } from './controllers';
 
 @Module({
   imports: [
@@ -53,6 +53,6 @@ import { AuthV1Controller } from './controllers';
     JwtStrategyService,
     GoogleStrategyService,
   ],
-  controllers: [AuthV1Controller],
+  controllers: [AuthV1Controller, AuthV2Controller],
 })
 export class AuthModule {}

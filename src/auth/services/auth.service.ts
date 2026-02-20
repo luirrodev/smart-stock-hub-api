@@ -250,12 +250,27 @@ export class AuthService {
 
   /**
    * Genera y guarda un token para restablecimiento de contraseña.
+   * Si se proporciona storeId, delega al servicio de StoreUser.
    * Devuelve void; la respuesta al cliente es siempre genérica por seguridad.
-   * NOTA: el token se guarda hasheado. El token en claro debe enviarse por email
-   * por otro sistema (ej. servicio de correo). Aquí se deja un TODO para ello.
    */
-  async forgotPassword(email: string, ipAddress?: string, userAgent?: string) {
-    try {
+  async forgotPassword(
+    email: string,
+    storeId?: number,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    // If storeId is provided, delegate to StoreUsersService
+    if (storeId) {
+      return this.storeUsersService.forgotPasswordStoreUser(
+        email,
+        storeId,
+        ipAddress,
+        userAgent,
+      );
+    }
+
+    // Original logic for User/Staff password reset
+    try {8
       const user = await this.userService.findByEmail(email);
 
       if (!user) return;
@@ -368,19 +383,38 @@ export class AuthService {
 
   /**
    * Consume un token de restablecimiento y actualiza la contraseña del usuario.
+   * Si se proporciona storeId, delega al servicio de StoreUser.
    */
   async resetPassword(
     rawToken: string,
     newPassword: string,
+    storeId?: number,
     ipAddress?: string,
     userAgent?: string,
   ) {
+    // If storeId is provided, delegate to StoreUsersService
+    if (storeId) {
+      await this.storeUsersService.resetPasswordForStoreUser(
+        rawToken,
+        storeId,
+        newPassword,
+        ipAddress,
+        userAgent,
+      );
+      return { message: 'Contraseña actualizada correctamente' };
+    }
+
+    // Original logic for User/Staff password reset
     // Validar token y obtener la entidad
     const tokenEntity = await this.validatePasswordResetToken(
       rawToken,
       ipAddress,
       userAgent,
     );
+
+    if (!tokenEntity.user) {
+      throw new BadRequestException('Token inválido: Usuario no encontrado');
+    }
 
     const userId = tokenEntity.user.id;
 
