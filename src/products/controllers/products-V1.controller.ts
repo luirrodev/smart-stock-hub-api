@@ -1,13 +1,4 @@
-import {
-  Controller,
-  Post,
-  UseGuards,
-  HttpCode,
-  HttpStatus,
-  Get,
-  Query,
-  Param,
-} from '@nestjs/common';
+import { Controller, UseGuards, Get, Query, Param } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -17,24 +8,21 @@ import {
   getSchemaPath,
 } from '@nestjs/swagger';
 
+import { PermissionsGuard } from 'src/access-control/permissions/guards/permissions.guard';
+import { OptionalAuth } from 'src/auth/decorators/optional-auth.decorator';
+import { Serialize } from 'src/common/decorators/serialize.decorator';
+import { Public } from 'src/auth/decorators/public.decorator';
+
 import { ProductsService } from '../services/products.service';
 import { Product } from '../entities/product.entity';
 
-import { ProductPaginatedResponse } from '../dtos/product-paginated-response.dto';
-import { ProductPaginationDto } from '../dtos/product-pagination.dto';
 import {
+  ProductPaginatedResponse,
+  ProductPaginationDto,
   ProductPublicDto,
   ProductAdminDto,
-} from '../dtos/product-response.dto';
-
-import { PermissionsGuard } from 'src/access-control/permissions/guards/permissions.guard';
-import { JWTAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { RequirePermissions } from 'src/access-control/permissions/decorators/permissions.decorator';
-import { ProductDto } from '../dtos/product-response.dto';
-import { Public } from 'src/auth/decorators/public.decorator';
-import { OptionalAuthGuard } from 'src/auth/guards/optional-auth.guard';
-import { OptionalAuth } from 'src/auth/decorators/optional-auth.decorator';
-import { Serialize } from 'src/common/decorators/serialize.decorator';
+  ProductDto,
+} from '../dtos';
 
 @ApiTags('Products')
 @UseGuards(PermissionsGuard)
