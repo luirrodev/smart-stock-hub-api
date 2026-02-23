@@ -10,6 +10,8 @@ import { Repository } from 'typeorm';
 import { ProductStore } from '../entities/product-store.entity';
 import { Product } from '../entities/product.entity';
 import { Store } from '../../stores/entities/store.entity';
+import { ExternalProductDto } from '../dtos/external-product.dto';
+import { ProductStoreMapperUtil } from '../utils/product-store-mapper.util';
 
 @Injectable()
 export class ProductStoreService {
@@ -263,6 +265,55 @@ export class ProductStoreService {
     } catch (error) {
       this.logger.error(
         `Error obteniendo ProductStore por producto y tienda: ${(error as any).message}`,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Mapea todos los campos de rawData de un producto a una tienda específica.
+   * Extrae la información de ms_articulos según la configuración de campos de la tienda
+   * y crea/actualiza un único ProductStore al final.
+   *
+   * @param productId - ID del producto sincronizado
+   * @param storeId - ID de la tienda a mapear
+   * @returns ProductStore creado o actualizado
+   */
+  async mapProductToStores(
+    productId: number,
+    storeId: number,
+  ): Promise<ProductStore> {
+    try {
+      // Validar producto y tienda
+      const product = await ProductStoreMapperUtil.validateProductAndStore(
+        productId,
+        storeId,
+        this.productRepo,
+        this.storeRepo,
+      );
+
+      // Extraer datos mapeados del rawData
+      const rawData = product.rawData as ExternalProductDto;
+      const fields = ProductStoreMapperUtil.getStoreFields(storeId);
+      const mappedData = ProductStoreMapperUtil.extractProductStoreData(
+        rawData,
+        fields,
+      );
+
+      // Crear o actualizar ProductStore
+      const productStore =
+        await ProductStoreMapperUtil.saveOrUpdateProductStore(
+          productId,
+          storeId,
+          mappedData,
+          this.productStoreRepo,
+          this.logger,
+        );
+
+      return productStore;
+    } catch (error) {
+      this.logger.error(
+        `Error mapeando producto a tienda: ${(error as any).message}`,
       );
       throw error;
     }
