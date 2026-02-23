@@ -1,4 +1,11 @@
-import { Controller, UseGuards, Get, Query, Param } from '@nestjs/common';
+import {
+  Controller,
+  UseGuards,
+  Get,
+  Query,
+  Param,
+  Request,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -23,6 +30,7 @@ import {
   ProductAdminDto,
   ProductDto,
 } from '../dtos';
+import { CustomApiKeyGuard } from 'src/stores/guards/custom-api-key.guard';
 
 @ApiTags('Products')
 @UseGuards(PermissionsGuard)
@@ -36,13 +44,17 @@ export class ProductsV1Controller {
 
   @Get()
   @Public()
-  @ApiOperation({ summary: 'Obtener todos los productos paginados' })
+  @UseGuards(CustomApiKeyGuard)
+  @ApiOperation({
+    summary: 'Obtener todos los productos de una tienda (requiere X-API-Key)',
+  })
   @ApiOkResponse({
-    description: 'Respuesta paginada de productos',
+    description: 'Respuesta paginada de productos por tienda',
     type: ProductPaginatedResponse,
   })
-  async getAll(@Query() query: ProductPaginationDto) {
-    return await this.productsService.getAllProducts(query);
+  async getAll(@Request() req: Request, @Query() query: ProductPaginationDto) {
+    const storeId = (req as any).store.id; // ID de la tienda extraído del API Key
+    return await this.productsService.getAllProducts(storeId, query);
   }
 
   @Get(':id')

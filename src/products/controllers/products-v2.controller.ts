@@ -56,16 +56,16 @@ export class ProductsV2Controller {
     return await this.productsService.syncFromExternal();
   }
 
-  @Get()
-  @Public()
-  @ApiOperation({ summary: 'Obtener todos los productos paginados' })
-  @ApiOkResponse({
-    description: 'Respuesta paginada de productos',
-    type: ProductPaginatedResponse,
-  })
-  async getAll(@Query() query: ProductPaginationDto) {
-    return await this.productsService.getAllProducts(query);
-  }
+  // @Get()
+  // @Public()
+  // @ApiOperation({ summary: 'Obtener todos los productos paginados' })
+  // @ApiOkResponse({
+  //   description: 'Respuesta paginada de productos',
+  //   type: ProductPaginatedResponse,
+  // })
+  // async getAll(@Query() query: ProductPaginationDto) {
+  //   return await this.productsService.getAllProducts(query);
+  // }
 
   @Get(':id')
   @OptionalAuth()
