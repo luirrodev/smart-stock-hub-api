@@ -78,8 +78,14 @@ export class StoresService {
     return await this.storeRepo.save(store);
   }
 
-  async findByApiKey(apiKey: string): Promise<Store | null> {
-    return this.storeRepo.findOne({ where: { apiKey } });
+  async findByApiKey(apiKey: string): Promise<Store> {
+    const store = await this.storeRepo.findOne({ where: { apiKey } });
+
+    if (!store) {
+      throw new NotFoundException('Tienda no encontrada o apiKey inválida');
+    }
+
+    return store;
   }
 
   private generateApiKey(): string {
