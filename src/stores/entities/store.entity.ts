@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 
 import { StoreUser } from '../../access-control/users/entities/store-user.entity';
+import { ProductStore } from '../../products/entities/product-store.entity';
 
 @Entity({ name: 'stores' })
 @Unique(['apiKey'])
@@ -49,6 +50,12 @@ export class Store {
 
   @OneToMany(() => StoreUser, (storeUser) => storeUser.store, { cascade: true })
   storeUsers: StoreUser[];
+
+  // RELACIÓN CON PRODUCTSTORE
+  // Una tienda puede tener múltiples configuraciones de productos
+  // Sin cascade: si se elimina la tienda, se preservan las configuraciones (se setea storeId a null en migración)
+  @OneToMany(() => ProductStore, (productStore) => productStore.store)
+  productStores: ProductStore[];
 
   @CreateDateColumn({
     type: 'timestamptz',
