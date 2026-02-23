@@ -1,4 +1,3 @@
-// src/modules/cart/cart.service.ts
 import {
   Injectable,
   NotFoundException,
@@ -9,17 +8,17 @@ import { FindOptionsWhere, Repository } from 'typeorm';
 
 import { Cart, CartStatus } from '../entities/cart.entity';
 import { CartItem } from '../entities/cart-item.entity';
-import { Product } from 'src/products/entities/product.entity';
+import { ProductStore } from 'src/products/entities/product-store.entity';
 
-import { ProductsService } from 'src/products/services/products.service';
+import { ProductStoreService } from 'src/products/services/product-store.service';
 import { v6 as uuidv4 } from 'uuid';
 
 /**
  * Payload esperado por addToCart
- * Contiene los datos del producto + contexto de tienda
+ * Contiene los datos del productStore + contexto de tienda
  */
 interface AddToCartPayload {
-  productId: number;
+  productStoreId: number;
   quantity: number;
   storeId: number;
   storeUserId?: number | null;
@@ -39,17 +38,17 @@ export class CartService {
     @InjectRepository(CartItem)
     private readonly cartItemRepository: Repository<CartItem>,
 
-    private readonly productsService: ProductsService,
+    private readonly productStoreService: ProductStoreService,
   ) {}
 
   /**
    * Añade un producto al carrito
    *
-   * @param payload - Datos del producto a añadir (productId, quantity, storeId, storeUserId?, sessionId?)
+   * @param payload - Datos del productStore a añadir (productStoreId, quantity, storeId, storeUserId?, sessionId?)
    * @returns El carrito actualizado con todos sus items
    */
   async addToCart(payload: AddToCartPayload): Promise<Cart> {
-    let { productId, quantity, sessionId, storeId, storeUserId } = payload;
+    let { productStoreId, quantity, sessionId, storeId, storeUserId } = payload;
     storeUserId = storeUserId ?? null;
 
     // Si el request es de invitado y no viene sessionId, lo generamos aquí
@@ -57,8 +56,8 @@ export class CartService {
       sessionId = uuidv4();
     }
 
-    // 1. Buscar y validar el producto
-    const product = await this.validateProduct(productId);
+    // 1. Buscar y validar el productStore
+    const productStore = await this.validateProductStore(productStoreId);
 
     // 2. Buscar o crear el carrito
     let cart = await this.findOrCreateCart(
@@ -67,15 +66,15 @@ export class CartService {
       sessionId ?? null,
     );
 
-    // 3. Verificar si el producto ya está en el carrito
-    const existingItem = this.findExistingItem(cart, productId);
+    // 3. Verificar si el productStore ya está en el carrito
+    const existingItem = this.findExistingItem(cart, productStoreId);
 
     if (existingItem) {
-      // El producto ya existe, actualizamos la cantidad
+      // El productStore ya existe, actualizamos la cantidad
       await this.updateExistingItem(existingItem, quantity);
     } else {
-      // El producto NO existe, creamos nuevo item
-      await this.createNewItem(cart.id, product, quantity);
+      // El productStore NO existe, creamos nuevo item
+      await this.createNewItem(cart.id, productStore, quantity);
     }
 
     // 4. Actualizar última actividad del carrito
@@ -119,7 +118,7 @@ export class CartService {
     // Buscar el carrito con sus items y productos relacionados
     const cart = await this.cartRepository.findOne({
       where: whereCondition,
-      relations: ['items', 'items.product', 'store', 'storeUser'],
+      relations: ['items', 'items.productStore', 'store', 'storeUser'],
     });
 
     if (!cart) {
@@ -282,7 +281,7 @@ export class CartService {
           sessionId,
           status: CartStatus.ACTIVE,
         },
-        relations: ['items', 'items.product'],
+        relations: ['items', 'items.productStore'],
       });
 
       let userCart = await cartRepo.findOne({
@@ -291,7 +290,7 @@ export class CartService {
           storeUserId,
           status: CartStatus.ACTIVE,
         },
-        relations: ['items', 'items.product'],
+        relations: ['items', 'items.productStore'],
       });
 
       // Si no hay carrito de invitado
@@ -315,18 +314,18 @@ export class CartService {
       for (const guestItem of guestCart.items) {
         // Validar que el producto siga activo
         try {
-          await this.validateProduct(guestItem.productId);
+          await this.validateProductStore(guestItem.productStoreId);
         } catch (err) {
           // Si el producto ya no está activo o no existe, omitirlo
           console.warn(
-            `Skipping merge of product ${guestItem.productId}: ${err.message}`,
+            `Skipping merge of product ${guestItem.productStoreId}: ${err.message}`,
           );
           continue;
         }
 
         const existingUserItem = this.findExistingItem(
           userCart,
-          guestItem.productId,
+          guestItem.productStoreId,
         );
 
         if (existingUserItem) {
@@ -338,7 +337,7 @@ export class CartService {
           // Crear nuevo item en el carrito del usuario con los datos del item invitado
           const newItem = cartItemRepo.create({
             cartId: userCart.id,
-            productId: guestItem.productId,
+            productStoreId: guestItem.productStoreId,
             quantity: guestItem.quantity,
             price: guestItem.price,
           });
@@ -359,7 +358,7 @@ export class CartService {
       const mergedCart = await cartRepo
         .createQueryBuilder('cart')
         .leftJoinAndSelect('cart.items', 'items', 'items.deletedAt IS NULL')
-        .leftJoinAndSelect('items.product', 'product')
+        .leftJoinAndSelect('items.productStore', 'productStore')
         .leftJoinAndSelect('cart.store', 'store')
         .leftJoinAndSelect('cart.storeUser', 'storeUser')
         .where('cart.id = :cartId', { cartId: userCart.id })
@@ -380,18 +379,20 @@ export class CartService {
   // ========================================================================
 
   /**
-   * Valida que un producto existe y está activo
+   * Valida que un productStore existe y está activo
    */
-  private async validateProduct(productId: number): Promise<Product> {
-    const product = await this.productsService.findOne(productId);
+  private async validateProductStore(
+    productStoreId: number,
+  ): Promise<ProductStore> {
+    const productStore = await this.productStoreService.findOne(productStoreId);
 
-    if (!product.isActive) {
+    if (!productStore.isActive) {
       throw new BadRequestException(
-        `El producto "${product.name}" no está disponible`,
+        `El producto no está disponible en esta tienda`,
       );
     }
 
-    return product;
+    return productStore;
   }
 
   /**
@@ -417,7 +418,7 @@ export class CartService {
     // Buscar carrito existente
     let cart = await this.cartRepository.findOne({
       where: whereCondition,
-      relations: ['items', 'items.product', 'store', 'storeUser'],
+      relations: ['items', 'items.productStore', 'store', 'storeUser'],
     });
 
     // Si no existe, crear uno nuevo
@@ -458,17 +459,17 @@ export class CartService {
   }
 
   /**
-   * Busca si un producto (con variante) ya existe en el carrito
+   * Busca si un productStore ya existe en el carrito
    */
   private findExistingItem(
     cart: Cart,
-    productId: number,
+    productStoreId: number,
   ): CartItem | undefined {
     if (!cart.items || cart.items.length === 0) {
       return undefined;
     }
 
-    return cart.items.find((item) => item.productId === productId);
+    return cart.items.find((item) => item.productStoreId === productStoreId);
   }
 
   /**
@@ -489,17 +490,17 @@ export class CartService {
    */
   private async createNewItem(
     cartId: string,
-    product: Product,
+    productStore: ProductStore,
     quantity: number,
   ): Promise<void> {
-    const cartItem = this.cartItemRepository.create({
+    const item = this.cartItemRepository.create({
       cartId,
-      productId: product.id,
+      productStoreId: productStore.id,
       quantity,
-      price: product.salePrice, // Snapshot del precio actual
+      price: Number(productStore.price),
     });
 
-    await this.cartItemRepository.save(cartItem);
+    await this.cartItemRepository.save(item);
   }
 
   /**
@@ -518,7 +519,7 @@ export class CartService {
     const cart = await this.cartRepository
       .createQueryBuilder('cart')
       .leftJoinAndSelect('cart.items', 'items', 'items.deletedAt IS NULL')
-      .leftJoinAndSelect('items.product', 'product')
+      .leftJoinAndSelect('items.productStore', 'productStore')
       .leftJoinAndSelect('cart.store', 'store')
       .leftJoinAndSelect('cart.storeUser', 'storeUser')
       .where('cart.id = :cartId', { cartId })
