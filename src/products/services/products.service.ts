@@ -3,19 +3,13 @@ import {
   BadRequestException,
   NotFoundException,
   Logger,
-  Inject,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
-import { HttpService } from '@nestjs/axios';
-import { firstValueFrom } from 'rxjs';
-import { ConfigType } from '@nestjs/config';
 import { QueryBuilderUtil } from 'src/common/utils/query-builder.util';
 
 import { Product } from '../entities/product.entity';
-import { ExternalProductDto } from '../dtos/external-product.dto';
 import { PaginatedResponse } from 'src/common/dtos/pagination.dto';
-import config from 'src/config';
 import { ProductPaginationDto } from '../dtos/product-pagination.dto';
 import { MariaDbSyncService } from 'src/database/services/mariadb-sync.service';
 
@@ -30,6 +24,8 @@ export class ProductsService {
 
   /**
    * Sincroniza productos desde MariaDB (tabla ms_articulos).
+   * Mapea todos los campos básicos a Product y guarda el payload completo en rawData
+   * Los campos adicionales pueden ser extraídos manualmente desde rawData según sea necesario
    */
   async syncFromExternal() {
     const source = 'mandasaldo';
@@ -53,18 +49,15 @@ export class ProductsService {
 
       for (const article of articles) {
         try {
-          // Mapear campos de MariaDB a la entidad Product
+          // Mapear campos básicos de MariaDB a la entidad Product
+          // rawData contiene el payload completo para extracción manual posterior
           const mapped: Partial<Product> = {
             externalId: article.xarticulo_id,
-            name: article.xarticulo.trim() || 'Sin nombre',
-            salePrice: parseFloat(article.xprecio) || 0,
-            summary: article.xresumen || null,
-            observations: article.xobs || null,
+            name: article.xarticulo?.trim() || 'Sin nombre',
             sku: null,
             source,
-            rawData: article, // Guardar el payload completo
+            rawData: article, // Guardar TODO el payload completo
             mappedAt: new Date(),
-            isImported: true,
             isActive: article.xactivo === 'S',
             deletedAt: article.xeliminado === 1 ? new Date() : null,
           };
@@ -82,7 +75,7 @@ export class ProductsService {
             await this.productRepo.save(product);
             results.updated += 1;
           } else {
-            const newProduct = this.productRepo.create(mapped);
+            const newProduct = this.productRepo.create(mapped as Product);
             await this.productRepo.save(newProduct);
             results.created += 1;
           }
@@ -137,7 +130,7 @@ export class ProductsService {
       select: {
         id: true,
         name: true,
-        salePrice: true,
+        externalId: true,
       },
       where,
       skip,
