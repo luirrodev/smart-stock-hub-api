@@ -140,7 +140,7 @@ export class CartsV1Controller {
     const sessionId = query.sessionId ?? null;
 
     const cart = await this.cartsService.addToCart({
-      productId: dto.productId,
+      productStoreId: dto.productId,
       quantity: dto.quantity,
       storeId,
       storeUserId,

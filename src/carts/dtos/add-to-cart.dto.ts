@@ -4,14 +4,17 @@ import { Type } from 'class-transformer';
 
 /**
  * DTO para agregar un producto al carrito
- * Solo contiene los datos del producto a agregar
+ * Solo contiene los datos del productStore a agregar
  *
  * Los datos de contexto (storeId, storeUserId, sessionId) se extraen del:
  * - JWT token (storeId, storeUserId)
  * - Query string (sessionId)
  */
 export class AddToCartDto {
-  @ApiProperty({ description: 'ID interno del producto', example: 123 })
+  @ApiProperty({
+    description: 'ID del producto',
+    example: 123,
+  })
   @Type(() => Number)
   @IsInt()
   @Min(1)

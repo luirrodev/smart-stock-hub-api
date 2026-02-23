@@ -7,10 +7,14 @@ export class CartItemResponseDto {
   @Expose()
   id: string;
 
+  /**
+   * Exponemos como 'product' para mantener compatibilidad con frontend
+   * Aunque internamente es ProductStore
+   */
   @ApiProperty({ type: () => ProductInCartDto, required: false })
-  @Expose()
+  @Expose({ name: 'product' })
   @Type(() => ProductInCartDto)
-  product?: ProductInCartDto;
+  productStore?: ProductInCartDto;
 
   @ApiProperty({ example: 2 })
   @Expose()
