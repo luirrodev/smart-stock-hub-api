@@ -8,13 +8,9 @@ import {
   Get,
   Req,
   Res,
-  Inject,
-  Query,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Cache } from 'cache-manager';
 import {
   ApiTags,
   ApiOperation,
@@ -39,8 +35,6 @@ import { GoogleUser } from '../strategies/google-strategy.service';
 
 import { PayloadToken } from '../models/token.model';
 
-import { GOOGLE_AUTH_FLOW_DOCUMENTATION } from '../documentation/google-auth-flow.documentation';
-
 import {
   LoginDto,
   RefreshTokenDto,
@@ -59,7 +53,6 @@ export class AuthV1Controller {
   constructor(
     private readonly authService: AuthService,
     private readonly storeUsersService: StoreUsersService,
-    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
   @Post('login')
@@ -277,29 +270,10 @@ export class AuthV1Controller {
     status: HttpStatus.UNAUTHORIZED,
     description: 'Error: X-API-Key header inválido o ausente',
   })
-  async googleAuthStoreUser(
-    @Req() request: any,
-    @Query('storeId') queryStoreId?: string,
-  ) {
+  async googleAuthStoreUser(@Req() request: any) {
     // Store context is populated by CustomApiKeyGuard
-    const store = request.store;
-    const clientIp =
-      request.ip || request.connection.remoteAddress || 'unknown';
-
-    // Determine storeId to use:
-    // - Primary: from store context (validated by CustomApiKeyGuard)
-    // - Fallback (dev only): from query parameter for testing
-    let storeIdToUse = store?.id;
-
-    if (!storeIdToUse && queryStoreId && process.env.NODE_ENV !== 'prod') {
-      storeIdToUse = Number(queryStoreId);
-    }
-
-    // Store storeId in Redis using client IP as key (expires after 10 minutes)
-    if (storeIdToUse) {
-      const cacheKey = `google_oauth_store:${clientIp}`;
-      await this.cacheManager.set(cacheKey, storeIdToUse, 10 * 60 * 1000); // 10 minutes TTL
-    }
+    // The state parameter is automatically handled by GoogleAuthGuard
+    // No manual storage needed - state will be returned by Google in the callback
   }
 
   @Public()
@@ -311,17 +285,21 @@ export class AuthV1Controller {
     @Res({ passthrough: false }) res: Response,
   ) {
     const googleUser = req.user as GoogleUser;
-    const clientIp = req.ip || req.connection.remoteAddress || 'unknown';
 
     try {
-      // Retrieve storeId from Redis
-      const cacheKey = `google_oauth_store:${clientIp}`;
-      const storeId = (await this.cacheManager.get(cacheKey)) as
-        | number
-        | undefined;
+      // Retrieve storeId from state parameter
+      let storeId: number | undefined;
 
-      // Clean up immediately after retrieval
-      await this.cacheManager.del(cacheKey);
+      if (googleUser.state) {
+        try {
+          const decoded = JSON.parse(
+            Buffer.from(googleUser.state, 'base64').toString('utf-8'),
+          );
+          storeId = decoded.storeId;
+        } catch (error) {
+          console.error('Error decoding state parameter:', error);
+        }
+      }
 
       if (!storeId) {
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3010';
