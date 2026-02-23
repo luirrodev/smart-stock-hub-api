@@ -16,6 +16,7 @@ import {
   ApiCreatedResponse,
   ApiOkResponse,
   ApiNoContentResponse,
+  ApiTags,
 } from '@nestjs/swagger';
 import { Serialize } from 'src/common/decorators/serialize.decorator';
 import { PaginationDto } from 'src/common/dtos/pagination.dto';
@@ -31,8 +32,12 @@ import { StoreResponseDto } from '../dtos/store-response.dto';
 import { StoresPaymentConfigService } from '../services/stores-payment-config.service';
 import { StoresService } from '../services/stores.service';
 
-@Controller('stores')
-export class StoresController {
+@ApiTags('Stores')
+@Controller({
+  path: 'stores',
+  version: '2',
+})
+export class StoresV2Controller {
   constructor(
     private readonly storesPaymentConfigService: StoresPaymentConfigService,
     private readonly storesService: StoresService,

@@ -7,11 +7,11 @@ import { StorePaymentConfig } from './entities/store-payment-config.entity';
 import { StoresService } from './services/stores.service';
 import { StoresPaymentConfigService } from './services/stores-payment-config.service';
 
-import { StoresController } from './controllers/stores.controller';
+import { StoresV2Controller } from './controllers';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Store, StorePaymentConfig])],
-  controllers: [StoresController],
+  controllers: [StoresV2Controller],
   providers: [StoresService, StoresPaymentConfigService],
   exports: [StoresService, StoresPaymentConfigService],
 })
