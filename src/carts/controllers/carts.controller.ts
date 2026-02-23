@@ -43,8 +43,11 @@ import { Request } from 'express';
 import { CustomApiKeyGuard } from 'src/stores/guards/custom-api-key.guard';
 
 @ApiTags('Carts')
-@Controller('carts')
-export class CartsController {
+@Controller({
+  path: 'carts',
+  version: '1',
+})
+export class CartsV1Controller {
   constructor(private readonly cartsService: CartService) {}
 
   @Get()
