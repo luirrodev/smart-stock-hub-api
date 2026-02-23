@@ -21,7 +21,8 @@ export class CreateOrderItemDto {
   @IsInt()
   @IsPositive()
   @ApiProperty({
-    description: 'ID del producto a agregar al pedido',
+    description:
+      'ID de la configuración del producto en la tienda (ProductStore)',
     example: 1,
   })
   productId: number;

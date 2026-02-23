@@ -58,7 +58,7 @@ export class OrdersV1Controller {
           shippingApartment: '4B',
           items: [
             {
-              productId: 1,
+              productStoreId: 1,
               quantity: 2,
             },
           ],
@@ -73,7 +73,7 @@ export class OrdersV1Controller {
           pickupPointId: 5,
           items: [
             {
-              productId: 1,
+              productStoreId: 1,
               quantity: 2,
             },
           ],
