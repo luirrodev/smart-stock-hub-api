@@ -12,14 +12,17 @@ import { Product } from '../entities/product.entity';
 import { PaginatedResponse } from 'src/common/dtos/pagination.dto';
 import { ProductPaginationDto } from '../dtos/product-pagination.dto';
 import { MariaDbSyncService } from 'src/database/services/mariadb-sync.service';
+import { ProductStoreService } from './product-store.service';
 
 @Injectable()
 export class ProductsService {
   private readonly logger = new Logger(ProductsService.name);
+  private readonly storeIds = [1, 2]; // IDs de tiendas configuradas
 
   constructor(
     @InjectRepository(Product) private productRepo: Repository<Product>,
     private readonly mariaDbSyncService: MariaDbSyncService,
+    private readonly productStoreService: ProductStoreService,
   ) {}
 
   /**
@@ -33,6 +36,7 @@ export class ProductsService {
     const results = {
       created: 0,
       updated: 0,
+      mapped: 0,
       errors: [] as any[],
     };
 
@@ -83,7 +87,29 @@ export class ProductsService {
             // Producto nuevo: crear
             const newProduct = this.productRepo.create(mapped as Product);
             await this.productRepo.save(newProduct);
+            product = newProduct;
             results.created += 1;
+          }
+
+          // Mapear producto a todas las tiendas configuradas
+          for (const storeId of this.storeIds) {
+            try {
+              await this.productStoreService.mapProductToStores(
+                product!.id,
+                storeId,
+              );
+              results.mapped += 1;
+            } catch (mapErr) {
+              this.logger.warn(
+                `Error mapeando producto ${product!.id} a tienda ${storeId}: ${(mapErr as any).message}`,
+              );
+              results.errors.push({
+                articleId: article.xarticulo_id,
+                articleName: article.xarticulo,
+                storeId,
+                mapError: (mapErr as any).message ?? mapErr,
+              });
+            }
           }
         } catch (err) {
           results.errors.push({
