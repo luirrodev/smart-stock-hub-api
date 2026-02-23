@@ -27,7 +27,7 @@ export class ProductsService {
    * Mapea todos los campos básicos a Product y guarda el payload completo en rawData
    * Los campos adicionales pueden ser extraídos manualmente desde rawData según sea necesario
    */
-  async syncFromExternal() {
+  async syncFromExternal(withDeleted: boolean = false) {
     const source = 'mandasaldo';
 
     const results = {
@@ -38,7 +38,12 @@ export class ProductsService {
 
     try {
       // Obtener todos los registros de ms_articulos desde MariaDB
-      const articles = await this.mariaDbSyncService.getRecords('ms_articulos');
+      const whereClause = withDeleted ? undefined : 'xeliminado = 0'; // Solo activos si withDeleted = false
+      const articles = await this.mariaDbSyncService.getRecords(
+        'ms_articulos',
+        ['*'],
+        whereClause,
+      );
 
       if (!Array.isArray(articles) || articles.length === 0) {
         this.logger.warn('No se encontraron productos en MariaDB');
@@ -59,7 +64,6 @@ export class ProductsService {
             rawData: article, // Guardar TODO el payload completo
             mappedAt: new Date(),
             isActive: article.xactivo === 'S',
-            deletedAt: article.xeliminado === 1 ? new Date() : null,
           };
 
           // Buscar por externalId
@@ -71,10 +75,12 @@ export class ProductsService {
           }
 
           if (product) {
+            // Producto existente: actualizar
             this.productRepo.merge(product, mapped);
             await this.productRepo.save(product);
             results.updated += 1;
           } else {
+            // Producto nuevo: crear
             const newProduct = this.productRepo.create(mapped as Product);
             await this.productRepo.save(newProduct);
             results.created += 1;
