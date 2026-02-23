@@ -5,28 +5,30 @@ import {
   CreateShippingOrderDto,
   CreatePickupOrderDto,
 } from '../../orders/dtos/create-order.dto';
-import { Product } from '../../products/entities/product.entity';
+import { ProductStore } from '../../products/entities/product-store.entity';
 
 /**
- * Construye los items de una orden con snapshot de precios desde productos
+ * Construye los items de una orden con snapshot de precios desde ProductStore
  * @param dtoItems - Items del DTO de creación
- * @param products - Productos encontrados en BD
- * @returns Array de OrderItems con precios calculados
+ * @param productStores - Configuraciones de producto en tienda encontradas en BD
+ * @returns Array de OrderItems con precios calculados desde ProductStore
  */
 export function buildOrderItems(
   dtoItems: CreateOrderDto['items'],
-  products: Product[],
+  productStores: ProductStore[],
 ): Partial<OrderItem>[] {
   return dtoItems.map((item) => {
-    const product = products.find((p) => p.id === item.productId)!;
-    const unitPrice = Number(product.salePrice);
+    const productStore = productStores.find(
+      (ps) => ps.id === item.productStoreId,
+    )!;
+    const unitPrice = Number(productStore.price);
     const qty = item.quantity;
     const totalPrice = Number((unitPrice * qty).toFixed(2));
 
     return {
-      productId: product.id,
-      productName: product.name,
-      productSku: product.sku,
+      productStoreId: productStore.id,
+      productName: productStore.product.name,
+      productSku: productStore.product.sku,
       productImage: null,
       quantity: qty,
       unitPrice,
