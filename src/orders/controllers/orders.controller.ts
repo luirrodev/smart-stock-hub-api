@@ -27,8 +27,11 @@ import { OrderResponseDto } from '../dtos/order-response.dto';
 import { ValidateOrderDtoPipe } from '../pipes/validate-order-dto.pipe';
 
 @ApiTags('Orders')
-@Controller('orders')
-export class OrdersController {
+@Controller({
+  path: 'orders',
+  version: '1',
+})
+export class OrdersV1Controller {
   constructor(private readonly ordersService: OrdersService) {}
 
   @Post()
