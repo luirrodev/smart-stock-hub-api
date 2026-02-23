@@ -17,6 +17,7 @@ import { ExternalProductDto } from '../dtos/external-product.dto';
 import { PaginatedResponse } from 'src/common/dtos/pagination.dto';
 import config from 'src/config';
 import { ProductPaginationDto } from '../dtos/product-pagination.dto';
+import { MariaDbSyncService } from 'src/database/services/mariadb-sync.service';
 
 @Injectable()
 export class ProductsService {
@@ -24,49 +25,14 @@ export class ProductsService {
 
   constructor(
     @InjectRepository(Product) private productRepo: Repository<Product>,
-    private readonly httpService: HttpService,
-    @Inject(config.KEY) private configService: ConfigType<typeof config>,
+    private readonly mariaDbSyncService: MariaDbSyncService,
   ) {}
 
   /**
-   * Sincroniza productos desde una API externa.
+   * Sincroniza productos desde MariaDB (tabla ms_articulos).
    */
   async syncFromExternal() {
-    const url = this.configService.mandasaldoAPI.url;
-    const apiKey = this.configService.mandasaldoAPI.api_key;
-    const source = 'external';
-
-    // La API de espera POST con { apikey, action }
-    const body = { apikey: apiKey, action: 'get-products-allnovu' };
-
-    this.logger.log(`Solicitando productos a ${url})`);
-
-    if (!url) {
-      throw new BadRequestException('URL de API externa no configurada');
-    }
-
-    const res$ = this.httpService.post(url, body);
-
-    let data: any;
-    try {
-      const response = await firstValueFrom(res$);
-      data = response.data;
-    } catch (err) {
-      this.logger.error('Error al consultar API externa', err as any);
-      throw new BadRequestException('Error al consultar la API externa');
-    }
-
-    if (!data || data.status !== 'success') {
-      throw new BadRequestException('Respuesta inválida de la API externa');
-    }
-
-    const payload = data.items as ExternalProductDto[];
-
-    if (!Array.isArray(payload)) {
-      throw new BadRequestException(
-        'Payload esperado: array de productos en la propiedad items',
-      );
-    }
+    const source = 'mandasaldo';
 
     const results = {
       created: 0,
@@ -74,45 +40,72 @@ export class ProductsService {
       errors: [] as any[],
     };
 
-    for (const item of payload) {
-      try {
-        // Mapear campos
-        const mapped: Partial<Product> = {
-          name: item.xarticulo?.trim(),
-          salePrice: item.xprecio_coste,
-          externalId: item.xarticulo_id,
-          summary: item.xresumen,
-          observations: item.xobs,
-          source,
-          rawData: item,
-          mappedAt: new Date(),
-          isImported: true,
-        };
+    try {
+      // Obtener todos los registros de ms_articulos desde MariaDB
+      const articles = await this.mariaDbSyncService.getRecords('ms_articulos');
 
-        // Buscar por externalId
-        let product: Product | null = null;
-        if (mapped.externalId) {
-          product = await this.productRepo.findOne({
-            where: { externalId: mapped.externalId },
+      if (!Array.isArray(articles) || articles.length === 0) {
+        this.logger.warn('No se encontraron productos en MariaDB');
+        return results;
+      }
+
+      this.logger.log(`Procesando ${articles.length} productos desde MariaDB`);
+
+      for (const article of articles) {
+        try {
+          // Mapear campos de MariaDB a la entidad Product
+          const mapped: Partial<Product> = {
+            externalId: article.xarticulo_id,
+            name: article.xarticulo.trim() || 'Sin nombre',
+            salePrice: parseFloat(article.xprecio) || 0,
+            summary: article.xresumen || null,
+            observations: article.xobs || null,
+            sku: null,
+            source,
+            rawData: article, // Guardar el payload completo
+            mappedAt: new Date(),
+            isImported: true,
+            isActive: article.xactivo === 'S',
+            deletedAt: article.xeliminado === 1 ? new Date() : null,
+          };
+
+          // Buscar por externalId
+          let product: Product | null = null;
+          if (mapped.externalId) {
+            product = await this.productRepo.findOne({
+              where: { externalId: mapped.externalId },
+            });
+          }
+
+          if (product) {
+            this.productRepo.merge(product, mapped);
+            await this.productRepo.save(product);
+            results.updated += 1;
+          } else {
+            const newProduct = this.productRepo.create(mapped);
+            await this.productRepo.save(newProduct);
+            results.created += 1;
+          }
+        } catch (err) {
+          results.errors.push({
+            articleId: article.xarticulo_id,
+            articleName: article.xarticulo,
+            error: (err as any).message ?? err,
           });
         }
-
-        if (product) {
-          Object.assign(product, mapped);
-          await this.productRepo.save(product);
-          results.updated += 1;
-        } else {
-          const newProduct = this.productRepo.create(mapped as Product);
-          await this.productRepo.save(newProduct);
-          results.created += 1;
-        }
-      } catch (err) {
-        results.errors.push({ item, error: (err as any).message ?? err });
       }
-    }
 
-    this.logger.log(`Sincronización finalizada: ${JSON.stringify(results)}`);
-    return results;
+      this.logger.log(`Sincronización finalizada: ${JSON.stringify(results)}`);
+      return results;
+    } catch (error) {
+      this.logger.error(
+        `Error durante sincronización de MariaDB: ${(error as any).message}`,
+        (error as any).stack,
+      );
+      throw new BadRequestException(
+        `Error al sincronizar desde MariaDB: ${(error as any).message}`,
+      );
+    }
   }
 
   /**
