@@ -7,7 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Order, FulfillmentType } from '../entities/order.entity';
 import { OrderItem } from '../entities/order-items.entity';
-import { Product } from '../../products/entities/product.entity';
+import { ProductStore } from '../../products/entities/product-store.entity';
 import { OrderStatus } from '../entities/order-status.entity';
 import { PickupPoint } from '../entities/pickup-point.entity';
 import {
@@ -30,7 +30,7 @@ import {
   isPickupOrder,
 } from '../../common/utils/order.util';
 import { validateUserStoreContext } from '../../common/utils/validation.util';
-import { ProductsService } from 'src/products/services/products.service';
+import { ProductStoreService } from 'src/products/services/product-store.service';
 
 @Injectable()
 export class OrdersService {
@@ -39,7 +39,7 @@ export class OrdersService {
     private storeService: StoresService,
     private orderStatusService: OrderStatusService,
     private pickupPointService: PickupPointService,
-    private productService: ProductsService,
+    private productStoreService: ProductStoreService,
   ) {}
 
   private async generateOrderNumber(): Promise<string> {
@@ -89,15 +89,28 @@ export class OrdersService {
     // Fase 1: Validaciones
     const { storeId, storeUserId } = validateUserStoreContext(user);
 
-    const productIds = dto.items.map((i) => i.productId);
-    const products =
-      await this.productService.validateProductsExist(productIds);
+    // Validar que todos los productStoreIds existen y están activos en la tienda
+    const productStoreIds = dto.items.map((i) => i.productId);
+    const productStores: ProductStore[] = [];
+
+    for (const id of productStoreIds) {
+      const ps = await this.productStoreService.findOne(id);
+      if (ps.storeId !== storeId) {
+        throw new BadRequestException(
+          `ProductStore ${id} no pertenece a esta tienda`,
+        );
+      }
+      if (!ps.isActive) {
+        throw new BadRequestException(`ProductStore ${id} no está activo`);
+      }
+      productStores.push(ps);
+    }
 
     const status = await this.orderStatusService.findOne('pending');
     await this.validatePickupPoint(dto);
 
     // Fase 2: Construcción de datos usando utilidades
-    const items = buildOrderItems(dto.items, products);
+    const items = buildOrderItems(dto.items, productStores);
     const totals = calculateOrderTotals(items as OrderItem[]);
     const orderNumber = await this.generateOrderNumber();
     const store = await this.storeService.findOne(storeId);
