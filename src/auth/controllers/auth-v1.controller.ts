@@ -19,6 +19,7 @@ import {
   ApiResponse,
   ApiBody,
   ApiExcludeEndpoint,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { ThrottlerGuard } from '@nestjs/throttler';
 
@@ -254,25 +255,30 @@ export class AuthV1Controller {
   @Public()
   @Get('google/login')
   @UseGuards(GoogleApiKeyGuard, GoogleAuthGuard)
-  @ApiOperation({
-    summary: 'Autenticación con Google OAuth 2.0 para clientes de tienda (v1)',
+  @ApiQuery({
+    name: 'apiKey',
+    required: true,
     description:
-      'Inicia el flujo de autenticación OAuth con Google. Requiere apiKey como query parameter para identificar la tienda.\n\n' +
-      'El flujo es:\n' +
-      '1. Cliente hace GET a este endpoint con ?apiKey=xxx\n' +
-      '2. Sistema valida el apiKey y redirige a Google para autenticación\n' +
-      '3. Google redirige de vuelta a /auth/v1/google/callback\n' +
-      '4. El callback procesa credenciales y redirige al frontend con JWT\n\n' +
-      'Nota: El storeId se codifica en el state parameter y Google lo devuelve en el callback',
+      'Clave API de la tienda para iniciar el flujo de autenticación con Google. Ejemplo: `?apiKey=tu-clave-api-aqui`',
+  })
+  @ApiOperation({
+    summary:
+      'Inicia autenticación con Google OAuth 2.0 para clientes de tienda',
+    description:
+      'Redirige al usuario a Google para autenticación. Después, el sistema redirige a:\n\n' +
+      '**✅ Éxito**: `{FRONTEND_URL}/auth/google/callback?access_token={token}&refresh_token={refresh_token}`\n\n' +
+      '**❌ Errores**: `{FRONTEND_URL}/auth/google/callback?error={mensaje}`\n\n' +
+      'El parámetro `apiKey` debe venir en la URL. El `storeId` se maneja automáticamente mediante OAuth state. El frontend solo debe manejar los tokens en el callback.',
   })
   @ApiResponse({
     status: HttpStatus.FOUND,
     description:
-      'Redirige automáticamente a la página de autenticación de Google',
+      'Redirige a Google. Después del login, te envía al callback con tokens o error.',
   })
   @ApiResponse({
     status: HttpStatus.UNAUTHORIZED,
-    description: 'Error: apiKey inválido o ausente',
+    description:
+      'API Key inválido o ausente. Redirige a: `{FRONTEND_URL}/auth/google/callback?error={mensaje}`',
   })
   async googleAuthStoreUser() {
     // GoogleApiKeyGuard validates apiKey and populates request.store
