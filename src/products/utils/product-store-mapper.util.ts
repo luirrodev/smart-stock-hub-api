@@ -188,17 +188,17 @@ export class ProductStoreMapperUtil {
         };
       case 2: // Smart Distribute
         return {
-          priceField: 'xprecio_sd',
-          priceOldField: 'xprecio_old_sd',
-          summaryField: 'xresumen_sd',
-          observationsField: 'xobs_sd',
-          activeField: 'xactivo_web_sd',
-          activeVentaField: 'xactivo_venta_sd',
-          urlAmigableField: 'xurl_amigable_sd',
-          articuloField: 'xarticulo_sd',
-          ordenField: 'xorden_sd',
-          destacadoField: 'xdestacado_sd',
-          imageAltField: 'ximage_alt_sd',
+          priceField: 'xprecio',
+          priceOldField: 'xprecio',
+          summaryField: 'xresumen',
+          observationsField: 'xobs',
+          activeField: 'xactivo_web',
+          activeVentaField: 'xactivo_venta',
+          urlAmigableField: 'xurl_amigable',
+          articuloField: 'xarticulo',
+          ordenField: 'xorden',
+          destacadoField: 'xdestacado',
+          imageAltField: 'ximage_alt',
         };
       default:
         throw new BadRequestException(
