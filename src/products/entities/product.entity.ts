@@ -6,8 +6,10 @@ import {
   UpdateDateColumn,
   DeleteDateColumn,
   Index,
+  OneToMany,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
+import { ProductStore } from './product-store.entity';
 
 /**
  * Entidad Product diseñada para mapear productos provenientes de una API externa y
@@ -26,26 +28,10 @@ export class Product {
   @Column({ type: 'varchar', length: 255 })
   name: string;
 
-  // Precios
-  @Column({
-    name: 'sale_price',
-    type: 'numeric',
-    precision: 14,
-    scale: 2,
-    default: 0,
-  })
-  salePrice: number;
-
   // Campos de mapeo desde la API externa
   @Index()
   @Column({ name: 'external_id', type: 'bigint', unique: true })
   externalId: number | null; // xarticulo_id (ID externo)
-
-  @Column({ type: 'text', nullable: true })
-  summary: string | null; // xresumen (HTML)
-
-  @Column({ type: 'text', nullable: true })
-  observations: string | null; // xobs (HTML)
 
   // Campos del sistema para trazar el origen y el payload original
   @Column({ type: 'varchar', length: 50, default: 'external' })
@@ -58,12 +44,16 @@ export class Product {
   @Column({ name: 'mapped_at', type: 'timestamptz', nullable: true })
   mappedAt: Date | null;
 
-  // Indica si el producto fue importado en la BD local (uso futuro)
-  @Column({ name: 'is_imported', type: 'boolean', default: false })
-  isImported: boolean;
-
   @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive: boolean;
+
+  // RELACIÓN CON PRODUCTSTORE
+  // Un producto puede tener múltiples configuraciones por tienda
+  // Con cascade: si se elimina el producto, se eliminan todas sus configuraciones de tienda
+  @OneToMany(() => ProductStore, (productStore) => productStore.product, {
+    cascade: true,
+  })
+  productStores: ProductStore[];
 
   // Marcas de tiempo / borrado lógico
   @Exclude()
