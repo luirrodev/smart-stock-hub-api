@@ -18,9 +18,7 @@ export function buildOrderItems(
   productStores: ProductStore[],
 ): Partial<OrderItem>[] {
   return dtoItems.map((item) => {
-    const productStore = productStores.find(
-      (ps) => ps.id === item.productStoreId,
-    )!;
+    const productStore = productStores.find((ps) => ps.id === item.productId)!;
     const unitPrice = Number(productStore.price);
     const qty = item.quantity;
     const totalPrice = Number((unitPrice * qty).toFixed(2));
