@@ -13,7 +13,7 @@ import { Product } from '../entities/product.entity';
 import { Store } from '../../stores/entities/store.entity';
 import { ExternalProductDto } from '../dtos/external-product.dto';
 import { ProductStoreMapperUtil } from '../utils/product-store-mapper.util';
-import { ProductListDto } from '../dtos/product-response.dto';
+import { ProductListDto, ProductPublicDto } from '../dtos/product-response.dto';
 import { PaginatedResponse } from 'src/common/dtos/pagination.dto';
 import { ProductPaginationDto } from '../dtos/product-pagination.dto';
 
@@ -278,6 +278,7 @@ export class ProductStoreService {
       // Mapear ProductStore a ProductListDto
       const data = plainToInstance(ProductListDto, productsStore, {
         excludeExtraneousValues: true,
+        enableImplicitConversion: true,
       });
 
       return {
@@ -298,15 +299,28 @@ export class ProductStoreService {
   }
 
   /**
-   * Obtiene la configuración de un producto específico en una tienda específica
+   * Obtiene un producto de una tienda específica
+   * Carga la relación del producto y retorna el Product con el precio específico de la tienda
+   * Lanza NotFoundException si el producto no está disponible en la tienda
    */
   async findByProductAndStore(
-    productId: number,
+    id: number,
     storeId: number,
-  ): Promise<ProductStore | null> {
+  ): Promise<ProductPublicDto> {
     try {
-      return await this.productStoreRepo.findOne({
-        where: { productId, storeId },
+      const productStore = await this.productStoreRepo.findOne({
+        where: { id, storeId, isActive: true },
+      });
+
+      if (!productStore) {
+        throw new NotFoundException(
+          `Producto ${id} no disponible en esta tienda`,
+        );
+      }
+
+      return plainToInstance(ProductPublicDto, productStore, {
+        excludeExtraneousValues: true,
+        enableImplicitConversion: true,
       });
     } catch (error) {
       this.logger.error(
