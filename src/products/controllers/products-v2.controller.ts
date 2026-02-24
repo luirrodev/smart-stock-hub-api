@@ -70,6 +70,18 @@ export class ProductsV2Controller {
     return await this.categoryService.syncFromExternal();
   }
 
+  @Post('sync-categories-products')
+  @RequirePermissions('categories:write')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Sincronizar relaciones artículo-categoría por tienda',
+    description:
+      'Sincroniza las relaciones entre productos y categorías desde MariaDB para cada tienda configurada. Crea y actualiza ProductStoreCategory basado en ms_articulos_categorias',
+  })
+  async syncCategoriesForProducts() {
+    return await this.categoryService.syncCategoriesForProducts();
+  }
+
   // @Get()
   // @Public()
   // @ApiOperation({ summary: 'Obtener todos los productos paginados' })
