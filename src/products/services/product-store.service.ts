@@ -5,7 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { FindOptionsOrder, Repository } from 'typeorm';
 
 import { ProductStore } from '../entities/product-store.entity';
 import { Product } from '../entities/product.entity';
@@ -251,21 +251,13 @@ export class ProductStoreService {
       const { page = 1, limit = 10, sortBy = 'id', sortDir = 'ASC' } = query;
       const skip = (page - 1) * limit;
 
-      // Mapa de alias para sortBy
-      const sortMap: Record<string, string> = {
-        id: 'id',
-        price: 'price',
+      // Construcción dinámica del ordenamiento
+      const order: FindOptionsOrder<ProductStore> = {
+        [sortBy]: sortDir,
       };
 
-      // Construir opciones de orden
-      const order: Record<string, 'ASC' | 'DESC'> =
-        sortBy === 'name'
-          ? {} // Se ordena por name en memoria (relación con Product)
-          : { [sortMap[sortBy]]: sortDir };
-
       // Obtener ProductStore con paginación
-      const [productStores, total] = await this.productStoreRepo.findAndCount({
-        relations: ['product'],
+      const [data, total] = await this.productStoreRepo.findAndCount({
         where: {
           storeId,
           isActive: true,
@@ -278,19 +270,11 @@ export class ProductStoreService {
       const totalPages = Math.max(1, Math.ceil(total / limit));
 
       // Mapear ProductStore a ProductListDto
-      const data: ProductListDto[] = productStores.map((productStore) => ({
-        id: productStore.id,
-        name: productStore.product.name,
-        price: Number(productStore.price),
-      }));
-
-      // Si se ordena por nombre, ordenar en memoria
-      if (sortBy === 'name') {
-        data.sort((a, b) => {
-          const comparison = a.name.localeCompare(b.name);
-          return sortDir === 'DESC' ? -comparison : comparison;
-        });
-      }
+      // const data: ProductListDto[] = productStores.map((productStore) => ({
+      //   id: productStore.id,
+      //   name: productStore.name,
+      //   price: Number(productStore.price),
+      // }));
 
       return {
         data,
