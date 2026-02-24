@@ -11,7 +11,11 @@ import { Request } from 'express';
 import { CustomApiKeyGuard } from 'src/stores/guards/custom-api-key.guard';
 import { Public } from 'src/auth/decorators/public.decorator';
 import { CategoryService } from '../services/category.service';
-import { ProductPaginatedResponse, ProductPaginationDto } from '../dtos';
+import {
+  CategoryResponseDto,
+  ProductPaginatedResponse,
+  ProductPaginationDto,
+} from '../dtos';
 import { ValidateCategorySlugPipe } from '../pipes/validate-category-slug.pipe';
 
 @ApiTags('Categories')
@@ -21,6 +25,25 @@ import { ValidateCategorySlugPipe } from '../pipes/validate-category-slug.pipe';
 })
 export class CategoriesV1Controller {
   constructor(private readonly categoryService: CategoryService) {}
+
+  @Get()
+  @Public()
+  @UseGuards(CustomApiKeyGuard)
+  @ApiOperation({
+    summary: 'Obtener todas las categorías activas',
+    description: 'Retorna todas las categorías activas del sistema',
+  })
+  @ApiOkResponse({
+    description: 'Lista de categorías activas',
+    type: [CategoryResponseDto],
+  })
+  @ApiUnauthorizedResponse({
+    description: 'X-API-Key inválida o no proporcionada',
+  })
+  async getAllActiveCategories(@Req() req: Request) {
+    const storeId = req.store!.id;
+    return await this.categoryService.getActiveCategories(storeId);
+  }
 
   @Get(':slug')
   @Public()

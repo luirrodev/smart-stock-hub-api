@@ -12,9 +12,14 @@ import { Product } from '../entities/product.entity';
 import { ProductStore } from '../entities/product-store.entity';
 import { ProductStoreCategory } from '../entities/product-store-category.entity';
 import { MariaDbSyncService } from 'src/database/services/mariadb-sync.service';
-import { ProductListDto, ProductPaginationDto } from '../dtos';
+import {
+  ProductListDto,
+  ProductPaginationDto,
+  CategoryResponseDto,
+} from '../dtos';
 import { plainToInstance } from 'class-transformer';
 import { PaginatedResponse } from 'src/common/dtos/pagination.dto';
+import e from 'express';
 
 @Injectable()
 export class CategoryService {
@@ -340,6 +345,47 @@ export class CategoryService {
     }
 
     return category;
+  }
+
+  /**
+   * Obtiene todas las categorías activas del sistema por tienda
+   *
+   * @param storeId - ID de la tienda (1 = usa xactivo_an, 2 = usa xactivo_ms)
+   * @returns Array de todas las categorías activas ordenadas por nombre
+   * @throws NotFoundException si no hay categorías activas para la tienda
+   */
+  async getActiveCategories(storeId: number): Promise<CategoryResponseDto[]> {
+    const fieldName = storeId === 1 ? 'xactivo_an' : 'xactivo';
+
+    try {
+      const categories = await this.categoryRepo
+        .createQueryBuilder('category')
+        .where('category.isActive = :isActive', { isActive: true })
+        .andWhere(`category.raw_data->>'${fieldName}' = :status`, {
+          status: 'S',
+        })
+        .orderBy('category.name', 'ASC')
+        .getMany();
+
+      if (!categories || categories.length === 0) {
+        throw new NotFoundException(
+          `No se encontraron categorías activas para la tienda ${storeId}`,
+        );
+      }
+
+      // Mapear a DTO
+      return plainToInstance(CategoryResponseDto, categories, {
+        excludeExtraneousValues: true,
+        enableImplicitConversion: true,
+      });
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new BadRequestException(
+        `Error al obtener categorías activas para tienda ${storeId}: ${(error as any).message}`,
+      );
+    }
   }
 
   /**
