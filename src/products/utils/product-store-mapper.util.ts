@@ -103,7 +103,7 @@ export class ProductStoreMapperUtil {
       summary: summary ? String(summary).trim() : null,
       observations: observations ? String(observations).trim() : null,
       isActive,
-      name,
+      name: name ? String(name).trim() : 'SIN NOMBRE',
     };
   }
 
