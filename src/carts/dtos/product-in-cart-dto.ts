@@ -21,6 +21,6 @@ export class ProductInCartDto {
     description: 'Nombre del producto',
   })
   @Expose()
-  @Transform(({ obj }: { obj: ProductStore }) => obj.product?.name)
+  @Transform(({ obj }: { obj: ProductStore }) => obj.name)
   name: string;
 }

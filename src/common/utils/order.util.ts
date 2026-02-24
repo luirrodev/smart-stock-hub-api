@@ -25,7 +25,7 @@ export function buildOrderItems(
 
     return {
       productStoreId: productStore.id,
-      productName: productStore.product.name,
+      productName: productStore.name,
       productSku: productStore.product.sku,
       productImage: null,
       quantity: qty,
