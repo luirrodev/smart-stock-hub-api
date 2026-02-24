@@ -22,6 +22,16 @@ export class Category {
   @PrimaryGeneratedColumn()
   id: number;
 
+  // ID externo de MariaDB (xcategoria_id)
+  @Index()
+  @Column({
+    name: 'external_id',
+    type: 'int',
+    unique: true,
+    nullable: true,
+  })
+  externalId: number | null;
+
   // Nombre de la categoría
   @Index()
   @Column({
@@ -55,6 +65,14 @@ export class Category {
     default: true,
   })
   isActive: boolean;
+
+  // Payload completo de MariaDB (para extracción manual de campos adicionales)
+  @Column({
+    name: 'raw_data',
+    type: 'jsonb',
+    nullable: true,
+  })
+  rawData: any | null;
 
   // Marcas de tiempo / borrado lógico
   @Exclude()
