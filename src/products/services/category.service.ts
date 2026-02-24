@@ -1,6 +1,11 @@
-import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull } from 'typeorm';
+import { Repository, IsNull, In } from 'typeorm';
 
 import { Category } from '../entities/category.entity';
 import { Product } from '../entities/product.entity';
@@ -320,5 +325,40 @@ export class CategoryService {
         `Error al sincronizar categorías para productos: ${err.message}`,
       );
     }
+  }
+
+  async getCategorieBySlug(slug: string) {
+    const category = await this.categoryRepo.findOne({
+      where: { slug, isActive: true },
+    });
+
+    if (!category) {
+      throw new NotFoundException(`Categoría con slug '${slug}' no encontrada`);
+    }
+
+    return category;
+  }
+
+  /**
+   * Obtiene todos los productos de una tienda que pertenecen a una categoría específica
+   * Identificada por su slug.
+   *
+   * @param slug - Slug de la categoría
+   * @param storeId - ID de la tienda
+   * @returns Array de productos (ProductStore) asociados a la categoría en la tienda especificada
+   */
+  async getProductsBySlug(slug: string, storeId: number) {
+    // 1. Buscar la categoría por slug
+    const category = await this.getCategorieBySlug(slug);
+
+    // 2. Obtener ProductStoreCategory con relaciones cargadas para esta categoría
+    const productStoreCategories = await this.productStoreCategoryRepo.find({
+      where: { categoryId: category.id, productStore: { storeId } },
+      relations: ['productStore'],
+    });
+
+    this.logger.debug(
+      `Encontrados ${productStoreCategories.length} productos para categoría '${slug}' en tienda ${storeId}`,
+    );
   }
 }
