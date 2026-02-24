@@ -21,9 +21,9 @@ export class ProductDto {
   @Expose({ groups: ['public', 'customer', 'admin'] })
   name: string;
 
-  @ApiProperty({ example: '75.00', description: 'Precio de venta' })
+  @ApiProperty({ example: 75.0, description: 'Precio de venta' })
   @Expose({ groups: ['public', 'customer', 'admin'] })
-  salePrice: string;
+  price: number;
 
   @ApiProperty({
     example: 12345,
@@ -80,14 +80,14 @@ export class ProductDto {
 export class ProductListDto extends PickType(ProductDto, [
   'id',
   'name',
-  'salePrice',
+  'price',
 ] as const) {}
 
 // DTO para la vista pública (los campos visibles para usuarios anónimos/cliente)
 export class ProductPublicDto extends PickType(ProductDto, [
   'id',
   'name',
-  'salePrice',
+  'price',
   'summary',
   'observations',
 ] as const) {}
