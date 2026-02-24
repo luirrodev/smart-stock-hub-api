@@ -86,6 +86,7 @@ export class ProductStoreMapperUtil {
     summary: string | null;
     observations: string | null;
     isActive: boolean;
+    name: string;
   } {
     const price = this.extractNestedValue(rawData, fields.priceField);
     const summary = this.extractNestedValue(rawData, fields.summaryField);
@@ -95,12 +96,14 @@ export class ProductStoreMapperUtil {
     );
     const isActive =
       this.extractNestedValue(rawData, fields.activeField) === 'S';
+    const name = this.extractNestedValue(rawData, fields.articuloField);
 
     return {
       price: price !== null ? Number(price) || 0 : 0,
       summary: summary ? String(summary).trim() : null,
       observations: observations ? String(observations).trim() : null,
       isActive,
+      name,
     };
   }
 
@@ -122,6 +125,7 @@ export class ProductStoreMapperUtil {
       summary: string | null;
       observations: string | null;
       isActive: boolean;
+      name: string;
     },
     productStoreRepo: Repository<ProductStore>,
     logger: Logger,
@@ -138,6 +142,7 @@ export class ProductStoreMapperUtil {
       existing.summary = data.summary;
       existing.observations = data.observations;
       existing.isActive = data.isActive;
+      existing.name = data.name;
 
       await productStoreRepo.save(existing);
       productStore = existing;

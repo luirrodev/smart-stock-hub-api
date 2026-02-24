@@ -59,7 +59,6 @@ export class ProductsService {
           // rawData contiene el payload completo para extracción manual posterior
           const mapped: Partial<Product> = {
             externalId: article.xarticulo_id,
-            name: article.xarticulo?.trim() || 'Sin nombre',
             sku: null,
             source,
             rawData: article, // Guardar TODO el payload completo
@@ -92,7 +91,7 @@ export class ProductsService {
           for (const storeId of this.storeIds) {
             try {
               await this.productStoreService.mapProductToStores(
-                product!.id,
+                product.id,
                 storeId,
               );
               results.mapped += 1;
