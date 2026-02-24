@@ -1,46 +1,44 @@
-import { Controller, UseGuards, Get, Query, Param, Req } from '@nestjs/common';
+import {
+  Controller,
+  UseGuards,
+  Get,
+  Query,
+  Param,
+  Req,
+  ParseIntPipe,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiOkResponse,
   ApiExtraModels,
-  ApiBearerAuth,
-  getSchemaPath,
 } from '@nestjs/swagger';
+import { Request } from 'express';
 
 import { PermissionsGuard } from 'src/access-control/permissions/guards/permissions.guard';
+import { CustomApiKeyGuard } from 'src/stores/guards/custom-api-key.guard';
 import { OptionalAuth } from 'src/auth/decorators/optional-auth.decorator';
-import { Serialize } from 'src/common/decorators/serialize.decorator';
 import { Public } from 'src/auth/decorators/public.decorator';
 
-import { ProductsService } from '../services/products.service';
 import { ProductStoreService } from '../services/product-store.service';
-import { Product } from '../entities/product.entity';
 
 import {
   ProductPaginatedResponse,
   ProductPaginationDto,
   ProductPublicDto,
-  ProductAdminDto,
-  ProductDto,
   ProductListDto,
 } from '../dtos';
-import { CustomApiKeyGuard } from 'src/stores/guards/custom-api-key.guard';
 import { PaginatedResponse } from 'src/common/dtos/pagination.dto';
-import { Request } from 'express';
 
 @ApiTags('Products')
 @UseGuards(PermissionsGuard)
-@ApiExtraModels(ProductPaginatedResponse, ProductPublicDto, ProductAdminDto)
+@ApiExtraModels(ProductPaginatedResponse, ProductPublicDto, ProductListDto)
 @Controller({
   path: 'products',
   version: '1',
 })
 export class ProductsV1Controller {
-  constructor(
-    private readonly productsService: ProductsService,
-    private readonly productStoreService: ProductStoreService,
-  ) {}
+  constructor(private readonly productStoreService: ProductStoreService) {}
 
   @Get()
   @Public()
@@ -62,20 +60,16 @@ export class ProductsV1Controller {
 
   @Get(':id')
   @OptionalAuth()
-  @ApiBearerAuth()
-  @Serialize(ProductDto)
-  @ApiOperation({ summary: 'Obtener un producto por su id' })
-  @ApiOkResponse({
-    description:
-      'Producto encontrado. Respuesta varía según rol: público devuelve campos limitados; admin devuelve campos completos',
-    schema: {
-      oneOf: [
-        { $ref: getSchemaPath(ProductPublicDto) },
-        { $ref: getSchemaPath(ProductAdminDto) },
-      ],
-    },
+  @UseGuards(CustomApiKeyGuard)
+  @ApiOperation({
+    summary: 'Obtener un producto específico de una tienda por su id',
   })
-  async getOne(@Param('id') id: string): Promise<Product> {
-    return await this.productsService.findOne(+id);
+  @ApiOkResponse({
+    description: 'Producto encontrado en la tienda',
+    type: ProductPublicDto,
+  })
+  async getOne(@Req() req: Request, @Param('id', ParseIntPipe) id: number) {
+    const storeId = req.store!.id;
+    return await this.productStoreService.findByProductAndStore(id, storeId);
   }
 }
