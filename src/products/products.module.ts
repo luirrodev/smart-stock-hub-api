@@ -11,7 +11,7 @@ import { ProductsService } from './services/products.service';
 import { ProductStoreService } from './services/product-store.service';
 import { CategoryService } from './services/category.service';
 
-import { ProductsV1Controller, ProductsV2Controller } from './controllers';
+import { ProductsV1Controller, ProductsV2Controller, CategoriesV1Controller } from './controllers';
 import { StoresModule } from 'src/stores/stores.module';
 
 @Module({
@@ -25,7 +25,7 @@ import { StoresModule } from 'src/stores/stores.module';
     ]),
     StoresModule,
   ],
-  controllers: [ProductsV1Controller, ProductsV2Controller],
+  controllers: [ProductsV1Controller, ProductsV2Controller, CategoriesV1Controller],
   providers: [ProductsService, ProductStoreService, CategoryService],
   exports: [ProductsService, ProductStoreService, CategoryService],
 })
