@@ -35,6 +35,7 @@ import { Public } from 'src/auth/decorators/public.decorator';
 import { OptionalAuthGuard } from 'src/auth/guards/optional-auth.guard';
 import { OptionalAuth } from 'src/auth/decorators/optional-auth.decorator';
 import { Serialize } from 'src/common/decorators/serialize.decorator';
+import { CategoryService } from '../services/category.service';
 
 @ApiTags('products')
 @UseGuards(PermissionsGuard)
@@ -44,7 +45,10 @@ import { Serialize } from 'src/common/decorators/serialize.decorator';
   version: '2',
 })
 export class ProductsV2Controller {
-  constructor(private readonly productsService: ProductsService) {}
+  constructor(
+    private readonly productsService: ProductsService,
+    private readonly categoryService: CategoryService,
+  ) {}
 
   @Post('sync')
   @RequirePermissions('products:write')
@@ -54,6 +58,16 @@ export class ProductsV2Controller {
   })
   async syncFromExternal() {
     return await this.productsService.syncFromExternal();
+  }
+
+  @Post('sync-categories')
+  @RequirePermissions('categories:write')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Sincronizar categorías desde MariaDB',
+  })
+  async syncCategoriesFromExternal() {
+    return await this.categoryService.syncFromExternal();
   }
 
   // @Get()
