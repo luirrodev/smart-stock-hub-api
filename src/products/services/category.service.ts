@@ -28,8 +28,6 @@ export class CategoryService {
    * @returns Objeto con resumen de la sincronización (created, updated, errors)
    */
   async syncFromExternal(withDeleted: boolean = false) {
-    const source = 'mandasaldo';
-
     const results = {
       created: 0,
       updated: 0,
@@ -58,17 +56,10 @@ export class CategoryService {
       for (const category of categories) {
         try {
           // Mapear campos básicos de MariaDB a la entidad Category
-          // Usar xurl_amigable como slug, o generar uno a partir del nombre si no existe
-          const slug =
-            category.xurl_amigable ||
-            this.generateSlug(
-              category.xcategoria || `cat-${category.xcategoria_id}`,
-            );
-
           const mapped: Partial<Category> = {
             name: category.xcategoria || `Categoría ${category.xcategoria_id}`,
+            externalId: category.xcategoria_id,
             description: category.xdescription_ms || null,
-            slug: slug,
             isActive: category.xactivo === 'S',
             // rawData contiene el payload completo de MariaDB
             rawData: category,
@@ -124,52 +115,5 @@ export class CategoryService {
         `Error al sincronizar categorías desde MariaDB: ${(error as any).message}`,
       );
     }
-  }
-
-  /**
-   * Obtiene una categoría por su ID
-   */
-  async findOne(id: number): Promise<Category> {
-    const category = await this.categoryRepo.findOne({
-      where: { id },
-    });
-
-    if (!category) {
-      throw new NotFoundException('Category not found');
-    }
-
-    return category;
-  }
-
-  /**
-   * Obtiene todas las categorías activas
-   */
-  async findActive(): Promise<Category[]> {
-    return this.categoryRepo.find({
-      where: { isActive: true, deletedAt: IsNull() },
-      order: { name: 'ASC' },
-    });
-  }
-
-  /**
-   * Obtiene una categoría por su slug
-   */
-  async findBySlug(slug: string): Promise<Category | null> {
-    return this.categoryRepo.findOne({
-      where: { slug, deletedAt: IsNull() },
-    });
-  }
-
-  /**
-   * Genera un slug a partir de un string
-   * Convierte a minúsculas, reemplaza espacios con guiones, elimina caracteres especiales
-   */
-  private generateSlug(text: string): string {
-    return text
-      .toLowerCase()
-      .trim()
-      .replace(/[^\w\s-]/g, '') // Eliminar caracteres especiales
-      .replace(/[\s_-]+/g, '-') // Reemplazar espacios/guiones por un solo guión
-      .replace(/^-+|-+$/g, ''); // Eliminar guiones al inicio/final
   }
 }
