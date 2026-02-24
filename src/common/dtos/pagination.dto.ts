@@ -4,7 +4,7 @@ import { Type } from 'class-transformer';
 
 export class PaginationDto {
   @ApiProperty({
-    description: 'Número de página (comenzando desde 1)',
+    description: 'Número de página (default: 1)',
     example: 1,
     required: false,
   })
@@ -14,7 +14,7 @@ export class PaginationDto {
   page?: number = 1;
 
   @ApiProperty({
-    description: 'Cantidad de registros por página',
+    description: 'Cantidad de registros por página (default: 10)',
     example: 10,
     required: false,
   })
@@ -25,7 +25,7 @@ export class PaginationDto {
 
   @ApiProperty({
     description: 'Término de búsqueda para filtrar resultados',
-    example: 'arduino',
+    example: 'Parrilla Tostadora',
     required: false,
   })
   @IsOptional()
