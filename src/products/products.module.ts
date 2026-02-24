@@ -9,6 +9,7 @@ import { Store } from '../stores/entities/store.entity';
 
 import { ProductsService } from './services/products.service';
 import { ProductStoreService } from './services/product-store.service';
+import { CategoryService } from './services/category.service';
 
 import { ProductsV1Controller, ProductsV2Controller } from './controllers';
 import { StoresModule } from 'src/stores/stores.module';
@@ -25,7 +26,7 @@ import { StoresModule } from 'src/stores/stores.module';
     StoresModule,
   ],
   controllers: [ProductsV1Controller, ProductsV2Controller],
-  providers: [ProductsService, ProductStoreService],
-  exports: [ProductsService, ProductStoreService],
+  providers: [ProductsService, ProductStoreService, CategoryService],
+  exports: [ProductsService, ProductStoreService, CategoryService],
 })
 export class ProductsModule {}
