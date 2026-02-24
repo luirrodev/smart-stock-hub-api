@@ -48,16 +48,6 @@ export class Category {
   })
   description: string | null;
 
-  // Slug para URLs amigables (ej: electronics-gadgets)
-  @Index({ unique: true })
-  @Column({
-    type: 'varchar',
-    length: 200,
-    nullable: false,
-    unique: true,
-  })
-  slug: string;
-
   // Estado de activación de la categoría
   @Column({
     name: 'is_active',

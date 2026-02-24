@@ -62,6 +62,16 @@ export class ProductStoreCategory {
   @Column({ name: 'category_id', type: 'int' })
   categoryId: number;
 
+  // Slug para URLs amigables
+  @Index({ unique: true })
+  @Column({
+    type: 'varchar',
+    length: 200,
+    nullable: false,
+    unique: true,
+  })
+  slug: string;
+
   // Marcas de tiempo
   @Exclude()
   @CreateDateColumn({
