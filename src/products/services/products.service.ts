@@ -5,12 +5,9 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
-import { QueryBuilderUtil } from 'src/common/utils/query-builder.util';
+import { Repository } from 'typeorm';
 
 import { Product } from '../entities/product.entity';
-import { PaginatedResponse } from 'src/common/dtos/pagination.dto';
-import { ProductPaginationDto } from '../dtos/product-pagination.dto';
 import { MariaDbSyncService } from 'src/database/services/mariadb-sync.service';
 import { ProductStoreService } from './product-store.service';
 
@@ -134,58 +131,6 @@ export class ProductsService {
   }
 
   /**
-   * Obtiene productos paginados
-   */
-  async getAllProducts(
-    query: ProductPaginationDto,
-  ): Promise<PaginatedResponse<Product>> {
-    const {
-      page = 1,
-      limit = 10,
-      search,
-      sortBy = 'id',
-      sortDir = 'ASC',
-    } = query;
-    const skip = (page - 1) * limit;
-    const dir = (sortDir ?? 'ASC').toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
-
-    // Type assertion para que TypeScript sepa que es válido
-    const order = { [sortBy]: dir } as Record<string, 'ASC' | 'DESC'>;
-
-    let where = QueryBuilderUtil.buildSearchConditions<Product>(search, [
-      'id',
-      'name',
-      'sku',
-    ]);
-
-    const [data, total] = await this.productRepo.findAndCount({
-      select: {
-        id: true,
-        name: true,
-        externalId: true,
-      },
-      where,
-      skip,
-      take: limit,
-      order,
-    });
-
-    const totalPages = Math.max(1, Math.ceil(total / limit));
-
-    const response: PaginatedResponse<Product> = {
-      data,
-      page,
-      limit,
-      total,
-      totalPages,
-      hasPrevious: page > 1,
-      hasNext: page < totalPages,
-    };
-
-    return response;
-  }
-
-  /**
    * Obtiene un producto por su id interno.
    */
   async findOne(id: number): Promise<Product> {
@@ -198,24 +143,5 @@ export class ProductsService {
     }
 
     return product;
-  }
-
-  /**
-   * Valida que todos los productos existan en la base de datos
-   */
-  async validateProductsExist(productIds: number[]): Promise<Product[]> {
-    const products = await this.productRepo.find({
-      where: { id: In(productIds) },
-    });
-
-    if (products.length !== productIds.length) {
-      const foundIds = products.map((p) => p.id);
-      const missing = productIds.filter((id) => !foundIds.includes(id));
-      throw new NotFoundException(
-        `Productos no encontrados: ${missing.join(', ')}`,
-      );
-    }
-
-    return products;
   }
 }
