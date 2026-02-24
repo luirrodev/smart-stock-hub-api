@@ -11,7 +11,7 @@ import { Request } from 'express';
 import { CustomApiKeyGuard } from 'src/stores/guards/custom-api-key.guard';
 import { Public } from 'src/auth/decorators/public.decorator';
 import { CategoryService } from '../services/category.service';
-import { ProductListDto, ProductPaginationDto } from '../dtos';
+import { ProductPaginatedResponse, ProductPaginationDto } from '../dtos';
 import { ValidateCategorySlugPipe } from '../pipes/validate-category-slug.pipe';
 
 @ApiTags('Categories')
@@ -32,7 +32,7 @@ export class CategoriesV1Controller {
   })
   @ApiOkResponse({
     description: 'Lista de productos en la categoría',
-    type: [ProductListDto],
+    type: ProductPaginatedResponse,
   })
   @ApiNotFoundResponse({
     description: 'Categoría no encontrada',

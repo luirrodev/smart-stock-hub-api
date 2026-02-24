@@ -5,13 +5,16 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull, In } from 'typeorm';
+import { Repository, IsNull, In, FindOptionsOrder } from 'typeorm';
 
 import { Category } from '../entities/category.entity';
 import { Product } from '../entities/product.entity';
 import { ProductStore } from '../entities/product-store.entity';
 import { ProductStoreCategory } from '../entities/product-store-category.entity';
 import { MariaDbSyncService } from 'src/database/services/mariadb-sync.service';
+import { ProductListDto, ProductPaginationDto } from '../dtos';
+import { plainToInstance } from 'class-transformer';
+import { PaginatedResponse } from 'src/common/dtos/pagination.dto';
 
 @Injectable()
 export class CategoryService {
@@ -347,18 +350,52 @@ export class CategoryService {
    * @param storeId - ID de la tienda
    * @returns Array de productos (ProductStore) asociados a la categoría en la tienda especificada
    */
-  async getProductsBySlug(slug: string, storeId: number) {
+  async getProductsBySlug(
+    slug: string,
+    query: ProductPaginationDto,
+    storeId: number,
+  ): Promise<PaginatedResponse<ProductListDto>> {
+    const { page = 1, limit = 10, sortBy = 'id', sortDir = 'ASC' } = query;
+    const skip = (page - 1) * limit;
+
+    // Construcción dinámica del ordenamiento
+    const order: FindOptionsOrder<ProductStore> = {
+      [sortBy]: sortDir,
+    };
     // 1. Buscar la categoría por slug
     const category = await this.getCategorieBySlug(slug);
 
     // 2. Obtener ProductStoreCategory con relaciones cargadas para esta categoría
-    const productStoreCategories = await this.productStoreCategoryRepo.find({
-      where: { categoryId: category.id, productStore: { storeId } },
-      relations: ['productStore'],
+    const [products, total] = await this.productStoreRepo.findAndCount({
+      where: {
+        storeId,
+        productStoreCategories: {
+          categoryId: category.id,
+        },
+        isActive: true,
+      },
+      relations: ['productStoreCategories', 'productStoreCategories.category'],
+      order,
+      skip,
+      take: limit,
     });
 
-    this.logger.debug(
-      `Encontrados ${productStoreCategories.length} productos para categoría '${slug}' en tienda ${storeId}`,
-    );
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+
+    // Mapear ProductStore a ProductListDto
+    const data = plainToInstance(ProductListDto, products, {
+      excludeExtraneousValues: true,
+      enableImplicitConversion: true,
+    });
+
+    return {
+      data,
+      page,
+      limit,
+      total,
+      totalPages,
+      hasPrevious: page > 1,
+      hasNext: page < totalPages,
+    };
   }
 }
