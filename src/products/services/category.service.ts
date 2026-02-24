@@ -1,11 +1,6 @@
-import {
-  Injectable,
-  BadRequestException,
-  NotFoundException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull } from 'typeorm';
+import { Repository } from 'typeorm';
 
 import { Category } from '../entities/category.entity';
 import { MariaDbSyncService } from 'src/database/services/mariadb-sync.service';
@@ -60,7 +55,7 @@ export class CategoryService {
             name: category.xcategoria || `Categoría ${category.xcategoria_id}`,
             externalId: category.xcategoria_id,
             description: category.xdescription_ms || null,
-            isActive: category.xactivo === 'S',
+            isActive: true,
             // rawData contiene el payload completo de MariaDB
             rawData: category,
           };
