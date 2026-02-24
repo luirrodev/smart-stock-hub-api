@@ -67,6 +67,9 @@ export class ProductStore {
   })
   price: number;
 
+  @Column({ type: 'varchar', length: 255 })
+  name: string;
+
   // DESCRIPCIÓN BREVE POR TIENDA
   // Resumen HTML del producto específico para esta tienda
   @Column({ type: 'text', nullable: true })

@@ -25,9 +25,6 @@ export class Product {
   @Column({ type: 'varchar', length: 100, nullable: true, unique: true })
   sku: string | null;
 
-  @Column({ type: 'varchar', length: 255 })
-  name: string;
-
   // Campos de mapeo desde la API externa
   @Index()
   @Column({ name: 'external_id', type: 'bigint', unique: true })
