@@ -8,8 +8,6 @@ import {
   Get,
   Req,
   Res,
-  Query,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
@@ -27,7 +25,6 @@ import { User } from 'src/access-control/users/entities/user.entity';
 
 import { AuthService } from '../services/auth.service';
 import { StoreUsersService } from 'src/access-control/users/services/store-users.service';
-import { StoresService } from 'src/stores/services/stores.service';
 
 import { GetUser } from '../decorators/get-user.decorator';
 import { Public } from '../decorators/public.decorator';
@@ -58,7 +55,6 @@ export class AuthV1Controller {
   constructor(
     private readonly authService: AuthService,
     private readonly storeUsersService: StoreUsersService,
-    private readonly storesService: StoresService,
   ) {}
 
   @Post('login')
