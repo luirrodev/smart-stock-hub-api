@@ -1,4 +1,4 @@
-import { Controller, UseGuards, Get, Param, Req } from '@nestjs/common';
+import { Controller, UseGuards, Get, Param, Req, Query } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -11,7 +11,7 @@ import { Request } from 'express';
 import { CustomApiKeyGuard } from 'src/stores/guards/custom-api-key.guard';
 import { Public } from 'src/auth/decorators/public.decorator';
 import { CategoryService } from '../services/category.service';
-import { ProductListDto } from '../dtos';
+import { ProductListDto, ProductPaginationDto } from '../dtos';
 import { ValidateCategorySlugPipe } from '../pipes/validate-category-slug.pipe';
 
 @ApiTags('Categories')
@@ -42,9 +42,10 @@ export class CategoriesV1Controller {
   })
   async getProductsByCategory(
     @Param('slug', ValidateCategorySlugPipe) slug: string,
+    @Query() query: ProductPaginationDto,
     @Req() req: Request,
   ) {
     const storeId = req.store!.id;
-    return await this.categoryService.getProductsBySlug(slug, storeId);
+    return await this.categoryService.getProductsBySlug(slug, query, storeId);
   }
 }
