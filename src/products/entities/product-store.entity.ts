@@ -3,6 +3,7 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   ManyToOne,
+  OneToMany,
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
@@ -13,6 +14,7 @@ import {
 import { Exclude } from 'class-transformer';
 import { Product } from './product.entity';
 import { Store } from '../../stores/entities/store.entity';
+import { ProductStoreCategory } from './product-store-category.entity';
 
 /**
  * Entidad ProductStore
@@ -84,6 +86,15 @@ export class ProductStore {
   // Un producto puede estar activo globalmente pero inactivo en una tienda específica
   @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive: boolean;
+
+  // RELACIÓN CON PRODUCTSTORE CATEGORIES
+  // Categorías asignadas a este ProductStore
+  @OneToMany(
+    () => ProductStoreCategory,
+    (productStoreCategory) => productStoreCategory.productStore,
+    { cascade: true },
+  )
+  productStoreCategories: ProductStoreCategory[];
 
   // MARCAS DE TIEMPO
   @Exclude()
