@@ -41,6 +41,10 @@ async function seed() {
       name: 'payments:view',
       description: 'Ver información de pagos',
     },
+    {
+      name: 'categories:write',
+      description: 'Crear, actualizar o eliminar categorías',
+    },
   ];
 
   // Roles básicos
