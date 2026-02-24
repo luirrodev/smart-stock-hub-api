@@ -12,6 +12,9 @@ import { Product } from '../entities/product.entity';
 import { Store } from '../../stores/entities/store.entity';
 import { ExternalProductDto } from '../dtos/external-product.dto';
 import { ProductStoreMapperUtil } from '../utils/product-store-mapper.util';
+import { ProductListDto } from '../dtos/product-response.dto';
+import { PaginatedResponse } from 'src/common/dtos/pagination.dto';
+import { ProductPaginationDto } from '../dtos/product-pagination.dto';
 
 @Injectable()
 export class ProductStoreService {
@@ -236,16 +239,71 @@ export class ProductStoreService {
   }
 
   /**
-   * Obtiene todos los ProductStore para una tienda específica
+   * Obtiene todos los productos de una tienda con paginación y ordenamiento
+   * Retorna PaginatedResponse<ProductListDto>
+   * Solo productos activos (isActive = true) en ProductStore
    */
-  async findByStore(storeId: number): Promise<ProductStore[]> {
+  async getAllStoreProducts(
+    storeId: number,
+    query: ProductPaginationDto,
+  ): Promise<PaginatedResponse<ProductListDto>> {
     try {
-      return await this.productStoreRepo.find({
-        where: { storeId },
+      const { page = 1, limit = 10, sortBy = 'id', sortDir = 'ASC' } = query;
+      const skip = (page - 1) * limit;
+
+      // Mapa de alias para sortBy
+      const sortMap: Record<string, string> = {
+        id: 'id',
+        price: 'price',
+      };
+
+      // Construir opciones de orden
+      const order: Record<string, 'ASC' | 'DESC'> =
+        sortBy === 'name'
+          ? {} // Se ordena por name en memoria (relación con Product)
+          : { [sortMap[sortBy]]: sortDir };
+
+      // Obtener ProductStore con paginación
+      const [productStores, total] = await this.productStoreRepo.findAndCount({
+        relations: ['product'],
+        where: {
+          storeId,
+          isActive: true,
+        },
+        skip,
+        take: limit,
+        order,
       });
+
+      const totalPages = Math.max(1, Math.ceil(total / limit));
+
+      // Mapear ProductStore a ProductListDto
+      const data: ProductListDto[] = productStores.map((productStore) => ({
+        id: productStore.id,
+        name: productStore.product.name,
+        price: Number(productStore.price),
+      }));
+
+      // Si se ordena por nombre, ordenar en memoria
+      if (sortBy === 'name') {
+        data.sort((a, b) => {
+          const comparison = a.name.localeCompare(b.name);
+          return sortDir === 'DESC' ? -comparison : comparison;
+        });
+      }
+
+      return {
+        data,
+        page,
+        limit,
+        total,
+        totalPages,
+        hasPrevious: page > 1,
+        hasNext: page < totalPages,
+      };
     } catch (error) {
       this.logger.error(
-        `Error obteniendo ProductStore por tienda: ${(error as any).message}`,
+        `Error obteniendo productos de la tienda: ${(error as any).message}`,
       );
       throw error;
     }

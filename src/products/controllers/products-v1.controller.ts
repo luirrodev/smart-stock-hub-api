@@ -1,11 +1,4 @@
-import {
-  Controller,
-  UseGuards,
-  Get,
-  Query,
-  Param,
-  Request,
-} from '@nestjs/common';
+import { Controller, UseGuards, Get, Query, Param, Req } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -21,6 +14,7 @@ import { Serialize } from 'src/common/decorators/serialize.decorator';
 import { Public } from 'src/auth/decorators/public.decorator';
 
 import { ProductsService } from '../services/products.service';
+import { ProductStoreService } from '../services/product-store.service';
 import { Product } from '../entities/product.entity';
 
 import {
@@ -29,8 +23,11 @@ import {
   ProductPublicDto,
   ProductAdminDto,
   ProductDto,
+  ProductListDto,
 } from '../dtos';
 import { CustomApiKeyGuard } from 'src/stores/guards/custom-api-key.guard';
+import { PaginatedResponse } from 'src/common/dtos/pagination.dto';
+import { Request } from 'express';
 
 @ApiTags('Products')
 @UseGuards(PermissionsGuard)
@@ -40,21 +37,27 @@ import { CustomApiKeyGuard } from 'src/stores/guards/custom-api-key.guard';
   version: '1',
 })
 export class ProductsV1Controller {
-  constructor(private readonly productsService: ProductsService) {}
+  constructor(
+    private readonly productsService: ProductsService,
+    private readonly productStoreService: ProductStoreService,
+  ) {}
 
   @Get()
   @Public()
   @UseGuards(CustomApiKeyGuard)
   @ApiOperation({
-    summary: 'Obtener todos los productos de una tienda (requiere X-API-Key)',
+    summary: 'Obtener todos los productos activos de una tienda',
   })
   @ApiOkResponse({
     description: 'Respuesta paginada de productos por tienda',
     type: ProductPaginatedResponse,
   })
-  async getAll(@Request() req: Request, @Query() query: ProductPaginationDto) {
-    const storeId = (req as any).store.id; // ID de la tienda extraído del API Key
-    return await this.productsService.getAllProducts(storeId, query);
+  async getAll(
+    @Req() req: Request,
+    @Query() query: ProductPaginationDto,
+  ): Promise<PaginatedResponse<ProductListDto>> {
+    const storeId = req.store!.id; // ID de la tienda extraído del API Key
+    return await this.productStoreService.getAllStoreProducts(storeId, query);
   }
 
   @Get(':id')
