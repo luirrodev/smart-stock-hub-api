@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsOrder, Repository } from 'typeorm';
+import { plainToInstance } from 'class-transformer';
 
 import { ProductStore } from '../entities/product-store.entity';
 import { Product } from '../entities/product.entity';
@@ -248,7 +249,7 @@ export class ProductStoreService {
     query: ProductPaginationDto,
   ): Promise<PaginatedResponse<ProductListDto>> {
     try {
-      const { page = 1, limit = 10, sortBy = 'id', sortDir = 'ASC' } = query;
+      const { page = 1, limit = 10, sortBy = 'name', sortDir = 'ASC' } = query;
       const skip = (page - 1) * limit;
 
       // Construcción dinámica del ordenamiento
@@ -257,7 +258,12 @@ export class ProductStoreService {
       };
 
       // Obtener ProductStore con paginación
-      const [data, total] = await this.productStoreRepo.findAndCount({
+      const [productsStore, total] = await this.productStoreRepo.findAndCount({
+        select: {
+          id: true,
+          price: true,
+          name: true,
+        },
         where: {
           storeId,
           isActive: true,
@@ -270,11 +276,9 @@ export class ProductStoreService {
       const totalPages = Math.max(1, Math.ceil(total / limit));
 
       // Mapear ProductStore a ProductListDto
-      // const data: ProductListDto[] = productStores.map((productStore) => ({
-      //   id: productStore.id,
-      //   name: productStore.name,
-      //   price: Number(productStore.price),
-      // }));
+      const data = plainToInstance(ProductListDto, productsStore, {
+        excludeExtraneousValues: true,
+      });
 
       return {
         data,
