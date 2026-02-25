@@ -83,7 +83,8 @@ export class CartsV1Controller {
   ) {
     const storeId = request!.store!.id;
     const storeUserId = user?.storeUserId ?? null;
-    const cart = await this.cartsService.getCart(
+
+    return await this.cartsService.getCart(
       storeId,
       storeUserId,
       query.sessionId ?? null,

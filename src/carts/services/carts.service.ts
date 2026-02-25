@@ -120,7 +120,7 @@ export class CartService {
     // Buscar el carrito con sus items y productos relacionados
     const cart = await this.cartRepository.findOne({
       where: whereCondition,
-      relations: ['items', 'items.productStore', 'store', 'storeUser'],
+      relations: ['items', 'items.productStore'],
     });
 
     if (!cart) {
