@@ -19,7 +19,7 @@ export class CartItemResponseDto {
     });
   })
   @Type(() => ProductInCartDto)
-  productStore?: ProductInCartDto;
+  productStore: ProductInCartDto;
 
   @ApiProperty({ example: 2 })
   @Expose()

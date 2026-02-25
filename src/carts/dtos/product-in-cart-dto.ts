@@ -1,6 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Expose, Transform } from 'class-transformer';
-import { ProductStore } from '../../products/entities/product-store.entity';
+import { Expose } from 'class-transformer';
 
 /**
  * DTO para mostrar el producto en el carrito
@@ -20,6 +19,5 @@ export class ProductInCartDto {
     description: 'Nombre del producto',
   })
   @Expose()
-  @Transform(({ obj }: { obj: ProductStore }) => obj.name)
   name: string;
 }
