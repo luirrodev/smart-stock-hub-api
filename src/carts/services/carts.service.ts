@@ -154,7 +154,7 @@ export class CartService {
     storeId: number,
     storeUserId: number | null,
     sessionId: string | null,
-  ): Promise<Cart> {
+  ): Promise<CartResponseDto> {
     if (storeUserId === null && sessionId === null) {
       throw new BadRequestException(
         'Debe proporcionar al menos uno de los siguientes: storeUserId o sessionId',
@@ -164,7 +164,7 @@ export class CartService {
     // Buscar el item con sus relaciones
     const cartItem = await this.cartItemRepository.findOne({
       where: { id: itemId },
-      relations: ['cart', 'cart.storeUser', 'cart.store', 'product'],
+      relations: ['cart'],
     });
 
     if (!cartItem) {
@@ -188,7 +188,11 @@ export class CartService {
     // Actualizar última actividad del carrito
     await this.updateCartActivity(cartItem.cartId);
 
-    return this.getCartById(cartItem.cartId);
+    const updatedCart = await this.getCartById(cartItem.cartId);
+
+    return plainToInstance(CartResponseDto, updatedCart, {
+      excludeExtraneousValues: true,
+    });
   }
 
   /**
