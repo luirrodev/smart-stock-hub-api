@@ -13,7 +13,7 @@ export class ProductInCartDto {
     description: 'ID de la configuración del producto en la tienda',
   })
   @Expose()
-  productStoreId: number;
+  id: number;
 
   @ApiProperty({
     example: 'HORNO MICROONDAS 20L ALL NOVU',
