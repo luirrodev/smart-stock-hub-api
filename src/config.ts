@@ -35,5 +35,30 @@ export default registerAs('config', () => {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       callbackUrl: process.env.GOOGLE_CALLBACK_URL,
     },
+    storage: {
+      minio: {
+        endpoint: process.env.MINIO_ENDPOINT,
+        port: parseInt(process.env.MINIO_PORT || '9000', 10),
+        useSSL: process.env.MINIO_USE_SSL === 'true',
+        rootUser: process.env.MINIO_ROOT_USER as string,
+        rootPassword: process.env.MINIO_ROOT_PASSWORD as string,
+        bucketName: process.env.MINIO_BUCKET_NAME as string,
+        publicUrl: process.env.MINIO_PUBLIC_URL as string,
+      },
+      upload: {
+        maxFileSize: 10 * 1024 * 1024, // 10MB
+        allowedMimeTypes: [
+          'image/jpeg',
+          'image/png',
+          'image/webp',
+          'image/gif',
+          'application/pdf',
+        ],
+        allowedExtensions: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'pdf'],
+      },
+      signedUrl: {
+        defaultExpiresIn: 900, // 15 minutos
+      },
+    },
   };
 });
