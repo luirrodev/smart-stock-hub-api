@@ -12,6 +12,8 @@ import { ProductStore } from 'src/products/entities/product-store.entity';
 
 import { ProductStoreService } from 'src/products/services/product-store.service';
 import { v6 as uuidv4 } from 'uuid';
+import { plainToInstance } from 'class-transformer';
+import { CartResponseDto } from '../dtos';
 
 /**
  * Payload esperado por addToCart
@@ -96,7 +98,7 @@ export class CartService {
     storeId: number,
     storeUserId: number | null,
     sessionId: string | null,
-  ): Promise<Cart> {
+  ): Promise<CartResponseDto> {
     if (!storeUserId && !sessionId) {
       throw new BadRequestException(
         'Debe proporcionar al menos uno de los siguientes: storeUserId o sessionId',
@@ -127,7 +129,9 @@ export class CartService {
       );
     }
 
-    return cart;
+    return plainToInstance(CartResponseDto, cart, {
+      excludeExtraneousValues: true,
+    });
   }
 
   /**

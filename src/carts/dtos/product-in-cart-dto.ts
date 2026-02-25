@@ -13,7 +13,6 @@ export class ProductInCartDto {
     description: 'ID de la configuración del producto en la tienda',
   })
   @Expose()
-  @Transform(({ obj }: { obj: ProductStore }) => obj.id)
   productStoreId: number;
 
   @ApiProperty({

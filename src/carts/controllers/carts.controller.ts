@@ -80,7 +80,7 @@ export class CartsV1Controller {
     @Query() query: CartQueryDto,
     @GetUser() user?: PayloadToken,
     @Req() request?: Request,
-  ): Promise<CartResponseDto> {
+  ) {
     const storeId = request!.store!.id;
     const storeUserId = user?.storeUserId ?? null;
     const cart = await this.cartsService.getCart(
@@ -88,9 +88,6 @@ export class CartsV1Controller {
       storeUserId,
       query.sessionId ?? null,
     );
-    return plainToInstance(CartResponseDto, cart, {
-      excludeExtraneousValues: true,
-    });
   }
 
   @Post()
