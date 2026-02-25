@@ -131,22 +131,18 @@ export class CartsV1Controller {
     @Query() query: CartQueryDto,
     @GetUser() user?: PayloadToken,
     @Req() request?: Request,
-  ): Promise<CartResponseDto> {
+  ) {
     // CustomApiKeyGuard garantiza que request.store está present
     const storeId = request!.store!.id;
     const storeUserId = user?.storeUserId ?? null;
     const sessionId = query.sessionId ?? null;
 
-    const cart = await this.cartsService.addToCart({
+    return await this.cartsService.addToCart({
       productStoreId: dto.productId,
       quantity: dto.quantity,
       storeId,
       storeUserId,
       sessionId,
-    });
-
-    return plainToInstance(CartResponseDto, cart, {
-      excludeExtraneousValues: true,
     });
   }
 

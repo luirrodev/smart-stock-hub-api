@@ -49,7 +49,7 @@ export class CartService {
    * @param payload - Datos del productStore a añadir (productStoreId, quantity, storeId, storeUserId?, sessionId?)
    * @returns El carrito actualizado con todos sus items
    */
-  async addToCart(payload: AddToCartPayload): Promise<Cart> {
+  async addToCart(payload: AddToCartPayload): Promise<CartResponseDto> {
     let { productStoreId, quantity, sessionId, storeId, storeUserId } = payload;
     storeUserId = storeUserId ?? null;
 
@@ -83,7 +83,11 @@ export class CartService {
     await this.updateCartActivity(cart.id);
 
     // 5. Retornar el carrito actualizado completo
-    return this.getCartById(cart.id);
+    const newCart = this.getCartById(cart.id);
+
+    return plainToInstance(CartResponseDto, newCart, {
+      excludeExtraneousValues: true,
+    });
   }
 
   /**
