@@ -10,6 +10,7 @@ import {
   Query,
   UseInterceptors,
   BadRequestException,
+  ParseBoolPipe,
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import {
@@ -78,17 +79,15 @@ export class StorageController {
   })
   async uploadFile(
     @UploadedFile() file: StorageFile,
-    @Body() uploadFileDto: UploadFileDto,
+    @Body('folder') folder: string,
+    @Query('isPublic', new ParseBoolPipe({ optional: true }))
+    isPublic: boolean = true,
   ): Promise<UploadFileResponse> {
     if (!file) {
       throw new BadRequestException('No file provided');
     }
 
-    return this.storageService.uploadFile(
-      file,
-      uploadFileDto.folder,
-      uploadFileDto.isPublic ?? true, // Por defecto true
-    );
+    return this.storageService.uploadFile(file, folder, isPublic);
   }
 
   /**
@@ -138,24 +137,23 @@ export class StorageController {
   })
   async uploadMultipleFiles(
     @UploadedFiles() files: StorageFile[],
-    @Body() uploadMultipleFilesDto: UploadMultipleFilesDto,
+    @Body('folder') folder: string,
+    @Query('isPublic', new ParseBoolPipe({ optional: true }))
+    isPublic: boolean = true,
   ): Promise<UploadMultipleFilesResponse> {
     if (!files || files.length === 0) {
       throw new BadRequestException('No files provided');
     }
 
-    return this.storageService.uploadMultipleFiles(
-      files,
-      uploadMultipleFilesDto.folder,
-      uploadMultipleFilesDto.isPublic ?? true, // Por defecto true
-    );
+    return this.storageService.uploadMultipleFiles(files, folder, isPublic);
   }
 
   /**
-   * DELETE /storage/:key
+   * DELETE /storage/:key(*)
    * Elimina un archivo por su key
+   * Nota: Usa :key(*) para capturar claves con múltiples segmentos (ej: docs/docs/uuid.pdf)
    */
-  @Delete(':key')
+  @Delete(':key(*)')
   @ApiOperation({
     summary: 'Eliminar archivo por key',
     description: 'Elimina un archivo de MinIO usando su key',
@@ -176,11 +174,12 @@ export class StorageController {
   }
 
   /**
-   * GET /storage/signed-url/:key
+   * GET /storage/signed-url/:key(*)
    * Retorna una URL firmada con expiración configurable
    * Query param opcional: expires (en segundos)
+   * Nota: Usa :key(*) para capturar claves con múltiples segmentos (ej: docs/docs/uuid.pdf)
    */
-  @Get('signed-url/:key')
+  @Get('signed-url/:key(*)')
   @ApiOperation({
     summary: 'Obtener URL firmada',
     description:
@@ -226,10 +225,11 @@ export class StorageController {
   }
 
   /**
-   * GET /storage/exists/:key
+   * GET /storage/exists/:key(*)
    * Verifica si un archivo existe
+   * Nota: Usa :key(*) para capturar claves con múltiples segmentos (ej: docs/docs/uuid.pdf)
    */
-  @Get('exists/:key')
+  @Get('exists/:key(*)')
   @ApiOperation({
     summary: 'Verificar existencia de archivo',
     description: 'Verifica si un archivo existe en MinIO',

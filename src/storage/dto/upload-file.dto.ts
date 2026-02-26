@@ -1,4 +1,5 @@
 import { IsString, IsNotEmpty, IsBoolean, IsOptional } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UploadFileDto {
@@ -7,6 +8,17 @@ export class UploadFileDto {
   folder: string;
 
   @IsOptional()
+  @Transform(({ value }) => {
+    // Convertir string "false", "0", "no" a boolean false
+    // Convertir string "true", "1", "yes" a boolean true
+    if (typeof value === 'string') {
+      return !['false', '0', 'no', ''].includes(value.toLowerCase());
+    }
+    if (typeof value === 'boolean') {
+      return value;
+    }
+    return true; // default a true
+  })
   @IsBoolean()
   @ApiPropertyOptional({
     description:
@@ -22,6 +34,17 @@ export class UploadMultipleFilesDto {
   folder: string;
 
   @IsOptional()
+  @Transform(({ value }) => {
+    // Convertir string "false", "0", "no" a boolean false
+    // Convertir string "true", "1", "yes" a boolean true
+    if (typeof value === 'string') {
+      return !['false', '0', 'no', ''].includes(value.toLowerCase());
+    }
+    if (typeof value === 'boolean') {
+      return value;
+    }
+    return true; // default a true
+  })
   @IsBoolean()
   @ApiPropertyOptional({
     description:

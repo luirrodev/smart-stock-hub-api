@@ -4,6 +4,7 @@ import {
   OnModuleInit,
   BadRequestException,
   Inject,
+  NotFoundException,
 } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import config from 'src/config';
@@ -244,9 +245,16 @@ export class StorageService implements OnModuleInit {
 
   /**
    * Elimina un archivo por su key
+   * Valida primero que el archivo existe antes de intentar eliminarlo
    */
   async deleteFile(key: string): Promise<void> {
     try {
+      // Validar que el archivo existe
+      const exists = await this.fileExists(key);
+      if (!exists) {
+        throw new NotFoundException(`El archivo con key '${key}' no existe`);
+      }
+
       await this.s3Client.send(
         new DeleteObjectCommand({
           Bucket: this.bucketName,
@@ -254,6 +262,9 @@ export class StorageService implements OnModuleInit {
         }),
       );
     } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
       throw new InternalServerErrorException(
         `Error al eliminar archivo: ${error instanceof Error ? error.message : 'Error desconocido'}`,
       );
@@ -263,13 +274,28 @@ export class StorageService implements OnModuleInit {
   /**
    * Elimina un archivo por su URL pública
    * Extrae la key de la URL y llama a deleteFile
+   * Valida que la URL sea válida y tenga el formato correcto
    */
   async deleteFileByUrl(url: string): Promise<void> {
     try {
-      // Extraer la key de la URL
-      // URL format: http://localhost:9000/smart-stock/public/folder/uuid.ext
-      const urlParts = new URL(url);
+      // Validar que la URL es válida
+      let urlParts: URL;
+      try {
+        urlParts = new URL(url);
+      } catch {
+        throw new BadRequestException(
+          `La URL proporcionada no es válida: '${url}'`,
+        );
+      }
+
       const pathParts = urlParts.pathname.split('/').filter((part) => part);
+
+      // Validar que la URL tiene el formato correcto
+      if (pathParts.length < 2) {
+        throw new BadRequestException(
+          `La URL no tiene el formato correcto. Se esperaba: http://host/bucket/folder/file.ext, recibida: '${url}'`,
+        );
+      }
 
       // Remover el nombre del bucket si está en la URL
       let key = pathParts.join('/');
@@ -281,6 +307,12 @@ export class StorageService implements OnModuleInit {
 
       await this.deleteFile(key);
     } catch (error) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      }
       throw new InternalServerErrorException(
         `Error al eliminar archivo por URL: ${error instanceof Error ? error.message : 'Error desconocido'}`,
       );
