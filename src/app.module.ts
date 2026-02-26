@@ -20,6 +20,7 @@ import { OrdersModule } from './orders/orders.module';
 import { StoresModule } from './stores/stores.module';
 import { PaymentsModule } from './payments/payments.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
+import { StorageModule } from './storage/storage.module';
 
 @Module({
   imports: [
@@ -39,6 +40,14 @@ import { WebhooksModule } from './webhooks/webhooks.module';
         GOOGLE_CLIENT_ID: Joi.string().required(),
         GOOGLE_CLIENT_SECRET: Joi.string().required(),
         GOOGLE_CALLBACK_URL: Joi.string().required(),
+        // MinIO/Storage variables (opcionales)
+        MINIO_ENDPOINT: Joi.string().optional(),
+        MINIO_PORT: Joi.string().optional(),
+        MINIO_ROOT_USER: Joi.string().optional(),
+        MINIO_ROOT_PASSWORD: Joi.string().optional(),
+        MINIO_USE_SSL: Joi.string().optional(),
+        MINIO_BUCKET_NAME: Joi.string().optional(),
+        MINIO_PUBLIC_URL: Joi.string().optional(),
       }),
     }),
     AccessControlModule,
@@ -53,6 +62,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     PaymentsModule,
     // Desactivado temporalmente
     // WebhooksModule,
+    StorageModule,
   ],
   controllers: [AppController],
   providers: [
