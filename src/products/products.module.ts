@@ -17,8 +17,10 @@ import {
   ProductsV1Controller,
   ProductsV2Controller,
   CategoriesV1Controller,
+  ProductStoreImageController,
 } from './controllers';
 import { StoresModule } from 'src/stores/stores.module';
+import { StorageModule } from 'src/storage/storage.module';
 
 @Module({
   imports: [
@@ -31,11 +33,13 @@ import { StoresModule } from 'src/stores/stores.module';
       Store,
     ]),
     StoresModule,
+    StorageModule,
   ],
   controllers: [
     ProductsV1Controller,
     ProductsV2Controller,
     CategoriesV1Controller,
+    ProductStoreImageController,
   ],
   providers: [
     ProductsService,
