@@ -425,6 +425,110 @@ export class StorageService implements OnModuleInit {
   }
 
   /**
+   * Genera una URL firmada para que el cliente suba archivos directamente a MinIO
+   * La URL solo permite PUT y es válida por el tiempo especificado
+   *
+   * Uso: El cliente usa esta URL con fetch(..., { method: 'PUT', body: file })
+   * Sin pasar el archivo por el servidor
+   *
+   * @param folder - Carpeta destino (ej: 'products', 'documents')
+   * @param filename - Nombre del archivo (ej: 'image.jpg')
+   * @param isPublic - Si true, almacena en 'public/' subpath
+   * @param expiresInSeconds - Segundos válida la URL (default: 900 = 15 minutos)
+   * @returns URL firmada para upload directo a MinIO
+   */
+  async getPresignedUploadUrl(
+    folder: string,
+    filename: string,
+    isPublic: boolean = true,
+    expiresInSeconds: number = 900,
+  ): Promise<string> {
+    try {
+      // Generar key única igual como en uploadFile()
+      let key = this.generateFileKey(folder, filename, isPublic);
+      key = await this.ensureUniqueFileKey(key);
+
+      // Validar expiración
+      if (expiresInSeconds < 60 || expiresInSeconds > 86400) {
+        throw new BadRequestException(
+          'expiresInSeconds debe estar entre 60 y 86400 segundos',
+        );
+      }
+
+      // Crear comando PutObject (para escribir/subir)
+      const command = new PutObjectCommand({
+        Bucket: this.bucketName,
+        Key: key,
+      });
+
+      // Generar URL firmada
+      const presignedUrl = await getSignedUrl(this.s3Client, command, {
+        expiresIn: expiresInSeconds,
+      });
+
+      return presignedUrl;
+    } catch (error) {
+      throw new InternalServerErrorException(
+        `Error al generar presigned upload URL: ${error instanceof Error ? error.message : 'Error desconocido'}`,
+      );
+    }
+  }
+
+  /**
+   * Genera una presigned URL completa con toda la información necesaria para el cliente
+   * Retorna un objeto PresignedUploadUrlResponseDto con URL, instrucciones, etc.
+   */
+  async getPresignedUploadUrlResponse(
+    folder: string,
+    filename: string,
+    isPublic: boolean = true,
+    expiresInSeconds: number = 900,
+  ): Promise<{
+    uploadUrl: string;
+    fileKey: string;
+    publicUrl: string;
+    expiresIn: number;
+  }> {
+    try {
+      // Generar key única
+      let key = this.generateFileKey(folder, filename, isPublic);
+      key = await this.ensureUniqueFileKey(key);
+
+      // Validar expiración
+      if (expiresInSeconds < 60 || expiresInSeconds > 86400) {
+        throw new BadRequestException(
+          'expiresInSeconds debe estar entre 60 y 86400 segundos',
+        );
+      }
+
+      // Crear comando PutObject
+      const command = new PutObjectCommand({
+        Bucket: this.bucketName,
+        Key: key,
+      });
+
+      // Generar URL firmada
+      const uploadUrl = await getSignedUrl(this.s3Client, command, {
+        expiresIn: expiresInSeconds,
+      });
+
+      // Construir URL pública
+      const publicUrl = this.getPublicUrl(key);
+
+      return {
+        uploadUrl,
+        fileKey: key,
+        publicUrl,
+        expiresIn: expiresInSeconds,
+      };
+    } catch (error) {
+      throw new InternalServerErrorException(
+        `Error al generar presigned upload URL response: ${error instanceof Error ? error.message : 'Error desconocido'}`,
+      );
+    }
+  }
+
+  /**
    * Verifica si un archivo existe sin descargarlo
    * Usa HeadObjectCommand para una verificación eficiente
    */
