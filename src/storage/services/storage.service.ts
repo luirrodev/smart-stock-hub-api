@@ -24,6 +24,31 @@ import {
 } from '../types/storage.types';
 
 @Injectable()
+/**
+ * Servicio para gestionar archivos en almacenamiento S3 compatible (por ejemplo, MinIO).
+ *
+ * Proporciona métodos para subir, eliminar, validar y obtener URLs (públicas y firmadas) de archivos.
+ *
+ * Características principales:
+ * - Inicializa el cliente S3/MinIO con configuración dinámica al cargar el módulo.
+ * - Valida archivos antes de subirlos (tamaño, tipo MIME, extensión).
+ * - Permite subir archivos individuales o múltiples en paralelo.
+ * - Genera claves únicas y seguras para los archivos subidos.
+ * - Construye URLs públicas directas y URLs firmadas temporales para acceso seguro.
+ * - Permite eliminar archivos por clave o por URL pública.
+ * - Verifica la existencia de archivos sin descargarlos.
+ *
+ * Uso típico:
+ * - Inyectar este servicio en controladores o servicios que requieran gestión de archivos.
+ * - Utilizar `uploadFile` o `uploadMultipleFiles` para subir archivos.
+ * - Utilizar `getPublicUrl` o `getSignedUrl` para obtener enlaces de acceso.
+ * - Utilizar `deleteFile` o `deleteFileByUrl` para eliminar archivos.
+ *
+ * @remarks
+ * - Es compatible con MinIO y otros proveedores S3 compatibles.
+ * - Requiere configuración previa en el módulo de configuración de la aplicación.
+ * - El parámetro `forcePathStyle: true` es obligatorio para MinIO.
+ */
 export class StorageService implements OnModuleInit {
   private s3Client: S3Client;
   private bucketName: string;
@@ -99,13 +124,19 @@ export class StorageService implements OnModuleInit {
   }
 
   /**
-   * Genera una key siguiendo el patrón: public/{folder}/{uuid}.{extension}
+   * Genera una key siguiendo el patrón: {prefix}/{folder}/{uuid}.{extension}
    * @private
+   * @param isPublic - Si true, usa prefijo 'public', si false usa prefijo 'docs'
    */
-  private generateFileKey(folder: string, originalname: string): string {
+  private generateFileKey(
+    folder: string,
+    originalname: string,
+    isPublic: boolean = true,
+  ): string {
     const extension = originalname.split('.').pop()?.toLowerCase() || '';
     const uniqueName = `${uuidv4()}.${extension}`;
-    return `public/${folder}/${uniqueName}`;
+    const prefix = isPublic ? 'public' : 'docs';
+    return `${prefix}/${folder}/${uniqueName}`;
   }
 
   /**
@@ -118,22 +149,26 @@ export class StorageService implements OnModuleInit {
 
   /**
    * Sube un archivo individual
+   * @param isPublic - Si true (por defecto), el archivo se sube a 'public/' y devuelve URL pública.
+   *                   Si false, se sube a 'docs/' y devuelve una URL firmada temporal.
    */
   async uploadFile(
     file: StorageFile,
     folder: string,
+    isPublic: boolean = true,
   ): Promise<UploadFileResponse> {
     try {
       // Validar archivo
       this.validateFile(file);
 
-      // Generar key
-      const key = this.generateFileKey(folder, file.originalname);
+      // Generar key considerando si es público o privado
+      const key = this.generateFileKey(folder, file.originalname, isPublic);
 
-      // Metadatos
+      // Metadatos {incluyendo estado de privacidad para auditoría
       const metadata = {
         'original-name': file.originalname,
         'uploaded-at': new Date().toISOString(),
+        'is-public': isPublic.toString(),
       };
 
       // Usar Upload para manejo automático de multipart
@@ -150,8 +185,15 @@ export class StorageService implements OnModuleInit {
 
       await upload.done();
 
-      // Construir URL pública
-      const url = this.getPublicUrl(key);
+      // Generar URL según tipo de archivo
+      let url: string;
+      if (isPublic) {
+        // Para archivos públicos: devolver URL directa
+        url = this.getPublicUrl(key);
+      } else {
+        // Para archivos privados: devolver URL firmada temporal
+        url = await this.getSignedUrl(key);
+      }
 
       return {
         url,
@@ -172,14 +214,17 @@ export class StorageService implements OnModuleInit {
 
   /**
    * Sube múltiples archivos en paralelo
+   * @param isPublic - Si true (por defecto), los archivos se suben a 'public/' y devuelven URL pública.
+   *                   Si false, se suben a 'docs/' y devuelven URLs firmadas temporales.
    */
   async uploadMultipleFiles(
     files: StorageFile[],
     folder: string,
+    isPublic: boolean = true,
   ): Promise<UploadMultipleFilesResponse> {
     try {
       const uploadPromises = files.map((file) =>
-        this.uploadFile(file, folder).catch((error) => {
+        this.uploadFile(file, folder, isPublic).catch((error) => {
           throw error;
         }),
       );

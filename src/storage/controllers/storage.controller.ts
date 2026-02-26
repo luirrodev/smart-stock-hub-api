@@ -84,7 +84,11 @@ export class StorageController {
       throw new BadRequestException('No file provided');
     }
 
-    return this.storageService.uploadFile(file, uploadFileDto.folder);
+    return this.storageService.uploadFile(
+      file,
+      uploadFileDto.folder,
+      uploadFileDto.isPublic ?? true, // Por defecto true
+    );
   }
 
   /**
@@ -143,6 +147,7 @@ export class StorageController {
     return this.storageService.uploadMultipleFiles(
       files,
       uploadMultipleFilesDto.folder,
+      uploadMultipleFilesDto.isPublic ?? true, // Por defecto true
     );
   }
 
