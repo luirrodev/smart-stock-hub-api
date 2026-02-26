@@ -6,7 +6,7 @@ import { StaffUser } from '../access-control/users/entities/staff-user.entity';
 import { OrderStatus } from '../orders/entities/order-status.entity';
 import { Store } from '../stores/entities/store.entity';
 import * as bcrypt from 'bcryptjs';
-import { randomUUID } from 'crypto';
+import * as crypto from 'crypto';
 
 async function seed() {
   await MyDataSourse.initialize();
@@ -186,6 +186,10 @@ async function seed() {
   }
 
   // Seed default stores
+  const generateApiKey = (): string => {
+    return crypto.randomBytes(32).toString('hex');
+  };
+
   const stores = [
     {
       name: 'AllNovu',
@@ -196,7 +200,7 @@ async function seed() {
       country: 'No definida',
       phone: null,
       email: null,
-      apiKey: randomUUID(),
+      apiKey: generateApiKey(),
     },
     {
       name: 'Mandasaldo',
@@ -207,7 +211,7 @@ async function seed() {
       country: 'No definida',
       phone: null,
       email: null,
-      apiKey: randomUUID(),
+      apiKey: generateApiKey(),
     },
   ];
 
