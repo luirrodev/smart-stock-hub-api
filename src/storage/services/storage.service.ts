@@ -107,20 +107,21 @@ export class StorageService implements OnModuleInit {
       );
     }
 
+    const fileExtension = file.originalname.split('.').pop()?.toLowerCase();
+    if (!fileExtension || !this.allowedExtensions.includes(fileExtension)) {
+      throw new BadRequestException(
+        `La extensión .${fileExtension || 'desconocida'} no está permitida. Permitidas: ${this.allowedExtensions.join(', ')}`,
+      );
+    }
+
     // Validar tipo MIME
     if (!this.allowedMimeTypes.includes(file.mimetype)) {
       throw new BadRequestException(
-        `El tipo de archivo ${file.mimetype} no está permitido. Permitidos: ${this.allowedMimeTypes.join(', ')}`,
+        `El tipo de archivo ${file.mimetype} no está permitido`,
       );
     }
 
     // Validar extensión
-    const fileExtension = file.originalname.split('.').pop()?.toLowerCase();
-    if (!fileExtension || !this.allowedExtensions.includes(fileExtension)) {
-      throw new BadRequestException(
-        `La extensión ${fileExtension || 'desconocida'} no está permitida. Permitidas: ${this.allowedExtensions.join(', ')}`,
-      );
-    }
   }
 
   /**
