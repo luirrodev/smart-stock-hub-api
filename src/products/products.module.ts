@@ -11,6 +11,7 @@ import { Store } from '../stores/entities/store.entity';
 import { ProductsService } from './services/products.service';
 import { ProductStoreService } from './services/product-store.service';
 import { CategoryService } from './services/category.service';
+import { ProductStoreImageService } from './services/product-store-image.service';
 
 import {
   ProductsV1Controller,
@@ -36,7 +37,17 @@ import { StoresModule } from 'src/stores/stores.module';
     ProductsV2Controller,
     CategoriesV1Controller,
   ],
-  providers: [ProductsService, ProductStoreService, CategoryService],
-  exports: [ProductsService, ProductStoreService, CategoryService],
+  providers: [
+    ProductsService,
+    ProductStoreService,
+    CategoryService,
+    ProductStoreImageService,
+  ],
+  exports: [
+    ProductsService,
+    ProductStoreService,
+    CategoryService,
+    ProductStoreImageService,
+  ],
 })
 export class ProductsModule {}
