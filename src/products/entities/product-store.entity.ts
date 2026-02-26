@@ -15,6 +15,7 @@ import { Exclude } from 'class-transformer';
 import { Product } from './product.entity';
 import { Store } from '../../stores/entities/store.entity';
 import { ProductStoreCategory } from './product-store-category.entity';
+import { ProductStoreImage } from './product-store-image.entity';
 
 /**
  * Entidad ProductStore
@@ -95,6 +96,16 @@ export class ProductStore {
     { cascade: true },
   )
   productStoreCategories: ProductStoreCategory[];
+
+  // RELACIÓN CON PRODUCTSTORE IMAGES
+  // Imágenes de la galería asignadas a este ProductStore
+  // Las imágenes son específicas de la tienda, permitiendo diferentes fotos por tienda
+  @OneToMany(
+    () => ProductStoreImage,
+    (productStoreImage) => productStoreImage.productStore,
+    { cascade: true },
+  )
+  productStoreImages: ProductStoreImage[];
 
   // MARCAS DE TIEMPO
   @Exclude()
