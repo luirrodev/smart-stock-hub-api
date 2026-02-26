@@ -126,19 +126,38 @@ export class StorageService implements OnModuleInit {
   }
 
   /**
-   * Genera una key siguiendo el patrón: {prefix}/{folder}/{uuid}.{extension}
+   * Genera una key siguiendo el patrón: {prefix}/{folder}/{nombreArchivo}.{extension}
    * @private
+   * @param folder - Carpeta de destino
+   * @param originalname - Nombre original del archivo (para extraer extensión)
    * @param isPublic - Si true, usa prefijo 'public', si false usa prefijo 'docs'
+   * @param customFileName - Nombre personalizado para el archivo. Si no se proporciona, genera UUID automáticamente
    */
   private generateFileKey(
     folder: string,
     originalname: string,
     isPublic: boolean = true,
+    customFileName?: string,
   ): string {
-    const extension = originalname.split('.').pop()?.toLowerCase() || '';
-    const uniqueName = `${uuidv4()}.${extension}`;
+    let fileName: string;
+
+    if (customFileName) {
+      // Si el nombre personalizado ya incluye extensión, usarlo tal cual
+      // Si no, agregar la extensión del archivo original
+      if (customFileName.includes('.')) {
+        fileName = customFileName;
+      } else {
+        const extension = originalname.split('.').pop()?.toLowerCase() || '';
+        fileName = `${customFileName}.${extension}`;
+      }
+    } else {
+      // Generar UUID automáticamente
+      const extension = originalname.split('.').pop()?.toLowerCase() || '';
+      fileName = `${uuidv4()}.${extension}`;
+    }
+
     const prefix = isPublic ? 'public' : 'docs';
-    return `${prefix}/${folder}/${uniqueName}`;
+    return `${prefix}/${folder}/${fileName}`;
   }
 
   /**
@@ -150,23 +169,63 @@ export class StorageService implements OnModuleInit {
   }
 
   /**
+   * Asegura que una clave de archivo sea única en el almacenamiento
+   * Si el archivo ya existe, agrega (2), (3), etc. hasta encontrar un nombre disponible
+   * @private
+   */
+  private async ensureUniqueFileKey(key: string): Promise<string> {
+    // Verificar si la key ya existe
+    const exists = await this.fileExists(key);
+    if (!exists) {
+      return key; // La key es única
+    }
+
+    // El archivo ya existe, agregar (2), (3), etc.
+    const parts = key.split('.');
+    const extension = parts.pop() || '';
+    const baseKey = parts.join('.');
+
+    let counter = 2;
+    let uniqueKey = `${baseKey}(${counter}).${extension}`;
+
+    while (await this.fileExists(uniqueKey)) {
+      counter++;
+      uniqueKey = `${baseKey}(${counter}).${extension}`;
+    }
+
+    return uniqueKey;
+  }
+
+  /**
    * Sube un archivo individual
+   * @param file - Archivo a subir
+   * @param folder - Carpeta de destino
    * @param isPublic - Si true (por defecto), el archivo se sube a 'public/' y devuelve URL pública.
    *                   Si false, se sube a 'docs/' y devuelve una URL firmada temporal.
+   * @param customFileName - Nombre personalizado para el archivo. Si no se proporciona, genera UUID automáticamente
    */
   async uploadFile(
     file: StorageFile,
     folder: string,
     isPublic: boolean = true,
+    customFileName?: string,
   ): Promise<UploadFileResponse> {
     try {
       // Validar archivo
       this.validateFile(file);
 
-      // Generar key considerando si es público o privado
-      const key = this.generateFileKey(folder, file.originalname, isPublic);
+      // Generar key considerando si es público o privado y nombre personalizado
+      let key = this.generateFileKey(
+        folder,
+        file.originalname,
+        isPublic,
+        customFileName,
+      );
 
-      // Metadatos {incluyendo estado de privacidad para auditoría
+      // Asegurar que la key sea única (si existe, agregar (2), (3), etc.)
+      key = await this.ensureUniqueFileKey(key);
+
+      // Metadatos incluyendo estado de privacidad para auditoría
       const metadata = {
         'original-name': file.originalname,
         'uploaded-at': new Date().toISOString(),
@@ -216,20 +275,33 @@ export class StorageService implements OnModuleInit {
 
   /**
    * Sube múltiples archivos en paralelo
+   * @param files - Archivos a subir
+   * @param folder - Carpeta de destino
    * @param isPublic - Si true (por defecto), los archivos se suben a 'public/' y devuelven URL pública.
    *                   Si false, se suben a 'docs/' y devuelven URLs firmadas temporales.
+   * @param customFileName - Nombre personalizado para los archivos. Si no se proporciona, genera UUID automáticamente
    */
   async uploadMultipleFiles(
     files: StorageFile[],
     folder: string,
     isPublic: boolean = true,
+    customFileName?: string,
   ): Promise<UploadMultipleFilesResponse> {
     try {
-      const uploadPromises = files.map((file) =>
-        this.uploadFile(file, folder, isPublic).catch((error) => {
-          throw error;
-        }),
-      );
+      const uploadPromises = files.map((file, index) => {
+        // Si se proporciona customFileName para múltiples archivos,
+        // agregar el índice para evitar conflictos (ej: product-1, product-2)
+        const fileName =
+          customFileName && files.length > 1
+            ? `${customFileName}-${index + 1}`
+            : customFileName;
+
+        return this.uploadFile(file, folder, isPublic, fileName).catch(
+          (error) => {
+            throw error;
+          },
+        );
+      });
 
       const uploadedFiles = await Promise.all(uploadPromises);
 
@@ -354,7 +426,7 @@ export class StorageService implements OnModuleInit {
 
   /**
    * Verifica si un archivo existe sin descargarlo
-   * Usa HeadObjectCommand
+   * Usa HeadObjectCommand para una verificación eficiente
    */
   async fileExists(key: string): Promise<boolean> {
     try {

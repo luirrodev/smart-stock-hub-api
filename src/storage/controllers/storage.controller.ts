@@ -82,12 +82,18 @@ export class StorageController {
     @Body('folder') folder: string,
     @Query('isPublic', new ParseBoolPipe({ optional: true }))
     isPublic: boolean = true,
+    @Query('customFileName') customFileName?: string,
   ): Promise<UploadFileResponse> {
     if (!file) {
       throw new BadRequestException('No file provided');
     }
 
-    return this.storageService.uploadFile(file, folder, isPublic);
+    return this.storageService.uploadFile(
+      file,
+      folder,
+      isPublic,
+      customFileName,
+    );
   }
 
   /**
@@ -140,12 +146,18 @@ export class StorageController {
     @Body('folder') folder: string,
     @Query('isPublic', new ParseBoolPipe({ optional: true }))
     isPublic: boolean = true,
+    @Query('customFileName') customFileName?: string,
   ): Promise<UploadMultipleFilesResponse> {
     if (!files || files.length === 0) {
       throw new BadRequestException('No files provided');
     }
 
-    return this.storageService.uploadMultipleFiles(files, folder, isPublic);
+    return this.storageService.uploadMultipleFiles(
+      files,
+      folder,
+      isPublic,
+      customFileName,
+    );
   }
 
   /**
