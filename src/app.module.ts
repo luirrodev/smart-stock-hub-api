@@ -1,33 +1,32 @@
 import { ConfigModule, ConfigType } from '@nestjs/config';
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { BullModule } from '@nestjs/bull';
 import * as Joi from 'joi';
 
 import { enviroments } from './enviroments';
 import config from './config';
+import buildRedisUrl from './common/utils/redis.util';
 
+import { CommonModule } from './common/common.module';
+import { DatabaseModule } from './database/database.module';
+import { LogsModule } from './logs/logs.module';
 import { AccessControlModule } from './access-control/access-control.module';
 import { AuthModule } from './auth/auth.module';
-import { DatabaseModule } from './database/database.module';
 import { CustomersModule } from './customers/customers.module';
 import { ProductsModule } from './products/products.module';
 import { CartsModule } from './carts/carts.module';
 import { InventoryModule } from './inventory/inventory.module';
-import { LogsModule } from './logs/logs.module';
+import { OrdersModule } from './orders/orders.module';
+import { StoresModule } from './stores/stores.module';
+import { PaymentsModule } from './payments/payments.module';
+import { StorageModule } from './storage/storage.module';
 
 import { AppController } from './app.controller';
 import { APP_GUARD, APP_FILTER } from '@nestjs/core';
 import { JWTAuthGuard } from './auth/guards/jwt-auth.guard';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
-import { RequestContextService } from './common/services/request-context.service';
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
-import { OrdersModule } from './orders/orders.module';
-import { StoresModule } from './stores/stores.module';
-import { PaymentsModule } from './payments/payments.module';
-import { WebhooksModule } from './webhooks/webhooks.module';
-import { StorageModule } from './storage/storage.module';
-import { BullModule } from '@nestjs/bull';
-import buildRedisUrl from './common/utils/redis.util';
 
 @Module({
   imports: [
@@ -47,7 +46,6 @@ import buildRedisUrl from './common/utils/redis.util';
         GOOGLE_CLIENT_ID: Joi.string().required(),
         GOOGLE_CLIENT_SECRET: Joi.string().required(),
         GOOGLE_CALLBACK_URL: Joi.string().required(),
-        // MinIO/Storage variables (opcionales)
         MINIO_ENDPOINT: Joi.string().optional(),
         MINIO_PORT: Joi.string().optional(),
         MINIO_ROOT_USER: Joi.string().optional(),
@@ -69,10 +67,11 @@ import buildRedisUrl from './common/utils/redis.util';
         url: buildRedisUrl(configService.redis),
       }),
     }),
+    CommonModule,
+    DatabaseModule,
     LogsModule,
     AccessControlModule,
     AuthModule,
-    DatabaseModule,
     CustomersModule,
     ProductsModule,
     CartsModule,
@@ -80,13 +79,10 @@ import buildRedisUrl from './common/utils/redis.util';
     OrdersModule,
     StoresModule,
     PaymentsModule,
-    // Desactivado temporalmente
-    // WebhooksModule,
     StorageModule,
   ],
   controllers: [AppController],
   providers: [
-    RequestContextService,
     {
       provide: APP_FILTER,
       useClass: GlobalExceptionFilter,
@@ -99,8 +95,6 @@ import buildRedisUrl from './common/utils/redis.util';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    // Registrar RequestContextMiddleware para todas las rutas
-    // DEBE ser uno de los primeros middlewares para capturar el contexto
     consumer.apply(RequestContextMiddleware).forRoutes('*');
   }
 }

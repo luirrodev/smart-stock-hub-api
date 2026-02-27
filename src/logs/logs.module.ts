@@ -13,9 +13,11 @@ import { LogsProcessor } from './processors/logs.processor';
 import { LogsEventListener } from './listeners/logs-event.listener';
 import { AuditSubscriber } from './subscribers/audit.subscriber';
 import { LogsController } from './controllers/logs.controller';
+import { CommonModule } from 'src/common/common.module';
 
 @Module({
   imports: [
+    CommonModule,
     TypeOrmModule.forFeature([Log, AuditLog]),
     BullModule.registerQueue({
       name: 'logs',
