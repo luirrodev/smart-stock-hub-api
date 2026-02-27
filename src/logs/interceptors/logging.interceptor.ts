@@ -1,0 +1,56 @@
+import {
+  Injectable,
+  NestInterceptor,
+  ExecutionContext,
+  CallHandler,
+} from '@nestjs/common';
+import { Observable } from 'rxjs';
+import { tap } from 'rxjs/operators';
+import { Request, Response } from 'express';
+import { LoggingService } from '../services/logging.service';
+
+/**
+ * Interceptor de logging global para HTTP requests
+ *
+ * - Loguea ÉXITOS con duration (performant) — fire-and-forget con setImmediate
+ * - En ERRORES: solo relanza SIN loguear (responsabilidad del GlobalExceptionFilter)
+ *
+ */
+@Injectable()
+export class LoggingInterceptor implements NestInterceptor {
+  constructor(private loggingService: LoggingService) {}
+
+  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    const req = context.switchToHttp().getRequest<Request>();
+    const res = context.switchToHttp().getResponse<Response>();
+
+    // Generar y adjuntar request ID
+    const requestId = this.loggingService.getRequestId(req);
+
+    // Capturar tiempo de inicio
+    const startTime = Date.now();
+
+    return next.handle().pipe(
+      tap(() => {
+        const duration = Date.now() - startTime;
+        setImmediate(() => {
+          const status = res.statusCode;
+
+          const logContext = this.loggingService.createHttpContext(req, {
+            requestId,
+            timestamp: new Date(),
+          });
+
+          this.loggingService.log(
+            `${req.method} ${req.path} - ${status}`,
+            logContext,
+            {
+              statusCode: status,
+              duration,
+            },
+          );
+        });
+      }),
+    );
+  }
+}
