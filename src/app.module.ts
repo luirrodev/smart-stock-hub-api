@@ -1,4 +1,4 @@
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigType } from '@nestjs/config';
 import { Module } from '@nestjs/common';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import * as Joi from 'joi';
@@ -24,10 +24,11 @@ import { StoresModule } from './stores/stores.module';
 import { PaymentsModule } from './payments/payments.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { StorageModule } from './storage/storage.module';
+import { BullModule } from '@nestjs/bull';
+import buildRedisUrl from './common/utils/redis.util';
 
 @Module({
   imports: [
-    EventEmitterModule.forRoot(),
     ConfigModule.forRoot({
       envFilePath: enviroments[process.env.NODE_ENV as string] || '.env',
       load: [config],
@@ -52,6 +53,13 @@ import { StorageModule } from './storage/storage.module';
         MINIO_USE_SSL: Joi.string().optional(),
         MINIO_BUCKET_NAME: Joi.string().optional(),
         MINIO_PUBLIC_URL: Joi.string().optional(),
+      }),
+    }),
+    EventEmitterModule.forRoot(),
+    BullModule.forRootAsync({
+      inject: [config.KEY],
+      useFactory: (configService: ConfigType<typeof config>) => ({
+        url: buildRedisUrl(configService.redis),
       }),
     }),
     LogsModule,
