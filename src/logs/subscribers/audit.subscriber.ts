@@ -7,20 +7,18 @@ import {
   RemoveEvent,
   DataSource,
 } from 'typeorm';
-import deepEqual from 'deep-equal';
-import { Log } from '../entities/log.entity';
-import { AuditLog } from '../entities/audit-log.entity';
+import * as deepEqual from 'fast-deep-equal';
 import { LogsPersistenceService } from '../services/logs-persistence.service';
 import { RequestContextService } from '../../common/services/request-context.service';
 import { AuditOperation } from '../types/log.types';
 
-/**
- * Subscriber que audita automáticamente cambios en entidades
- * Registra CREATE, UPDATE, DELETE en audit_logs
- */
+const EXCLUDED_ENTITIES = ['Log', 'AuditLog'];
+
 @EventSubscriber()
 @Injectable()
 export class AuditSubscriber implements EntitySubscriberInterface {
+  private readonly logger = new Logger(AuditSubscriber.name);
+
   constructor(
     dataSource: DataSource,
     private readonly logsPersistenceService: LogsPersistenceService,
@@ -28,121 +26,97 @@ export class AuditSubscriber implements EntitySubscriberInterface {
   ) {
     dataSource.subscribers.push(this);
   }
-  private logger = new Logger(AuditSubscriber.name);
 
-  /**
-   * Registra INSERT
-   * El userId se obtiene del contexto HTTP a través de RequestContextService
-   */
   async afterInsert(event: InsertEvent<any>): Promise<void> {
-    if (event.entity && this.shouldAudit(event.entity)) {
-      try {
-        await this.logsPersistenceService.addAuditLogToBuffer({
-          entityName: event.entity.constructor.name,
-          entityId: String(event.entity.id),
-          operation: AuditOperation.CREATE,
-          changes: {
-            after: event.entity,
-          },
-          userId: this.requestContextService.getUserId(),
-          metadata: {
-            event: 'INSERT',
-            timestamp: new Date(),
-            requestId: this.requestContextService.getRequestId(),
-          },
-        });
-      } catch (error) {
-        this.logger.error('Error logging INSERT:', error.message || error);
-        // No lanzar — permitir que la operación continúe aunque falle el audit
-      }
+    const entityName = event.metadata?.name;
+    if (!entityName || !event.entity) return;
+    if (!this.shouldAudit(entityName)) return;
+    this.logger.debug(
+      `Auditing INSERT on ${entityName} with ID ${event.entity.id}`,
+    );
+
+    try {
+      await this.logsPersistenceService.addAuditLogToBuffer({
+        entityName,
+        entityId: String(event.entity.id),
+        operation: AuditOperation.CREATE,
+        changes: { after: event.entity },
+        userId: this.requestContextService.getUserId(),
+        metadata: {
+          event: 'INSERT',
+          timestamp: new Date(),
+          requestId: this.requestContextService.getRequestId(),
+        },
+      });
+    } catch (error) {
+      this.logger.error('Error logging INSERT:', error.message || error);
     }
   }
 
-  /**
-   * Registra UPDATE
-   *
-   * ⚠️ event.databaseEntity puede ser undefined si TypeORM no cargó el estado anterior
-   * (por ej: con update() en lugar de save()). Se valida antes de procesar.
-   */
   async afterUpdate(event: UpdateEvent<any>): Promise<void> {
-    // Guardar contra undefined: TypeORM no siempre carga databaseEntity
-    if (!event.entity || !event.databaseEntity) return;
-    if (!this.shouldAudit(event.entity)) return;
+    const entityName = event.metadata?.name;
+    if (!entityName || !event.entity || !event.databaseEntity) return;
+    if (!this.shouldAudit(entityName)) return;
 
     const changes = this.detectChanges(event.databaseEntity, event.entity);
+    if (Object.keys(changes).length === 0) return;
 
-    if (Object.keys(changes).length > 0) {
-      try {
-        await this.logsPersistenceService.addAuditLogToBuffer({
-          entityName: event.entity.constructor.name,
-          entityId: String(event.entity.id),
-          operation: AuditOperation.UPDATE,
-          changes: {
-            before: event.databaseEntity,
-            after: event.entity,
-            diff: changes,
-          },
-          userId: this.requestContextService.getUserId(),
-          metadata: {
-            event: 'UPDATE',
-            timestamp: new Date(),
-            requestId: this.requestContextService.getRequestId(),
-          },
-        });
-      } catch (error) {
-        this.logger.error('Error logging UPDATE:', error.message || error);
-        // No lanzar — permitir que la operación continúe aunque falle el audit
-      }
+    try {
+      await this.logsPersistenceService.addAuditLogToBuffer({
+        entityName,
+        entityId: String(event.entity.id),
+        operation: AuditOperation.UPDATE,
+        changes: {
+          before: event.databaseEntity,
+          after: event.entity,
+          diff: changes,
+        },
+        userId: this.requestContextService.getUserId(),
+        metadata: {
+          event: 'UPDATE',
+          timestamp: new Date(),
+          requestId: this.requestContextService.getRequestId(),
+        },
+      });
+    } catch (error) {
+      this.logger.error('Error logging UPDATE:', error.message || error);
     }
   }
 
-  /**
-   * Registra DELETE
-   */
   async afterRemove(event: RemoveEvent<any>): Promise<void> {
-    if (event.entity && this.shouldAudit(event.entity)) {
-      try {
-        await this.logsPersistenceService.addAuditLogToBuffer({
-          entityName: event.entity.constructor.name,
-          entityId: String(event.entity.id),
-          operation: AuditOperation.DELETE,
-          changes: {
-            before: event.entity,
-          },
-          userId: this.requestContextService.getUserId(),
-          metadata: {
-            event: 'DELETE',
-            timestamp: new Date(),
-            requestId: this.requestContextService.getRequestId(),
-          },
-        });
-      } catch (error) {
-        this.logger.error('Error logging DELETE:', error.message || error);
-        // No lanzar — permitir que la operación continúe aunque falle el audit
-      }
+    const entityName = event.metadata?.name;
+    if (!entityName || !event.entity) return;
+    if (!this.shouldAudit(entityName)) return;
+
+    try {
+      await this.logsPersistenceService.addAuditLogToBuffer({
+        entityName,
+        entityId: String(event.entity.id),
+        operation: AuditOperation.DELETE,
+        changes: { before: event.entity },
+        userId: this.requestContextService.getUserId(),
+        metadata: {
+          event: 'DELETE',
+          timestamp: new Date(),
+          requestId: this.requestContextService.getRequestId(),
+        },
+      });
+    } catch (error) {
+      this.logger.error('Error logging DELETE:', error.message || error);
     }
   }
 
   /**
-   * Determina si una entidad debe ser auditada
-   * Compara directamente contra clases (no strings) para evitar regresiones
-   * por rename de entidades. Excluye Log y AuditLog para evitar recursión infinita.
+   * Usa event.metadata.name (siempre disponible en TypeORM)
+   * en lugar de instanceof (no funciona con objetos planos)
    */
-  private shouldAudit(entity: any): boolean {
-    // Usar instanceof en lugar de nombres en strings
-    // Si alguien renombra Log a AppLog, esto sigue funcionando
-    return !(entity instanceof Log || entity instanceof AuditLog);
+  private shouldAudit(entityName: string): boolean {
+    return !EXCLUDED_ENTITIES.includes(entityName);
   }
 
-  /**
-   * Detecta cambios entre valores antes/después
-   *
-   * Usa deep-equal (librería) en lugar de JSON.stringify para evitar
-   * falsos positivos por orden de keys en objetos anidados.
-   * Esto garantiza comparación estructural precisa incluso con JSONB complejos.
-   */
   private detectChanges(before: any, after: any): Record<string, any> {
     const changes: Record<string, any> = {};
+    const IGNORED_KEYS = ['createdAt', 'updatedAt', 'deletedAt', 'id'];
 
     const keys = new Set([
       ...Object.keys(before || {}),
@@ -150,20 +124,13 @@ export class AuditSubscriber implements EntitySubscriberInterface {
     ]);
 
     keys.forEach((key) => {
+      if (IGNORED_KEYS.includes(key)) return;
+
       const beforeValue = before?.[key];
       const afterValue = after?.[key];
 
-      // Excluir campos internos
-      if (['createdAt', 'updatedAt', 'deletedAt', 'id'].includes(key)) {
-        return;
-      }
-
-      // Usar deep-equal para comparación robusta (maneja orden de keys)
       if (!deepEqual(beforeValue, afterValue)) {
-        changes[key] = {
-          before: beforeValue,
-          after: afterValue,
-        };
+        changes[key] = { before: beforeValue, after: afterValue };
       }
     });
 
