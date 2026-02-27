@@ -39,32 +39,25 @@ export class LogsEventListener {
    * Escucha evento 'logs.create' emitido por LoggingService
    * y encola en Bull para procesamiento en background
    *
-   * ⚠️ Nota sobre jobId y duplicados:
-   * El jobId se basa en requestId para evitar duplicados si el evento
-   * se emite dos veces accidentalmente. Sin embargo, esto tiene una implicación:
+   * ⚠️ Nota sobre jobId con timestamp:
+   * El jobId incluye timestamp para garantizar unicidad incluso si múltiples
+   * logs de la MISMA request se emiten en ciclos diferentes (interceptor + filtro,
+   * logs manuales, etc). Bull rechazará duplicados por jobId, así que el timestamp
+   * previene descartes silenciosos cuando se agregan nuevos puntos de log.
    *
-   * Si múltiples logs de la MISMA request usan el mismo jobId, Bull descartará
-   * silenciosamente los duplicados. En la arquitectura actual esto no sucede porque:
+   * ARQUITECTURA GARANTIZADA:
    * - Interceptor loguea éxitos (status 2xx/3xx)
    * - GlobalExceptionFilter loguea errores (exceptions)
-   * - NUNCA ambos logean para la misma request
-   *
-   * PERO si en el futuro añades más puntos de log manual con el mismo requestId,
-   * ten cuidado. Opciones:
-   * 1. Usar jobId = undefined (dejar que Bull genere IDs únicos)
-   * 2. Incluir timestamp: `log-${requestId}-${Date.now()}`
-   * 3. Incluir tipo de log: `log-${requestId}-${logData.level}`
-   *
-   * Actualmente: jobId=requestId es seguro dada la separación de responsabilidades
+   * - Nunca ambos logean para la misma request
+   * - Pero si se agregan logs manuales, el timestamp asegura que todos se procesen
    */
   @OnEvent('logs.create')
   async handleLogEvent(logData: LogData): Promise<void> {
     try {
       await this.logsQueue.add('process-log', logData, {
-        // jobId basado en requestId para evitar duplicados accidentales
-        // (ver nota arriba sobre implicaciones si se agregan más puntos de log)
+        // jobId único: evita duplicados incluso con múltiples logs por request
         jobId: logData.context?.requestId
-          ? `log-${logData.context.requestId}`
+          ? `log-${logData.context.requestId}-${Date.now()}`
           : undefined,
         // Reintentos con backoff exponencial
         attempts: 3,
