@@ -12,18 +12,18 @@ export class AuditLog {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ type: 'varchar', length: 100 })
+  @Column({ type: 'varchar', length: 100, name: 'entity_name' })
   @Index()
   entityName: string;
 
-  @Column({ type: 'varchar', length: 100 })
+  @Column({ type: 'varchar', length: 100, name: 'entity_id' })
   entityId: string;
 
   @Column({ type: 'enum', enum: AuditOperation })
   @Index()
   operation: AuditOperation;
 
-  @Column({ type: 'int', nullable: true })
+  @Column({ type: 'int', nullable: true, name: 'user_id' })
   @Index()
   userId: number | null;
 

@@ -12,7 +12,7 @@ export class Log {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ type: 'uuid' })
+  @Column({ type: 'uuid', name: 'request_id' })
   @Index()
   requestId: string;
 
@@ -29,19 +29,19 @@ export class Log {
   @Column({ type: 'jsonb', nullable: true })
   metadata: Record<string, any>;
 
-  @Column({ type: 'int', nullable: true })
+  @Column({ type: 'int', nullable: true, name: 'status_code' })
   statusCode: number | null;
 
-  @Column({ type: 'int', nullable: true })
+  @Column({ type: 'int', nullable: true, name: 'duration_ms' })
   duration: number | null;
 
   @Column({ type: 'varchar', length: 45, nullable: true })
   ip: string | null;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: 'text', nullable: true, name: 'user_agent' })
   userAgent: string | null;
 
-  @Column({ type: 'int', nullable: true })
+  @Column({ type: 'int', nullable: true, name: 'user_id' })
   @Index()
   userId: number | null;
 
