@@ -12,10 +12,12 @@ import { CustomersModule } from './customers/customers.module';
 import { ProductsModule } from './products/products.module';
 import { CartsModule } from './carts/carts.module';
 import { InventoryModule } from './inventory/inventory.module';
+import { LogsModule } from './logs/logs.module';
 
 import { AppController } from './app.controller';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_FILTER } from '@nestjs/core';
 import { JWTAuthGuard } from './auth/guards/jwt-auth.guard';
+import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { OrdersModule } from './orders/orders.module';
 import { StoresModule } from './stores/stores.module';
 import { PaymentsModule } from './payments/payments.module';
@@ -50,6 +52,7 @@ import { StorageModule } from './storage/storage.module';
         MINIO_PUBLIC_URL: Joi.string().optional(),
       }),
     }),
+    LogsModule,
     AccessControlModule,
     AuthModule,
     DatabaseModule,
@@ -66,6 +69,10 @@ import { StorageModule } from './storage/storage.module';
   ],
   controllers: [AppController],
   providers: [
+    {
+      provide: APP_FILTER,
+      useClass: GlobalExceptionFilter,
+    },
     {
       provide: APP_GUARD,
       useClass: JWTAuthGuard,
