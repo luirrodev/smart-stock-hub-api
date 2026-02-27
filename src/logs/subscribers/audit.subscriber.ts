@@ -25,10 +25,10 @@ export class AuditSubscriber implements EntitySubscriberInterface {
     dataSource: DataSource,
     private readonly logsPersistenceService: LogsPersistenceService,
     private readonly requestContextService: RequestContextService,
-    private readonly logger = new Logger(AuditSubscriber.name),
   ) {
     dataSource.subscribers.push(this);
   }
+  private logger = new Logger(AuditSubscriber.name);
 
   /**
    * Registra INSERT
