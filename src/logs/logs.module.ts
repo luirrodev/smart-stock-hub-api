@@ -28,7 +28,6 @@ import { LogsController } from './controllers/logs.controller';
         removeOnComplete: true,
       },
     }),
-    EventEmitterModule.forRoot(),
   ],
   providers: [
     LoggingService,

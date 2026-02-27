@@ -1,5 +1,6 @@
 import { ConfigModule } from '@nestjs/config';
 import { Module } from '@nestjs/common';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import * as Joi from 'joi';
 
 import { enviroments } from './enviroments';
@@ -26,6 +27,7 @@ import { StorageModule } from './storage/storage.module';
 
 @Module({
   imports: [
+    EventEmitterModule.forRoot(),
     ConfigModule.forRoot({
       envFilePath: enviroments[process.env.NODE_ENV as string] || '.env',
       load: [config],
