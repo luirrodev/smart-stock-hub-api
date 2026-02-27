@@ -108,7 +108,6 @@ export class LogsPersistenceService implements OnApplicationShutdown {
   async flushLogBuffer(): Promise<void> {
     // Evitar race condition: simultáneos flush periódico + flush por tamaño
     if (this.isFlushingLogs || this.logBuffer.length === 0) return;
-    console.log('paso por flushLogBuffer()');
 
     this.isFlushingLogs = true;
     try {
