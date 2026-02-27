@@ -60,5 +60,13 @@ export default registerAs('config', () => {
         defaultExpiresIn: 900, // 15 minutos
       },
     },
+    logs: {
+      level: process.env.LOG_LEVEL || 'log',
+      retentionDays: parseInt(process.env.LOG_RETENTION_DAYS || '90', 10),
+      batchSize: parseInt(process.env.LOG_BATCH_SIZE || '100', 10),
+      batchTimeoutMs: parseInt(process.env.LOG_BATCH_TIMEOUT_MS || '5000', 10),
+      bullQueueName: process.env.BULL_QUEUE_NAME || 'logs',
+      bullMaxWorkers: parseInt(process.env.BULL_MAX_WORKERS || '4', 10),
+    },
   };
 });
