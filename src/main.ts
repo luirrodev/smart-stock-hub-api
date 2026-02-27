@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { setupSwaggerDocumentation, setupSwaggerBasicAuth } from './swagger';
+import { LoggingInterceptor } from './logs/interceptors/logging.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -22,8 +23,11 @@ async function bootstrap() {
     }),
   );
 
-  // Class serializer interceptor
-  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
+  // Global interceptors (order matters)
+  app.useGlobalInterceptors(
+    new ClassSerializerInterceptor(app.get(Reflector)),
+    app.get(LoggingInterceptor),
+  );
 
   // Enable API versioning using URI prefix (e.g., /api/v1/payments)
   app.enableVersioning({
