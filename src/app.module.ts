@@ -1,5 +1,5 @@
 import { ConfigModule, ConfigType } from '@nestjs/config';
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import * as Joi from 'joi';
 
@@ -19,6 +19,8 @@ import { AppController } from './app.controller';
 import { APP_GUARD, APP_FILTER } from '@nestjs/core';
 import { JWTAuthGuard } from './auth/guards/jwt-auth.guard';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
+import { RequestContextService } from './common/services/request-context.service';
+import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
 import { OrdersModule } from './orders/orders.module';
 import { StoresModule } from './stores/stores.module';
 import { PaymentsModule } from './payments/payments.module';
@@ -55,7 +57,12 @@ import buildRedisUrl from './common/utils/redis.util';
         MINIO_PUBLIC_URL: Joi.string().optional(),
       }),
     }),
-    EventEmitterModule.forRoot(),
+    EventEmitterModule.forRoot({
+      wildcard: false,
+      delimiter: '.',
+      maxListeners: 20,
+      verboseMemoryLeak: true,
+    }),
     BullModule.forRootAsync({
       inject: [config.KEY],
       useFactory: (configService: ConfigType<typeof config>) => ({
@@ -79,6 +86,7 @@ import buildRedisUrl from './common/utils/redis.util';
   ],
   controllers: [AppController],
   providers: [
+    RequestContextService,
     {
       provide: APP_FILTER,
       useClass: GlobalExceptionFilter,
@@ -89,4 +97,10 @@ import buildRedisUrl from './common/utils/redis.util';
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Registrar RequestContextMiddleware para todas las rutas
+    // DEBE ser uno de los primeros middlewares para capturar el contexto
+    consumer.apply(RequestContextMiddleware).forRoutes('*');
+  }
+}
