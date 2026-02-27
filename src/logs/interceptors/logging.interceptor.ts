@@ -8,24 +8,29 @@ import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { Request, Response } from 'express';
 import { LoggingService } from '../services/logging.service';
+import { RequestContextService } from '../../common/services/request-context.service';
 
 /**
  * Interceptor de logging global para HTTP requests
  *
  * - Loguea ÉXITOS con duration (performant) — fire-and-forget con setImmediate
  * - En ERRORES: solo relanza SIN loguear (responsabilidad del GlobalExceptionFilter)
+ * - Usa RequestContextService para acceder al requestId y userId generados por middleware
  *
  */
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
-  constructor(private loggingService: LoggingService) {}
+  constructor(
+    private loggingService: LoggingService,
+    private requestContextService: RequestContextService,
+  ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const req = context.switchToHttp().getRequest<Request>();
     const res = context.switchToHttp().getResponse<Response>();
 
-    // Generar y adjuntar request ID
-    const requestId = this.loggingService.getRequestId(req);
+    // Obtener requestId del contexto (generado por RequestContextMiddleware)
+    const requestId = this.requestContextService.getRequestId();
 
     // Capturar tiempo de inicio
     const startTime = Date.now();
