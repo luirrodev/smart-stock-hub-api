@@ -60,11 +60,11 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     exceptionType: string,
   ): void {
     // Usar setImmediate para ejecutar DESPUÉS de responder al cliente
-    setImmediate(async () => {
+    setImmediate(() => {
       try {
         const logContext = this.loggingService.createHttpContext(request);
 
-        await this.loggingService.error(
+        this.loggingService.error(
           `Unhandled Exception: ${message}`,
           logContext,
           error,
