@@ -13,7 +13,7 @@ import {
   PaypalWebhookEventDto,
   PaypalWebhookEventType,
 } from '../dto/paypal-webhook-event.dto';
-import { PaymentsService } from 'src/payments/payments.service';
+import { PaymentsService } from 'src/payments/services/payments.service';
 import { OptionalAuth } from 'src/auth/decorators/optional-auth.decorator';
 import { Public } from 'src/auth/decorators/public.decorator';
 

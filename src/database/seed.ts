@@ -2,9 +2,11 @@ import MyDataSourse from '../database/data-source';
 import { Role } from '../access-control/roles/entities/role.entity';
 import { Permission } from '../access-control/permissions/entities/permission.entity';
 import { User } from '../access-control/users/entities/user.entity';
+import { StaffUser } from '../access-control/users/entities/staff-user.entity';
 import { OrderStatus } from '../orders/entities/order-status.entity';
 import { Store } from '../stores/entities/store.entity';
 import * as bcrypt from 'bcryptjs';
+import * as crypto from 'crypto';
 
 async function seed() {
   await MyDataSourse.initialize();
@@ -24,6 +26,26 @@ async function seed() {
     {
       name: 'products:write',
       description: 'Crear, actualizar o eliminar productos',
+    },
+    { name: 'create:components', description: 'Crear componentes' },
+    { name: 'read:components', description: 'Leer componentes' },
+    { name: 'update:components', description: 'Actualizar componentes' },
+    { name: 'delete:components', description: 'Eliminar componentes' },
+    {
+      name: 'restore:components',
+      description: 'Restaurar componentes eliminados',
+    },
+    {
+      name: 'payments:refunds',
+      description: 'Realizar reembolsos de pagos',
+    },
+    {
+      name: 'payments:view',
+      description: 'Ver información de pagos',
+    },
+    {
+      name: 'categories:write',
+      description: 'Crear, actualizar o eliminar categorías',
     },
   ];
 
@@ -73,13 +95,23 @@ async function seed() {
   });
 
   if (!adminUser) {
-    const hashedPassword = await bcrypt.hash(adminPassword, 10);
+    // Crear User
     adminUser = await MyDataSourse.getRepository(User).save({
       email: adminEmail,
-      password: hashedPassword,
       name: 'Super Admin',
       role: adminRole ?? undefined,
     });
+
+    // Crear StaffUser asociado con la contraseña
+    const hashedPassword = await bcrypt.hash(adminPassword, 10);
+    await MyDataSourse.getRepository(StaffUser).save({
+      user: adminUser,
+      userId: adminUser.id,
+      password: hashedPassword,
+      authProvider: 'local',
+      isActive: true,
+    });
+
     console.log(`Usuario admin creado: ${adminEmail} / ${adminPassword}`);
   } else {
     // Asegura que tenga el rol admin
@@ -154,6 +186,10 @@ async function seed() {
   }
 
   // Seed default stores
+  const generateApiKey = (): string => {
+    return crypto.randomBytes(32).toString('hex');
+  };
+
   const stores = [
     {
       name: 'AllNovu',
@@ -164,6 +200,7 @@ async function seed() {
       country: 'No definida',
       phone: null,
       email: null,
+      apiKey: generateApiKey(),
     },
     {
       name: 'Mandasaldo',
@@ -174,6 +211,7 @@ async function seed() {
       country: 'No definida',
       phone: null,
       email: null,
+      apiKey: generateApiKey(),
     },
   ];
 
@@ -183,7 +221,7 @@ async function seed() {
     });
     if (!exists) {
       await MyDataSourse.getRepository(Store).save(st);
-      console.log(`Tienda creada: ${st.name}`);
+      console.log(`Tienda creada: ${st.name} - API Key: ${st.apiKey}`);
     }
   }
 

@@ -1,7 +1,11 @@
 import { NestFactory, Reflector } from '@nestjs/core';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import { ValidationPipe, ClassSerializerInterceptor } from '@nestjs/common';
+import {
+  ValidationPipe,
+  ClassSerializerInterceptor,
+  VersioningType,
+} from '@nestjs/common';
 import { AppModule } from './app.module';
+import { setupSwaggerDocumentation, setupSwaggerBasicAuth } from './swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -18,20 +22,18 @@ async function bootstrap() {
     }),
   );
 
-  // Class serializer interceptor
+  // Global interceptors
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
 
-  // Swagger API documentation setup
-  const config = new DocumentBuilder()
-    .setTitle('NestJS First API')
-    .setDescription(
-      'REST API built with NestJS framework, TypeORM for database integration, and comprehensive API documentation',
-    )
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('docs', app, document);
+  // Enable API versioning using URI prefix (e.g., /api/v1/payments)
+  app.enableVersioning({
+    type: VersioningType.URI,
+    prefix: 'api/v',
+  });
+
+  // Setup Swagger documentation (v1 and v2)
+  setupSwaggerBasicAuth(app);
+  setupSwaggerDocumentation(app);
 
   // Enable CORS for cross-origin requests
   app.enableCors();
@@ -41,7 +43,6 @@ async function bootstrap() {
 
   // Start the server
   await app.listen(port);
-  console.log(`Server on port ${port}`);
 }
 
 bootstrap();

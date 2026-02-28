@@ -1,20 +1,4 @@
-version: '3.9'
-
 services:
-  postgres:
-    image: postgres:17-alpine
-    container_name: smart-stock-db
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: root
-      POSTGRES_PASSWORD: 12345678
-      POSTGRES_DB: smart_stock_hub_db
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - '5433:5432'
-    networks:
-      - smart-stock-network
   api:
     build:
       context: .
@@ -22,8 +6,8 @@ services:
       target: development
     container_name: smart-stock-api
     ports:
-      - '3010:3000'
-      - '9230:9229'
+      - '${PORT}:3000'
+      - '${DEBUG_PORT}:9229'
     env_file:
       - ./.env
     environment:
@@ -34,22 +18,85 @@ services:
     restart: unless-stopped
     networks:
       - smart-stock-network
-    depends_on:
-      - postgres
-      - redis
-  redis:
-    image: 'redis:alpine'
-    container_name: smart-stock-redis
-    ports:
-      - '6380:6379'
-    restart: unless-stopped
-    networks:
-      - smart-stock-network
+  # postgres:
+  #   image: postgres:17-alpine
+  #   container_name: smart-stock-db
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_USER: ${DB_USERNAME}
+  #     POSTGRES_PASSWORD: ${DB_PASSWORD}
+  #     POSTGRES_DB: ${DB_DATABASE}
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   ports:
+  #     - '5433:${DB_PORT}'
+  #   networks:
+  #     - smart-stock-network
 
-volumes:
-  postgres_data:
-    name: smart-stock-api-postgres-data
-
+  # redis:
+  #   image: 'redis:alpine'
+  #   container_name: smart-stock-redis
+  #   ports:
+  #     - '6380:${REDIS_PORT}'
+  #   restart: unless-stopped
+  #   networks:
+  #     - smart-stock-network
+  # DBHub - Database Management UI
+  # dbhub:
+  #   image: bytebase/dbhub:latest
+  #   container_name: smart-stock-dbhub
+  #   ports:
+  #     - '8085:8080'
+  #   environment:
+  #     - DBHUB_LOG_LEVEL=info
+  #   command:
+  #     - --transport
+  #     - http
+  #     - --port
+  #     - '8080'
+  #     - --dsn
+  #     - 'postgresql://${DB_USERNAME}:${DB_PASSWORD}@postgres:${DB_PORT}/${DB_DATABASE}'
+  #   restart: unless-stopped
+  #   networks:
+  #     - smart-stock-network
+  #   depends_on:
+  #     - postgres
+  #   healthcheck:
+  #     test: ['CMD', 'curl', '-f', 'http://localhost:8080/api/v1/databases']
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  # minio:
+  #   image: minio/minio:latest
+  #   container_name: minio_storage
+  #   command: server /data --console-address ":9100"
+  #   ports:
+  #     - '9000:9000'
+  #     - '9100:9100'
+  #   environment:
+  #     MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+  #     MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+  #   volumes:
+  #     - minio_data:/data
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ['CMD', 'mc', 'ready', 'local']
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  # minio-init:
+  # image: minio/mc:latest
+  # container_name: minio_init
+  # depends_on:
+  #   minio:
+  #     condition: service_healthy
+  # entrypoint: >
+  #   /bin/sh -c "
+  #   mc alias set local http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD};
+  #   mc mb --ignore-existing local/assets;
+  #   mc anonymous set public local/assets/public;
+  #   exit 0;
+  #   "
 networks:
   smart-stock-network:
     name: smart-stock-network

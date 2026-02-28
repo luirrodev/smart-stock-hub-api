@@ -11,6 +11,7 @@ import { Cache } from 'cache-manager';
 
 import { User } from '../entities/user.entity';
 import { CreateUserDto, UpdateUserDto } from '../dtos/user.dto';
+import { StaffUsersService } from './staff-users.service';
 import * as bcrypt from 'bcryptjs';
 import { RolesService } from 'src/access-control/roles/services/roles.service';
 
@@ -19,6 +20,7 @@ export class UsersService {
   constructor(
     @InjectRepository(User) private userRepo: Repository<User>,
     private readonly roleService: RolesService,
+    private readonly staffUsersService: StaffUsersService,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
@@ -121,13 +123,22 @@ export class UsersService {
     const role = await this.roleService.getRoleById(data.role);
     const { role: role_id, ...userData } = data;
 
-    const newUser = this.userRepo.create(userData);
+    // Don't include password in User entity anymore - it will be handled per-type
+    const userDataWithoutPassword = { ...userData };
+    delete (userDataWithoutPassword as any).password;
+
+    const newUser = this.userRepo.create(userDataWithoutPassword);
     newUser.role = role;
 
-    const hashPassword = await bcrypt.hash(newUser.password, 10);
-    newUser.password = hashPassword;
+    const savedUser = await this.userRepo.save(newUser);
 
-    return this.userRepo.save(newUser);
+    // For STAFF users: create StaffUser with hashed password
+    if (role.name !== 'customer' && data.password) {
+      await this.staffUsersService.create(savedUser.id, data.password);
+    }
+    // For CUSTOMER users: password will be set later per-store via StoreUser
+
+    return savedUser;
   }
 
   async update(id: number, changes: UpdateUserDto): Promise<User> {
@@ -161,22 +172,29 @@ export class UsersService {
   }
 
   /**
-   * Cambia la contraseña de un usuario (hasheando antes de guardar)
+   * Cambia la contraseña de un usuario
+   * For STAFF users: delegates to StaffUsersService
+   * For CUSTOMER users: not supported (passwords managed per-store in StoreUser)
    * @param userId - id del usuario
    * @param newPassword - nueva contraseña en claro
    */
   async changePassword(userId: number, newPassword: string) {
     const user = await this.findOne(userId);
 
-    const hashed = await bcrypt.hash(newPassword, 10);
-    user.password = hashed;
-
-    const updated = await this.userRepo.save(user);
+    // For STAFF users: delegate to StaffUsersService
+    if (user.role && user.role.name !== 'customer') {
+      await this.staffUsersService.updatePassword(userId, newPassword);
+    } else {
+      // For CUSTOMER users: password management is per-store via StoreUser
+      throw new ConflictException(
+        'Customer passwords are managed per-store. Use store endpoints to change password.',
+      );
+    }
 
     // Invalidar caché del usuario
     await this.invalidateUserCache(userId, user.email);
 
-    return updated;
+    return user;
   }
 
   async remove(id: number) {
@@ -189,15 +207,6 @@ export class UsersService {
     await this.invalidateUserCache(id, user.email);
 
     return { message: 'User deleted successfully' };
-  }
-
-  async updateLastLogin(userId: number): Promise<void> {
-    await this.userRepo.update(userId, {
-      lastLoginAt: new Date(),
-    });
-
-    // Invalidar caché del usuario
-    await this.cacheManager.del(this.getCacheKey(userId));
   }
 
   /**
@@ -239,5 +248,46 @@ export class UsersService {
     if (email) {
       await this.cacheManager.del(this.getEmailCacheKey(email));
     }
+  }
+
+  async createOAuthUser(data: {
+    email: string;
+    name: string;
+    googleId?: string;
+    authProvider: string;
+    avatar?: string | null;
+    role: number;
+  }): Promise<User> {
+    const existingUser = await this.userRepo.findOne({
+      where: { email: data.email },
+      withDeleted: true,
+    });
+
+    if (existingUser) {
+      throw new ConflictException(
+        'Ya existe una cuenta registrada con este correo electrónico',
+      );
+    }
+
+    const role = await this.roleService.getRoleById(data.role);
+
+    const newUser = new User();
+    newUser.email = data.email;
+    newUser.name = data.name;
+    newUser.avatar = data.avatar || null;
+    newUser.role = role;
+
+    const savedUser = await this.userRepo.save(newUser);
+
+    // For STAFF users: create associated StaffUser with OAuth credentials
+    if (role.name !== 'customer') {
+      await this.staffUsersService.setGoogleCredentials(
+        savedUser.id,
+        data.googleId || '',
+      );
+    }
+    // For CUSTOMER users: OAuth credentials will be managed per-store via StoreUser
+
+    return savedUser;
   }
 }

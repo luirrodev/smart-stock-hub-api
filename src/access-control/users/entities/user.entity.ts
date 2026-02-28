@@ -27,10 +27,6 @@ export class User {
   @Column({ type: 'varchar', length: 255, default: null })
   name: string;
 
-  @Exclude()
-  @Column({ type: 'varchar', length: 255 })
-  password: string;
-
   @ManyToOne(() => Role, { eager: true })
   @JoinColumn({ name: 'role_id' })
   role: Role;
@@ -38,17 +34,11 @@ export class User {
   @Column({ name: 'role_id', type: 'int' })
   roleId: number;
 
-  @Column({ name: 'is_active', type: 'boolean', default: true })
-  isActive: boolean;
-
-  @Column({ name: 'last_login_at', type: 'timestamptz', nullable: true })
-  lastLoginAt: Date;
-
   @Column({ type: 'varchar', length: 20, nullable: true })
   phone: string;
 
-  @Column({ type: 'varchar', length: 500, nullable: true })
-  avatar: string;
+  @Column({ type: 'text', nullable: true })
+  avatar: string | null;
 
   @Column({ type: 'jsonb', nullable: true })
   preferences: object;

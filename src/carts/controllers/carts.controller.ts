@@ -12,6 +12,7 @@ import {
   HttpCode,
   UseGuards,
   BadRequestException,
+  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -21,6 +22,8 @@ import {
   ApiQuery,
   ApiParam,
   ApiNoContentResponse,
+  ApiHeader,
+  ApiSecurity,
 } from '@nestjs/swagger';
 
 import { CartService } from '../services/carts.service';
@@ -36,125 +39,161 @@ import { OptionalAuth } from 'src/auth/decorators/optional-auth.decorator';
 import { GetUser } from 'src/auth/decorators/get-user.decorator';
 import { PayloadToken } from 'src/auth/models/token.model';
 import { JWTAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { Request } from 'express';
+import { CustomApiKeyGuard } from 'src/stores/guards/custom-api-key.guard';
 
 @ApiTags('Carts')
-@Controller('carts')
-export class CartsController {
+@Controller({
+  path: 'carts',
+  version: '1',
+})
+export class CartsV1Controller {
   constructor(private readonly cartsService: CartService) {}
-
-  // @Get()
-  // @ApiOperation({ summary: 'Obtener todos los carritos (mínimo para pruebas)' })
-  // @ApiOkResponse({ description: 'Lista de carritos' })
-  // async getAll() {
-  //   return await this.cartsService.findAll();
-  // }
-
-  // @Get(':id')
-  // @ApiOperation({ summary: 'Obtener un carrito por id' })
-  // @ApiOkResponse({ description: 'Carrito encontrado' })
-  // async getOne(@Param('id') id: string): Promise<Cart> {
-  //   return await this.cartsService.getCart(id);
-  // }
 
   @Get()
   @OptionalAuth()
-  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
-  @ApiOperation({ summary: 'Obtener carrito activo del cliente o invitado' })
-  @ApiQuery({
-    name: 'sessionId',
+  @UseGuards(CustomApiKeyGuard)
+  @ApiOperation({
+    summary: 'Obtener carrito activo',
+    description: `Retorna el carrito activo del usuario autenticado o del invitado.
+
+**Autenticado (usuario CUSTOMER):** Retorna el carrito asociado al usuario en esa tienda
+**Invitado:** Retorna el carrito asociado al sessionId en esa tienda
+
+**Requiere:** Header \`x-api-key\` con la API Key de la tienda`,
+  })
+  @ApiHeader({
+    name: 'x-api-key',
+    description: 'API Key de la tienda (requerido)',
+    required: true,
+  })
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'Bearer token JWT (opcional)',
     required: false,
-    description:
-      'ID de sesión para clientes invitados (UUID). Debe viajar en query string.',
   })
   @ApiOkResponse({
-    description: 'Carrito activo (si existe)',
+    description: 'Carrito activo encontrado',
     type: CartResponseDto,
   })
   async getActiveCart(
     @Query() query: CartQueryDto,
     @GetUser() user?: PayloadToken,
-  ): Promise<CartResponseDto | null> {
-    const customerId = user?.customerId ?? null;
-    const cart = await this.cartsService.getCart(
-      customerId,
+    @Req() request?: Request,
+  ) {
+    const storeId = request!.store!.id;
+    const storeUserId = user?.storeUserId ?? null;
+
+    return await this.cartsService.getCart(
+      storeId,
+      storeUserId,
       query.sessionId ?? null,
     );
-    return cart
-      ? plainToInstance(CartResponseDto, cart, {
-          excludeExtraneousValues: true,
-        })
-      : null;
   }
 
   @Post()
   @OptionalAuth()
-  @ApiOperation({ summary: 'Añadir un producto al carrito' })
-  @ApiQuery({
-    name: 'sessionId',
+  @UseGuards(CustomApiKeyGuard)
+  @ApiOperation({
+    summary: 'Agregar producto al carrito',
+    description: `Agrega un producto al carrito activo (autenticado o invitado).
+
+**Para invitados sin sessionId:**
+- El backend genera automáticamente un UUID de sesión
+- El cliente DEBE guardar este \`sessionId\` de la respuesta
+- Usar este \`sessionId\` en futuras solicitudes para mantener el mismo carrito
+
+**Para invitados con sessionId:**
+- Agrega el producto al carrito asociado a ese sessionId
+
+**Para usuarios autenticados:**
+- Agrega el producto al carrito del usuario en esa tienda
+
+**Requiere:** Header \`x-api-key\` con la API Key de la tienda`,
+  })
+  @ApiHeader({
+    name: 'x-api-key',
+    description: 'API Key de la tienda (requerido)',
+    required: true,
+  })
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'Bearer token JWT (opcional)',
     required: false,
-    description:
-      'ID de sesión para clientes invitados (UUID). Debe viajar en query string. Si se omite, el backend lo generará y lo devolverá en el cuerpo de la respuesta; el frontend debe almacenarlo y reenviarlo en futuras peticiones para mantener el mismo carrito.',
   })
   @ApiCreatedResponse({
     description:
-      'Carrito actualizado. Si la petición es de invitado y no incluye `sessionId` en la query, el backend generará un `sessionId` (UUID) y lo devolverá en el cuerpo de la respuesta en el campo `sessionId`. El frontend es responsable de guardarlo y enviarlo en futuras solicitudes.',
+      'Producto agregado al carrito exitosamente. Si fue un invitado sin sessionId, asegúrate de guardar el sessionId de la respuesta para futuras solicitudes.',
     type: CartResponseDto,
-    schema: {
-      example: {
-        id: 'a3f8e9d2-...',
-        sessionId: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
-        items: [],
-        totalItems: 0,
-        subtotal: 0,
-      },
-    },
   })
   async addToCart(
     @Body() dto: AddToCartDto,
     @Query() query: CartQueryDto,
     @GetUser() user?: PayloadToken,
-  ): Promise<CartResponseDto> {
-    // Si el request viene autenticado, usamos el user.customerId sobre el body y la query
-    const payload: AddToCartDto = {
-      ...dto,
-      customerId: user?.customerId ?? null,
-      sessionId: query.sessionId ?? null,
-    };
+    @Req() request?: Request,
+  ) {
+    // CustomApiKeyGuard garantiza que request.store está present
+    const storeId = request!.store!.id;
+    const storeUserId = user?.storeUserId ?? null;
+    const sessionId = query.sessionId ?? null;
 
-    const cart = await this.cartsService.addToCart(payload);
-    return plainToInstance(CartResponseDto, cart, {
-      excludeExtraneousValues: true,
+    return await this.cartsService.addToCart({
+      productStoreId: dto.productId,
+      quantity: dto.quantity,
+      storeId,
+      storeUserId,
+      sessionId,
     });
   }
 
   @Patch('items/:itemId/quantity')
   @OptionalAuth()
-  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
-  @ApiOperation({ summary: 'Actualizar cantidad de un item del carrito' })
+  @UseGuards(CustomApiKeyGuard)
+  @ApiOperation({
+    summary: 'Actualizar cantidad de un item del carrito',
+    description: `Actualiza la cantidad de un producto en el carrito.
+
+**Requiere:** Header \`x-api-key\` con la API Key de la tienda
+
+**Validaciones:**
+- El item debe pertenecer al carrito del usuario/invitado en esa tienda
+- La cantidad debe ser un número entero positivo
+- Si la cantidad es 0, el item se puede eliminar (usar DELETE en su lugar)`,
+  })
+  @ApiHeader({
+    name: 'x-api-key',
+    description: 'API Key de la tienda (requerido)',
+    required: true,
+  })
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'Bearer token JWT (opcional)',
+    required: false,
+  })
   @ApiParam({
     name: 'itemId',
-    required: true,
-    description: 'ID del item a actualizar',
+    type: 'string',
+    description: 'UUID del item del carrito a actualizar',
   })
-  @ApiQuery({
-    name: 'sessionId',
-    required: false,
-    description:
-      'ID de sesión para clientes invitados (UUID). Debe viajar en query string.',
+  @ApiOkResponse({
+    description: 'Cantidad del item actualizada exitosamente',
+    type: CartResponseDto,
   })
-  @ApiOkResponse({ description: 'Carrito actualizado', type: CartResponseDto })
   async updateCartItemQuantity(
     @Param() params: ItemParamDto,
     @Body() dto: UpdateCartItemQuantityDto,
     @Query() query: CartQueryDto,
     @GetUser() user?: PayloadToken,
+    @Req() request?: Request,
   ): Promise<CartResponseDto> {
-    const customerId = user?.customerId ?? null;
+    const storeId = request!.store!.id;
+    const storeUserId = user?.storeUserId ?? null;
     const session = query.sessionId ?? null;
     const cart = await this.cartsService.updateCartItemQuantity(
       params.itemId,
       dto.quantity,
-      customerId,
+      storeId,
+      storeUserId,
       session,
     );
 
@@ -165,18 +204,29 @@ export class CartsController {
 
   @Delete('items/:itemId')
   @OptionalAuth()
-  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
-  @ApiOperation({ summary: 'Eliminar un item del carrito' })
+  @UseGuards(CustomApiKeyGuard)
+  @ApiOperation({
+    summary: 'Eliminar un item del carrito',
+    description: `Elimina un producto del carrito (soft delete).
+
+**Requiere:** Header \`x-api-key\` con la API Key de la tienda
+
+**Nota:** El item se marca como eliminado (soft delete), no se borra completamente de la BD`,
+  })
+  @ApiHeader({
+    name: 'x-api-key',
+    description: 'API Key de la tienda (requerido)',
+    required: true,
+  })
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'Bearer token JWT (opcional)',
+    required: false,
+  })
   @ApiParam({
     name: 'itemId',
-    required: true,
-    description: 'ID del item a eliminar',
-  })
-  @ApiQuery({
-    name: 'sessionId',
-    required: false,
-    description:
-      'ID de sesión para clientes invitados (UUID). Debe viajar en query string.',
+    type: 'string',
+    description: 'UUID del item del carrito a eliminar',
   })
   @ApiNoContentResponse({ description: 'Item eliminado correctamente' })
   @HttpCode(204)
@@ -184,53 +234,99 @@ export class CartsController {
     @Param() params: ItemParamDto,
     @Query() query: CartQueryDto,
     @GetUser() user?: PayloadToken,
+    @Req() request?: Request,
   ): Promise<void> {
-    const customerId = user?.customerId ?? null;
+    const storeId = request!.store!.id;
+    const storeUserId = user?.storeUserId ?? null;
     await this.cartsService.removeCartItem(
       params.itemId,
-      customerId,
+      storeId,
+      storeUserId,
       query.sessionId ?? null,
     );
   }
 
   @Delete()
   @OptionalAuth()
-  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
-  @ApiOperation({ summary: 'Vaciar el carrito del cliente o invitado' })
-  @ApiQuery({
-    name: 'sessionId',
+  @UseGuards(CustomApiKeyGuard)
+  @ApiOperation({
+    summary: 'Vaciar carrito',
+    description: `Elimina todos los items del carrito (soft delete).
+
+**Requiere:** Header \`x-api-key\` con la API Key de la tienda
+
+**Nota:** Los items se marcan como eliminados (soft delete), no se borran completamente de la BD`,
+  })
+  @ApiHeader({
+    name: 'x-api-key',
+    description: 'API Key de la tienda (requerido)',
+    required: true,
+  })
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'Bearer token JWT (opcional)',
     required: false,
-    description:
-      'ID de sesión para clientes invitados (UUID). Debe viajar en query string.',
   })
   @ApiNoContentResponse({ description: 'Carrito vaciado correctamente' })
   @HttpCode(204)
   async clearCart(
     @Query() query: CartQueryDto,
     @GetUser() user?: PayloadToken,
+    @Req() request?: Request,
   ): Promise<void> {
-    const customerId = user?.customerId ?? null;
-    await this.cartsService.clearCart(customerId, query.sessionId ?? null);
+    const storeId = request!.store!.id;
+    const storeUserId = user?.storeUserId ?? null;
+    await this.cartsService.clearCart(
+      storeId,
+      storeUserId,
+      query.sessionId ?? null,
+    );
   }
 
   @Post('merge')
-  @UseGuards(JWTAuthGuard)
+  @UseGuards(JWTAuthGuard, CustomApiKeyGuard)
   @ApiOperation({
-    summary:
-      'Fusionar carrito de invitado con el carrito del cliente (se usa en login)',
+    summary: 'Fusionar carrito de invitado con carrito de usuario autenticado',
+    description: `Fusiona el carrito de invitado (identificado por sessionId) con el carrito del usuario autenticado en esa tienda.
+
+**Caso de uso:**
+Un invitado agrega productos al carrito con un sessionId. Después se autentica/registra. Este endpoint transfiere todos los productos del carrito de invitado al carrito del usuario autenticado.
+
+**Requiere:**
+- Header \`x-api-key\` con la API Key de la tienda
+- Header \`Authorization\` con Bearer token JWT (usuario DEBE estar autenticado como CUSTOMER)
+- Query parameter \`sessionId\` con el UUID del carrito de invitado
+
+**Flujo recomendado:**
+1. Invitado agrega productos → Backend genera sessionId automático
+2. Invitado se autentica POST /auth/login
+3. Frontend llama POST /carts/merge?sessionId=<sessionId anterior>
+4. Backend fusiona ambos carritos
+5. Frontend usa el carrito del usuario desde ahora`,
   })
-  @ApiQuery({
-    name: 'sessionId',
+  @ApiHeader({
+    name: 'x-api-key',
+    description: 'API Key de la tienda (requerido)',
     required: true,
-    description:
-      'ID de sesión del carrito de invitado (UUID). Debe viajar en query string.',
   })
-  @ApiOkResponse({ description: 'Carrito fusionado', type: CartResponseDto })
+  @ApiHeader({
+    name: 'Authorization',
+    description: 'Bearer token JWT (requerido)',
+    required: true,
+  })
+  @ApiSecurity('bearer')
+  @ApiOkResponse({
+    description:
+      'Carrito fusionado exitosamente. Contiene todos los items de ambos carritos.',
+    type: CartResponseDto,
+  })
   async mergeGuestCart(
     @Query() query: CartQueryDto,
     @GetUser() user: PayloadToken,
+    @Req() request?: Request,
   ): Promise<CartResponseDto> {
-    const customerId = user.customerId;
+    const storeId = request!.store!.id;
+    const storeUserId = user?.storeUserId;
     const sessionId = query.sessionId ?? null;
 
     if (!sessionId) {
@@ -239,14 +335,15 @@ export class CartsController {
       );
     }
 
-    if (!customerId) {
+    if (!storeUserId) {
       throw new BadRequestException(
-        'customerId es requerido para fusionar carritos',
+        'storeUserId es requerido para fusionar carritos',
       );
     }
 
     const cart = await this.cartsService.mergeGuestCartWithUserCart(
-      customerId,
+      storeId,
+      storeUserId,
       sessionId,
     );
 

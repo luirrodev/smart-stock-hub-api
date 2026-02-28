@@ -7,7 +7,7 @@ import { PaypalWebhookService } from './paypal/paypal-webhook.service';
 import { StripeWebhookController } from './stripe/stripe-webhook.controller';
 import { StripeWebhookService } from './stripe/stripe-webhook.service';
 import { Payment } from 'src/payments/entities/payment.entity';
-import { StorePaymentConfig } from 'src/payments/entities/store-payment-config.entity';
+import { StorePaymentConfig } from 'src/stores/entities/store-payment-config.entity';
 import { PaymentsModule } from 'src/payments/payments.module';
 
 @Module({

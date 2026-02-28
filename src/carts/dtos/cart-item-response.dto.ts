@@ -1,4 +1,4 @@
-import { Expose, Type } from 'class-transformer';
+import { Expose, Type, Transform, plainToInstance } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { ProductInCartDto } from './product-in-cart-dto';
 
@@ -7,10 +7,19 @@ export class CartItemResponseDto {
   @Expose()
   id: string;
 
+  /**
+   * Exponemos como 'product' para mantener compatibilidad con frontend
+   * Aunque internamente es ProductStore
+   */
   @ApiProperty({ type: () => ProductInCartDto, required: false })
-  @Expose()
+  @Expose({ name: 'product' })
+  @Transform(({ obj }: { obj: any }) => {
+    return plainToInstance(ProductInCartDto, obj.productStore, {
+      excludeExtraneousValues: true,
+    });
+  })
   @Type(() => ProductInCartDto)
-  product?: ProductInCartDto;
+  productStore: ProductInCartDto;
 
   @ApiProperty({ example: 2 })
   @Expose()

@@ -11,11 +11,12 @@ import {
   BeforeUpdate,
   OneToMany,
 } from 'typeorm';
-import { Customer } from '../../customers/entities/customer.entity';
+import { StoreUser } from '../../access-control/users/entities/store-user.entity';
 import { PickupPoint } from './pickup-point.entity';
 import { OrderStatus } from './order-status.entity';
 import { Store } from '../../stores/entities/store.entity';
 import { OrderItem } from './order-items.entity';
+import { PaymentStatus } from '../../payments/entities/payment-status.enum';
 
 export enum FulfillmentType {
   SHIPPING = 'shipping',
@@ -43,15 +44,23 @@ export class Order {
   @Column({ name: 'order_number', type: 'varchar', length: 50, unique: true })
   orderNumber: string;
 
-  // RELACIÓN CON CUSTOMER
-  // Cliente que realizó el pedido (referencia a customers.id)
-  @ManyToOne(() => Customer, { nullable: false })
-  @JoinColumn({ name: 'customer_id' })
-  customer: Customer;
+  // RELACIÓN CON STOREUSER
+  // Relación de usuario de tienda que realizó el pedido
+  // Cada pedido está vinculado a un StoreUser específico (una combinación única de customer + store)
+  // Esto asegura que los pedidos siempre tengan contexto de tienda
+  @ManyToOne(() => StoreUser, { nullable: false })
+  @JoinColumn({ name: 'store_user_id' })
+  storeUser: StoreUser;
 
-  // Clave foránea que referencia a customers.id
-  @Column({ name: 'customer_id' })
-  customerId: number;
+  // Clave foránea que referencia a store_users.id
+  @Column({ name: 'store_user_id' })
+  storeUserId: number;
+
+  // Getter helper para acceder al customer_id a través de storeUser
+  // Mantiene compatibilidad con código que acceda a customerId
+  get customerId(): number {
+    return this.storeUser.customerId;
+  }
 
   // TIENDA
   // Tienda específica asociada al pedido
@@ -223,10 +232,10 @@ export class Order {
   @Column({
     name: 'payment_status',
     type: 'enum',
-    enum: ['pending', 'paid', 'failed', 'refunded'],
-    default: 'pending',
+    enum: PaymentStatus,
+    default: PaymentStatus.PENDING,
   })
-  paymentStatus: string;
+  paymentStatus: PaymentStatus;
 
   // INFORMACIÓN DE PAGO
   // Método de pago usado (p.ej., tarjeta, paypal)

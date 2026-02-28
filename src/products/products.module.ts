@@ -1,20 +1,57 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { HttpModule } from '@nestjs/axios';
 
 import { Product } from './entities/product.entity';
-import { AccessControlModule } from '../access-control/access-control.module';
+import { ProductStore } from './entities/product-store.entity';
+import { Category } from './entities/category.entity';
+import { ProductStoreCategory } from './entities/product-store-category.entity';
+import { ProductStoreImage } from './entities/product-store-image.entity';
+import { Store } from '../stores/entities/store.entity';
+
 import { ProductsService } from './services/products.service';
-import { ProductsController } from './controllers/products.controller';
+import { ProductStoreService } from './services/product-store.service';
+import { CategoryService } from './services/category.service';
+import { ProductStoreImageService } from './services/product-store-image.service';
+
+import {
+  ProductsV1Controller,
+  ProductsV2Controller,
+  CategoriesV1Controller,
+  ProductStoreImageController,
+} from './controllers';
+import { StoresModule } from 'src/stores/stores.module';
+import { StorageModule } from 'src/storage/storage.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Product]),
-    AccessControlModule,
-    HttpModule,
+    TypeOrmModule.forFeature([
+      Product,
+      ProductStore,
+      Category,
+      ProductStoreCategory,
+      ProductStoreImage,
+      Store,
+    ]),
+    StoresModule,
+    StorageModule,
   ],
-  controllers: [ProductsController],
-  providers: [ProductsService],
-  exports: [ProductsService],
+  controllers: [
+    ProductsV1Controller,
+    ProductsV2Controller,
+    CategoriesV1Controller,
+    ProductStoreImageController,
+  ],
+  providers: [
+    ProductsService,
+    ProductStoreService,
+    CategoryService,
+    ProductStoreImageService,
+  ],
+  exports: [
+    ProductsService,
+    ProductStoreService,
+    CategoryService,
+    ProductStoreImageService,
+  ],
 })
 export class ProductsModule {}

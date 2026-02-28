@@ -1,10 +1,20 @@
-import { ApiProperty, PickType } from '@nestjs/swagger';
-import { IsInt, Min, IsOptional } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsInt, Min } from 'class-validator';
 import { Type } from 'class-transformer';
-import { CartQueryDto } from './cart-query.dto';
 
-export class AddToCartDto extends PickType(CartQueryDto, ['sessionId']) {
-  @ApiProperty({ description: 'ID interno del producto', example: 123 })
+/**
+ * DTO para agregar un producto al carrito
+ * Solo contiene los datos del productStore a agregar
+ *
+ * Los datos de contexto (storeId, storeUserId, sessionId) se extraen del:
+ * - JWT token (storeId, storeUserId)
+ * - Query string (sessionId)
+ */
+export class AddToCartDto {
+  @ApiProperty({
+    description: 'ID del producto',
+    example: 123,
+  })
   @Type(() => Number)
   @IsInt()
   @Min(1)
@@ -15,10 +25,4 @@ export class AddToCartDto extends PickType(CartQueryDto, ['sessionId']) {
   @IsInt()
   @Min(1)
   quantity: number;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  customerId?: number | null;
 }

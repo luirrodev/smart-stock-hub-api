@@ -8,7 +8,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Order } from './order.entity';
-import { Product } from '../../products/entities/product.entity';
+import { ProductStore } from '../../products/entities/product-store.entity';
 
 @Entity({ name: 'order_items' })
 export class OrderItem {
@@ -28,16 +28,14 @@ export class OrderItem {
   @Column({ name: 'order_id' })
   orderId: number;
 
-  // RELACIÓN CON EL PRODUCTO
-  // Referencia al producto del catálogo
-  // No usamos CASCADE aquí porque si se elimina un producto,
-  // NO queremos eliminar el historial de pedidos
-  @ManyToOne(() => Product, { nullable: false })
-  @JoinColumn({ name: 'product_id' })
-  product: Product;
+  // RELACIÓN CON PRODUCTSTORE
+  // Referencia a la configuración del producto en la tienda
+  @ManyToOne(() => ProductStore, { nullable: false })
+  @JoinColumn({ name: 'product_store_id' })
+  productStore: ProductStore;
 
-  @Column({ name: 'product_id' })
-  productId: number;
+  @Column({ name: 'product_store_id' })
+  productStoreId: number;
 
   // SNAPSHOT DEL PRODUCTO
   // Guardamos el nombre del producto en el momento de la compra

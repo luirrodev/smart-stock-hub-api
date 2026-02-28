@@ -13,112 +13,268 @@ import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 
 import { UsersService } from '../../access-control/users/services/users.service';
+import { StaffUsersService } from '../../access-control/users/services/staff-users.service';
 import { User } from '../../access-control/users/entities/user.entity';
 import { RegisterDto } from '../dtos/register.dto';
 import { ForgotPasswordDto } from '../dtos/forgot-password.dto';
 import { PayloadToken } from '../models/token.model';
 import { CustomersService } from 'src/customers/services/customers.service';
 import { PasswordResetToken } from '../entities/password-reset-token.entity';
+import { GoogleUser } from '../strategies/google-strategy.service';
+import { StoreUsersService } from 'src/access-control/users/services/store-users.service';
+import { Customer } from 'src/customers/entities/customer.entity';
 
 @Injectable()
 export class AuthService {
   constructor(
     private userService: UsersService,
+    private staffUsersService: StaffUsersService,
     private jwtService: JwtService,
     private customersService: CustomersService,
+    private storeUsersService: StoreUsersService,
     @InjectRepository(PasswordResetToken)
     private passwordResetRepo: Repository<PasswordResetToken>,
   ) {}
 
+  /**
+   * Find user by email (without password validation)
+   * Used by LocalStrategy to locate the user before validation
+   */
+  async findUserByEmail(email: string): Promise<User | null> {
+    return this.userService.findByEmail(email);
+  }
+
+  /**
+   * Validate STAFF user password
+   * Called by LocalStrategy for STAFF users
+   *
+   * @param userId - User ID
+   * @param plainPassword - Plain text password to validate
+   * @returns true if password is valid, false otherwise
+   */
+  async validateStaffPassword(
+    userId: number,
+    plainPassword: string,
+  ): Promise<boolean> {
+    const staffUser = await this.staffUsersService.findByUserId(userId);
+    if (!staffUser?.password) return false;
+
+    return bcrypt.compare(plainPassword, staffUser.password);
+  }
+
+  /**
+   * Validate user credentials (supports both STAFF and CUSTOMER)
+   *
+   * For STAFF: validates against StaffUser credentials
+   * For CUSTOMER: validates against User password (pre-StoreUser selection)
+   *
+   * NOTE: This is called by LocalStrategy and does NOT validate CUSTOMER password
+   * against StoreUser. Password validation for CUSTOMER happens in validateCustomerLogin().
+   *
+   * @deprecated Use findUserByEmail() and validateStaffPassword() instead
+   */
   async validateUser(email: string, password: string): Promise<User | null> {
     const user = await this.userService.findByEmail(email);
     if (!user) return null;
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    return isMatch ? user : null;
+    // For STAFF users: credentials are in StaffUser table
+    if (user.role && user.role.name !== 'customer') {
+      const staffUser = await this.staffUsersService.findByUserId(user.id);
+      if (!staffUser?.password) return null;
+
+      const isMatch = await bcrypt.compare(password, staffUser.password);
+      return isMatch ? user : null;
+    }
+
+    // For CUSTOMER users: password will be validated at login endpoint
+    // with store context selection (validateCustomerLogin)
+    return user;
   }
 
   /**
-   * Registra un nuevo usuario siempre con el rol 'customer' (id: 2)
+   * Validates STAFF user login.
+   * Checks that user is active and updates lastLoginAt timestamp.
+   *
+   * @param user - User entity with STAFF role
+   * @param storeId - Optional store ID (for audit purposes, not used for STAFF)
+   * @returns The validated user
+   * @throws NotFoundException if user is not found or not active
+   */
+  async validateStaffLogin(user: User, storeId?: number): Promise<User> {
+    if (!user || !user.id) {
+      throw new NotFoundException('User not found');
+    }
+
+    const staffUser = await this.staffUsersService.findByUserId(user.id);
+
+    if (!staffUser || !staffUser.isActive) {
+      throw new UnauthorizedException('Staff user is not active');
+    }
+
+    // Update last login timestamp
+    await this.staffUsersService.updateLastLogin(user.id);
+
+    return user;
+  }
+
+  /**
+   * Validates CUSTOMER user login for a specific store.
+   *
+   * This method:
+   * 1. Validates customer exists and is associated with user
+   * 2. Finds StoreUser record for the specific store
+   * 3. Validates StoreUser exists and is active
+   * 4. Validates password against StoreUser.password
+   * 5. Updates lastLoginAt timestamp in StoreUser
+   *
+   * @param user - User entity with CUSTOMER role
+   * @param plainPassword - Plain text password to validate
+   * @param storeId - Store ID for context
+   * @returns Object containing validated user and storeUser
+   * @throws BadRequestException if customer ID is missing
+   * @throws NotFoundException if StoreUser not found for this store
+   * @throws UnauthorizedException if password is invalid
+   */
+  async validateCustomerLogin(
+    user: User,
+    plainPassword: string,
+    storeId: number,
+  ): Promise<{ user: User; storeUser: any }> {
+    // Validate customer ID exists
+    if (!user.customerId) {
+      throw new BadRequestException('Customer ID is missing from user record');
+    }
+
+    // Find StoreUser for this customer and store
+    const storeUsers = await this.storeUsersService.findStoresForCustomer(
+      user.customerId,
+    );
+    const storeUser = storeUsers.find((su) => su.storeId === storeId);
+
+    if (!storeUser) {
+      throw new NotFoundException(
+        `Customer is not registered for store ${storeId}`,
+      );
+    }
+
+    // Validate StoreUser is active
+    if (!storeUser.isActive) {
+      throw new UnauthorizedException(
+        'Customer access is disabled for this store',
+      );
+    }
+
+    // Validate password against StoreUser password
+    const isPasswordValid = await this.storeUsersService.verifyPassword(
+      storeUser.id,
+      plainPassword,
+    );
+
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid password');
+    }
+
+    // Update last login timestamp
+    await this.storeUsersService.updateLastLogin(storeUser.id);
+
+    return { user, storeUser };
+  }
+
+  /**
+   * Registra un nuevo usuario cliente en una tienda específica.
+   * Permite que el mismo email se registre en múltiples tiendas.
+   *
+   * Flujo:
+   * - Si el email NO existe: Crea User + Customer + StoreUser
+   * - Si el email EXISTE y es CUSTOMER: Reutiliza User + Customer, crea StoreUser
+   * - Si el email EXISTE y es STAFF: Falla (no puede ser CUSTOMER con email de STAFF)
+   *
    * @param {RegisterDto} dto - Los datos de registro
-   * @returns El JWT generado para el usuario registrado
+   * @param {number} storeId - El ID de la tienda donde se registra el cliente
+   * @returns El JWT generado con contexto de tienda
    */
-  async register(dto: RegisterDto) {
-    // Crear usuario usando UsersService (incluye hashing y validación de email)
-    const createdUser = await this.userService.create({
-      email: dto.email,
-      name: `${dto.firstName} ${dto.lastName}`,
-      password: dto.password,
-      role: 2, // rol 'customer' por defecto (seed)
-    });
+  async register(dto: RegisterDto, storeId: number) {
+    // 1. Buscar si el email ya existe
+    const existingUser = await this.userService.findByEmail(dto.email);
 
-    // Crear customer asociado
-    await this.customersService.create({
-      userId: createdUser.id,
-    });
+    let user: User;
+    let customer: Customer;
 
-    // Generar JWT para el usuario creado
-    return this.generateJWT(createdUser);
-  }
-
-  /**
-   * Genera y guarda un token para restablecimiento de contraseña.
-   * Devuelve void; la respuesta al cliente es siempre genérica por seguridad.
-   * NOTA: el token se guarda hasheado. El token en claro debe enviarse por email
-   * por otro sistema (ej. servicio de correo). Aquí se deja un TODO para ello.
-   */
-  async forgotPassword(email: string, ipAddress?: string, userAgent?: string) {
-    try {
-      const user = await this.userService.findByEmail(email);
-
-      // Si el usuario no está activo, no informar al cliente; retornar genérico
-      if (!user || !user.isActive) return;
-
-      // Generar token aleatorio en claro y su versión hasheada para guardar
-      const rawToken = crypto.randomBytes(32).toString('hex');
-      const hashedToken = await bcrypt.hash(rawToken, 10);
-
-      const expiresInMs = process.env.PASSWORD_RESET_EXPIRES_IN
-        ? Number(process.env.PASSWORD_RESET_EXPIRES_IN) * 1000
-        : 3600_000; // 1 hora por defecto
-
-      const expiresAt = new Date(Date.now() + expiresInMs);
-
-      // Invalidar tokens previos del usuario: marcarlos como usados y registrar revocado
-      const prevTokens = await this.passwordResetRepo.find({
-        where: { user: { id: user.id }, used: false, revokedAt: IsNull() },
-      });
-
-      if (prevTokens && prevTokens.length) {
-        const now = new Date();
-        prevTokens.forEach((t) => {
-          t.used = true;
-          t.revokedAt = now;
-        });
-        await this.passwordResetRepo.save(prevTokens);
+    if (existingUser) {
+      // El email ya existe - validar que sea CUSTOMER
+      if (existingUser.role && existingUser.role.name !== 'customer') {
+        throw new BadRequestException(
+          'Este email está registrado como personal administrativo. No puede registrarse como cliente con este email.',
+        );
       }
 
-      const tokenEntity = this.passwordResetRepo.create({
-        token: hashedToken,
-        user: user,
-        expiresAt,
-        sentAt: new Date(),
+      // Es CUSTOMER existente, reutilizar
+      user = existingUser;
+
+      // Obtener el customer_id del usuario existente
+      if (!user.customerId) {
+        // Este caso no debería ocurrir si la integridad de datos es correcta
+        throw new BadRequestException(
+          'Usuario cliente sin registro de customer asociado.',
+        );
+      }
+      customer = await this.customersService.findOne(user.customerId);
+    } else {
+      // Email no existe - crear User + Customer
+      const createdUser = await this.userService.create({
+        email: dto.email,
+        name: `${dto.firstName} ${dto.lastName}`,
+        password: dto.password,
+        role: 2, // rol 'customer' por defecto
+      });
+
+      const createdCustomer = await this.customersService.create({
+        userId: createdUser.id,
+      });
+
+      user = createdUser;
+      customer = createdCustomer;
+    }
+
+    // 2. Crear StoreUser para vincular el cliente a la tienda
+    // Especificar contraseña nueva (o puede ser la misma)
+    const storeUser = await this.storeUsersService.registerCustomerToStore(
+      storeId,
+      customer.id,
+      dto.password, // Contraseña hasheada nuevamente para esta tienda
+    );
+
+    // 3. Generar JWT con contexto de tienda
+    return this.generateJWT(user, storeId, storeUser.id);
+  }
+
+  /**
+   * Orquestador de reset de contraseña.
+   * Delega a StoreUsersService si hay storeId (reset de StoreUser)
+   * De lo contrario, delega a StaffUsersService (reset de Staff/User)
+   */
+  async forgotPassword(
+    email: string,
+    storeId?: number,
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<void> {
+    // If storeId is provided: delegate to StoreUsersService (per-store customer)
+    if (storeId) {
+      return this.storeUsersService.forgotPasswordStoreUser(
+        email,
+        storeId,
         ipAddress,
         userAgent,
-      } as Partial<PasswordResetToken>);
-
-      await this.passwordResetRepo.save(tokenEntity);
-
-      // TODO: Enviar correo con `rawToken` mediante servicio de email. Ej:
-      // const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${rawToken}&id=${user.id}`;
-      // await this.mailerService.sendPasswordResetEmail(user.email, resetLink);
-
-      // No devolver el token ni detalles: la respuesta al cliente será genérica
-      return;
-    } catch (error) {
-      // Si ocurre un error inesperado, no diferenciamos la respuesta: devolver genérico igualmente
-      return;
+      );
     }
+
+    // Otherwise: delegate to StaffUsersService (global staff/admin user)
+    return this.staffUsersService.forgotPasswordStaff(
+      email,
+      ipAddress,
+      userAgent,
+    );
   }
 
   /**
@@ -173,78 +329,140 @@ export class AuthService {
   }
 
   /**
-   * Consume un token de restablecimiento y actualiza la contraseña del usuario.
+   * Orquestador de reseteo de contraseña.
+   * Delega a StoreUsersService si hay storeId (reset de StoreUser)
+   * De lo contrario, delega a StaffUsersService (reset de Staff/User)
    */
   async resetPassword(
     rawToken: string,
     newPassword: string,
+    storeId?: number,
     ipAddress?: string,
     userAgent?: string,
-  ) {
-    // Validar token y obtener la entidad
-    const tokenEntity = await this.validatePasswordResetToken(
+  ): Promise<{ message: string }> {
+    // If storeId is provided: delegate to StoreUsersService (per-store customer)
+    if (storeId) {
+      await this.storeUsersService.resetPasswordForStoreUser(
+        rawToken,
+        storeId,
+        newPassword,
+        ipAddress,
+        userAgent,
+      );
+      return { message: 'Contraseña actualizada correctamente' };
+    }
+
+    // Otherwise: delegate to StaffUsersService (global staff/admin user)
+    await this.staffUsersService.resetPasswordStaff(
       rawToken,
+      newPassword,
       ipAddress,
       userAgent,
     );
-
-    const userId = tokenEntity.user.id;
-
-    // Cambiar contraseña (UsersService se encarga del hash)
-    await this.userService.changePassword(userId, newPassword);
-
-    // Marcar token como usado y registrar usadoAt/revocado
-    tokenEntity.used = true;
-    tokenEntity.usedAt = new Date();
-    tokenEntity.revokedAt = new Date();
-    if (ipAddress) tokenEntity.ipAddress = ipAddress;
-    if (userAgent) tokenEntity.userAgent = userAgent;
-
-    await this.passwordResetRepo.save(tokenEntity);
-
-    // Invalidar otros tokens activos para ese usuario
-    const otherTokens = await this.passwordResetRepo.find({
-      where: { user: { id: userId }, used: false, revokedAt: IsNull() },
-    });
-    if (otherTokens && otherTokens.length) {
-      const now = new Date();
-      otherTokens.forEach((t) => {
-        t.used = true;
-        t.revokedAt = now;
-      });
-      await this.passwordResetRepo.save(otherTokens);
-    }
-
     return { message: 'Contraseña actualizada correctamente' };
   }
 
-  async generateJWT(userData: User) {
-    // Actualizar lastLoginAt (solo en login con credenciales)
-    await this.userService.updateLastLogin(userData.id);
+  /**
+   * Generates JWT tokens for a user.
+   *
+   * For STAFF users (role != 'customer'):
+   *  - Returns STAFF token with sub=userId
+   *  - storeId is not included in token
+   *
+   * For CUSTOMER users (role == 'customer'):
+   *  - Requires storeId and storeUserId parameters
+   *  - Returns CUSTOMER token with sub=customerId, storeId, and storeUserId
+   *  - This token is specific to a single store context
+   *
+   * @param userData - User entity with role information
+   * @param storeId - Required for CUSTOMER users, ignored for STAFF
+   * @param storeUserId - Required for CUSTOMER users, ignored for STAFF
+   */
+  async generateJWT(userData: User, storeId?: number, storeUserId?: number) {
+    const isCustomer = userData.role && userData.role.name === 'customer';
 
-    // Resolve customerId safely: use relation if present, otherwise fetch only when role is 'customer'
-    let customerId: number | null = null;
-    if (userData.customerId != null) {
-      customerId = userData.customerId;
-    } else if (userData.role && userData.role.name === 'customer') {
-      try {
-        const customer = await this.customersService.findByUserId(userData.id);
-        customerId = customer?.id ?? null;
-      } catch (e) {
-        // If not found or error, ignore and leave customerId null
-        customerId = null;
+    // For CUSTOMER users: require and use storeId and storeUserId
+    if (isCustomer) {
+      // Update lastLoginAt in StoreUser (not User)
+      // This happens after StoreUser validation in controller
+
+      if (!storeId || !storeUserId) {
+        throw new BadRequestException(
+          'storeId and storeUserId are required for customer login',
+        );
       }
+
+      // Resolve customerId for customer token
+      let customerId: number | null = null;
+      if (userData.customerId != null) {
+        customerId = userData.customerId;
+      } else {
+        try {
+          const customer = await this.customersService.findByUserId(
+            userData.id,
+          );
+          customerId = customer?.id ?? null;
+        } catch (e) {
+          customerId = null;
+        }
+      }
+
+      if (!customerId) {
+        throw new NotFoundException('Customer record not found for user');
+      }
+
+      // CUSTOMER token - always includes store context
+      const customerPayload: PayloadToken = {
+        sub: customerId,
+        customerId: customerId,
+        role: 'customer',
+        roleId: userData.role.id,
+        roleVersion: userData.role.version,
+        storeId: storeId,
+        storeUserId: storeUserId,
+        authMethod: 'local',
+      };
+
+      const access_token = await this.jwtService.sign(customerPayload, {
+        expiresIn: process.env.JWT_ACCESS_EXPIRES_IN,
+        secret: process.env.JWT_ACCESS_SECRET,
+      });
+
+      const refresh_token = await this.jwtService.sign(
+        {
+          sub: customerId,
+          customerId: customerId,
+          role: 'customer',
+          roleId: userData.role.id,
+          roleVersion: userData.role.version,
+          storeId: storeId,
+          storeUserId: storeUserId,
+        },
+        {
+          expiresIn: process.env.JWT_REFRESH_EXPIRES_IN,
+          secret: process.env.JWT_REFRESH_SECRET,
+        },
+      );
+
+      return {
+        access_token,
+        refresh_token,
+      };
     }
 
-    const payload: PayloadToken = {
+    // STAFF token - sub is userId, no store context in token
+    // Update lastLoginAt in StaffUser for STAFF users
+    await this.staffUsersService.updateLastLogin(userData.id);
+
+    const staffPayload: PayloadToken = {
+      sub: userData.id,
       role: userData.role.name,
       roleId: userData.role.id,
       roleVersion: userData.role.version,
-      sub: userData.id,
-      ...(customerId != null ? { customerId } : {}),
+      authMethod: 'local',
     };
 
-    const access_token = await this.jwtService.sign(payload, {
+    const access_token = await this.jwtService.sign(staffPayload, {
       expiresIn: process.env.JWT_ACCESS_EXPIRES_IN,
       secret: process.env.JWT_ACCESS_SECRET,
     });
@@ -260,19 +478,58 @@ export class AuthService {
       },
     );
 
-    const response = {
+    return {
       access_token,
       refresh_token,
     };
-
-    return response;
   }
 
   async refreshToken(refreshToken: string) {
     try {
-      const payload = this.jwtService.verify(refreshToken, {
+      const payload: PayloadToken = this.jwtService.verify(refreshToken, {
         secret: process.env.JWT_REFRESH_SECRET,
       });
+
+      // Check if this is a CUSTOMER token (has storeId and storeUserId)
+      const isCustomer =
+        payload.role === 'customer' && payload.storeId && payload.storeUserId;
+
+      if (isCustomer) {
+        // CUSTOMER token refresh - maintain store context
+        const newPayload: PayloadToken = {
+          sub: payload.sub,
+          customerId: payload.customerId,
+          role: 'customer',
+          roleId: payload.roleId,
+          roleVersion: payload.roleVersion,
+          storeId: payload.storeId,
+          storeUserId: payload.storeUserId,
+          authMethod: 'local',
+        };
+
+        const access_token = await this.jwtService.sign(newPayload, {
+          expiresIn: process.env.JWT_ACCESS_EXPIRES_IN,
+          secret: process.env.JWT_ACCESS_SECRET,
+        });
+
+        const refresh_token = await this.jwtService.sign(
+          {
+            sub: payload.sub,
+            customerId: payload.customerId,
+            role: 'customer',
+            storeId: payload.storeId,
+            storeUserId: payload.storeUserId,
+          },
+          {
+            expiresIn: process.env.JWT_REFRESH_EXPIRES_IN,
+            secret: process.env.JWT_REFRESH_SECRET,
+          },
+        );
+
+        return { access_token, refresh_token };
+      }
+
+      // STAFF token refresh
       const user = await this.userService.findOne(payload.sub);
 
       const newPayload: PayloadToken = {
@@ -280,6 +537,7 @@ export class AuthService {
         roleId: user.role.id,
         roleVersion: user.role.version,
         sub: user.id,
+        authMethod: 'local',
       };
 
       const access_token = await this.jwtService.sign(newPayload, {
@@ -305,18 +563,144 @@ export class AuthService {
   }
 
   async getProfile(userData: PayloadToken) {
-    const user = await this.userService.findOne(userData.sub);
-
-    if (!user) {
-      throw new NotFoundException('User not found');
+    // Polimorphic delegation based on user type (StoreUser vs StaffUser)
+    if (userData.storeUserId) {
+      // CUSTOMER (StoreUser): has storeUserId in payload
+      return this.storeUsersService.getProfileStoreUser(userData.storeUserId);
     }
 
-    return {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role.name,
-      permissions: user.role.permissions.map((permission) => permission.name),
-    };
+    // STAFF (StaffUser): no storeUserId in payload
+    return this.staffUsersService.getProfileStaff(userData.sub);
+  }
+
+  /**
+   * Validate Google OAuth for STAFF users (v2)
+   * Creates/updates StaffUser with Google credentials
+   *
+   * @param googleUser - Google OAuth profile data
+   * @returns User entity with STAFF role
+   */
+  async validateGoogleStaffUser(googleUser: GoogleUser): Promise<User> {
+    const { googleId, email, name, avatar } = googleUser;
+
+    let user = await this.userService.findByEmail(email);
+
+    if (user) {
+      // User exists - update STAFF Google credentials
+      if (user.role && user.role.name !== 'customer') {
+        const staffUser = await this.staffUsersService.findByUserId(user.id);
+        if (staffUser) {
+          await this.staffUsersService.setGoogleCredentials(user.id, googleId);
+        }
+      }
+
+      // Update avatar if provided
+      if (avatar && user.avatar !== avatar) {
+        await this.userService.update(user.id, { avatar });
+        user.avatar = avatar;
+      }
+
+      return user;
+    }
+
+    // User doesn't exist - create new STAFF user with Google
+    const createdUser = await this.userService.createOAuthUser({
+      email,
+      name,
+      googleId,
+      authProvider: 'google',
+      avatar,
+      role: 3, // staff role (adjust role ID as needed for your system)
+    });
+
+    // Create StaffUser record for this new user
+    await this.staffUsersService.create(createdUser.id, undefined, googleId);
+
+    return createdUser;
+  }
+
+  /**
+   * Validate Google OAuth for STORE USERS (v1)
+   * Creates/updates StoreUser with Google credentials stored in JSONB
+   * Requires storeId context
+   *
+   * @param googleUser - Google OAuth profile data
+   * @param storeId - Store context (required for StoreUser)
+   * @returns User entity with CUSTOMER role
+   * @throws BadRequestException if user is STAFF (only customers can be StoreUsers)
+   */
+  async validateGoogleStoreUser(
+    googleUser: GoogleUser,
+    storeId: number,
+  ): Promise<User> {
+    const { googleId, email, name, avatar } = googleUser;
+
+    let user = await this.userService.findByEmail(email);
+
+    if (user) {
+      // User exists - validate it's a CUSTOMER (not STAFF)
+      if (user.role && user.role.name !== 'customer') {
+        throw new BadRequestException(
+          'Este email está registrado como personal administrativo. No puede autenticarse como cliente con este email.',
+        );
+      }
+
+      // Update user avatar if provided
+      if (avatar && user.avatar !== avatar) {
+        await this.userService.update(user.id, { avatar });
+        user.avatar = avatar;
+      }
+
+      return user;
+    }
+
+    // User doesn't exist - create new CUSTOMER user with Google
+    const createdUser = await this.userService.createOAuthUser({
+      email,
+      name,
+      googleId,
+      authProvider: 'google',
+      avatar,
+      role: 2, // customer by default
+    });
+
+    // Create Customer record
+    await this.customersService.create({
+      userId: createdUser.id,
+    });
+
+    return createdUser;
+  }
+
+  /**
+   * Generic Google login orchestrator
+   * Routes to v1 (StoreUser) or v2 (StaffUser) based on userType parameter
+   *
+   * @param googleUser - Google OAuth profile
+   * @param userType - 'staff' for StaffUser (v2) or 'store' for StoreUser (v1)
+   * @param storeId - Required for userType='store'
+   */
+  async googleLogin(
+    googleUser: GoogleUser,
+    userType: 'staff' | 'store' = 'staff',
+    storeId?: number,
+  ) {
+    let user: User;
+
+    if (userType === 'store') {
+      if (!storeId) {
+        throw new BadRequestException(
+          'storeId is required for store user OAuth',
+        );
+      }
+      user = await this.validateGoogleStoreUser(googleUser, storeId);
+      // Generate JWT with store context
+      return this.generateJWT(user, storeId);
+    } else {
+      // userType === 'staff'
+      user = await this.validateGoogleStaffUser(googleUser);
+      // Generate JWT without store context
+      return this.generateJWT(user);
+    }
   }
 }

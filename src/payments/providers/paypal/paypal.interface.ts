@@ -67,7 +67,7 @@ export interface CreatePayPalOrderRequest {
 
 // Respuesta de crear orden
 export interface PayPalOrderResponse {
-  id: string; // PayPal Order ID
+  id: string;
   status: 'CREATED' | 'SAVED' | 'APPROVED' | 'VOIDED' | 'COMPLETED';
   links: Array<{
     href: string;
@@ -114,4 +114,9 @@ export interface PayPalRefundResponse {
     currency_code: string;
     value: string;
   };
+}
+
+export interface CreateOrderPayPalResponse {
+  responseData: PayPalOrderResponse;
+  payloadData: CreatePayPalOrderRequest;
 }

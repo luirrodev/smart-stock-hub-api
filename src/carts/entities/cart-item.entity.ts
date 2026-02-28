@@ -10,7 +10,7 @@ import {
 } from 'typeorm';
 
 import { Cart } from './cart.entity';
-import { Product } from '../../products/entities/product.entity';
+import { ProductStore } from '../../products/entities/product-store.entity';
 import { Exclude } from 'class-transformer';
 
 @Entity('cart_items')
@@ -26,13 +26,13 @@ export class CartItem {
   @JoinColumn({ name: 'cart_id' })
   cart: Cart;
 
-  // Producto añadido
-  @Column({ name: 'product_id' })
-  productId: number;
+  // Configuración del producto en la tienda (ProductStore)
+  @Column({ name: 'product_store_id' })
+  productStoreId: number;
 
-  @ManyToOne(() => Product, { eager: true }) // eager para cargar info del producto
-  @JoinColumn({ name: 'product_id' })
-  product: Product;
+  @ManyToOne(() => ProductStore, { eager: true })
+  @JoinColumn({ name: 'product_store_id' })
+  productStore: ProductStore;
 
   // Cantidad del producto
   @Column({ type: 'int', default: 1 })

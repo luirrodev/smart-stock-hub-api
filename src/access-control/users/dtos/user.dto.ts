@@ -4,8 +4,8 @@ import {
   IsEmail,
   Length,
   IsPositive,
-  ValidateIf,
   IsNumber,
+  IsOptional,
 } from 'class-validator';
 import { ApiProperty, PartialType } from '@nestjs/swagger';
 
@@ -34,4 +34,16 @@ export class CreateUserDto {
   readonly role: number;
 }
 
-export class UpdateUserDto extends PartialType(CreateUserDto) {}
+export class UpdateUserDto extends PartialType(CreateUserDto) {
+  @IsOptional()
+  @IsString()
+  readonly googleId?: string;
+
+  @IsOptional()
+  @IsString()
+  readonly authProvider?: string;
+
+  @IsOptional()
+  @IsString()
+  readonly avatar?: string;
+}

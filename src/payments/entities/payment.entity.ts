@@ -9,14 +9,7 @@ import {
 } from 'typeorm';
 import { Order } from '../../orders/entities/order.entity';
 import { Store } from '../../stores/entities/store.entity';
-
-export enum PaymentStatus {
-  CREATED = 'CREATED',
-  PENDING = 'PENDING',
-  COMPLETED = 'COMPLETED',
-  FAILED = 'FAILED',
-  REFUNDED = 'REFUNDED',
-}
+import { PaymentStatus } from './payment-status.enum';
 
 @Entity({ name: 'payments' })
 export class Payment {
@@ -54,9 +47,8 @@ export class Payment {
     name: 'provider_order_id',
     type: 'varchar',
     length: 255,
-    nullable: true,
   })
-  providerOrderId?: string | null;
+  providerOrderId: string;
 
   // MONTO
   // Monto cobrado en la transacción. Se usa tipo numeric con precisión para evitar pérdida de precisión.

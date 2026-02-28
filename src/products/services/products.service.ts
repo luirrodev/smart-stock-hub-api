@@ -3,168 +3,130 @@ import {
   BadRequestException,
   NotFoundException,
   Logger,
-  Inject,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { HttpService } from '@nestjs/axios';
-import { firstValueFrom } from 'rxjs';
-import { ConfigType } from '@nestjs/config';
-import { QueryBuilderUtil } from 'src/common/utils/query-builder.util';
 
 import { Product } from '../entities/product.entity';
-import { ExternalProductDto } from '../dtos/external-product.dto';
-import { PaginatedResponse } from 'src/common/dtos/pagination.dto';
-import config from 'src/config';
-import { ProductPaginationDto } from '../dtos/product-pagination.dto';
+import { MariaDbSyncService } from 'src/database/services/mariadb-sync.service';
+import { ProductStoreService } from './product-store.service';
 
 @Injectable()
 export class ProductsService {
   private readonly logger = new Logger(ProductsService.name);
+  private readonly storeIds = [1, 2]; // IDs de tiendas configuradas
 
   constructor(
     @InjectRepository(Product) private productRepo: Repository<Product>,
-    private readonly httpService: HttpService,
-    @Inject(config.KEY) private configService: ConfigType<typeof config>,
+    private readonly mariaDbSyncService: MariaDbSyncService,
+    private readonly productStoreService: ProductStoreService,
   ) {}
 
   /**
-   * Sincroniza productos desde una API externa.
+   * Sincroniza productos desde MariaDB (tabla ms_articulos).
+   * Mapea todos los campos básicos a Product y guarda el payload completo en rawData
+   * Los campos adicionales pueden ser extraídos manualmente desde rawData según sea necesario
    */
-  async syncFromExternal() {
-    const url = this.configService.mandasaldoAPI.url;
-    const apiKey = this.configService.mandasaldoAPI.api_key;
-    const source = 'external';
-
-    // La API de espera POST con { apikey, action }
-    const body = { apikey: apiKey, action: 'get-products-allnovu' };
-
-    this.logger.log(`Solicitando productos a ${url})`);
-
-    if (!url) {
-      throw new BadRequestException('URL de API externa no configurada');
-    }
-
-    const res$ = this.httpService.post(url, body);
-
-    let data: any;
-    try {
-      const response = await firstValueFrom(res$);
-      data = response.data;
-    } catch (err) {
-      this.logger.error('Error al consultar API externa', err as any);
-      throw new BadRequestException('Error al consultar la API externa');
-    }
-
-    if (!data || data.status !== 'success') {
-      throw new BadRequestException('Respuesta inválida de la API externa');
-    }
-
-    const payload = data.items as ExternalProductDto[];
-
-    if (!Array.isArray(payload)) {
-      throw new BadRequestException(
-        'Payload esperado: array de productos en la propiedad items',
-      );
-    }
+  async syncFromExternal(withDeleted: boolean = false) {
+    const source = 'mandasaldo';
 
     const results = {
       created: 0,
       updated: 0,
+      mapped: 0,
       errors: [] as any[],
     };
 
-    for (const item of payload) {
-      try {
-        // Mapear campos
-        const mapped: Partial<Product> = {
-          name: item.xarticulo?.trim(),
-          salePrice: item.xprecio_coste,
-          externalId: item.xarticulo_id,
-          summary: item.xresumen,
-          observations: item.xobs,
-          source,
-          rawData: item,
-          mappedAt: new Date(),
-          isImported: true,
-        };
+    try {
+      // Obtener todos los registros de ms_articulos desde MariaDB
+      const whereClause = withDeleted ? undefined : 'xeliminado = 0'; // Solo activos si withDeleted = false
+      const articles = await this.mariaDbSyncService.getRecords(
+        'ms_articulos',
+        ['*'],
+        whereClause,
+      );
 
-        // Buscar por externalId
-        let product: Product | null = null;
-        if (mapped.externalId) {
-          product = await this.productRepo.findOne({
-            where: { externalId: mapped.externalId },
+      if (!Array.isArray(articles) || articles.length === 0) {
+        this.logger.warn('No se encontraron productos en MariaDB');
+        return results;
+      }
+
+      this.logger.log(`Procesando ${articles.length} productos desde MariaDB`);
+
+      for (const article of articles) {
+        try {
+          // Mapear campos básicos de MariaDB a la entidad Product
+          // rawData contiene el payload completo para extracción manual posterior
+          const mapped: Partial<Product> = {
+            externalId: article.xarticulo_id,
+            sku: null,
+            source,
+            rawData: article, // Guardar TODO el payload completo
+            mappedAt: new Date(),
+            isActive: article.xactivo === 'S',
+          };
+
+          // Buscar por externalId
+          let product: Product | null = null;
+          if (mapped.externalId) {
+            product = await this.productRepo.findOne({
+              where: { externalId: mapped.externalId },
+            });
+          }
+
+          if (product) {
+            // Producto existente: actualizar
+            this.productRepo.merge(product, mapped);
+            await this.productRepo.save(product);
+            results.updated += 1;
+          } else {
+            // Producto nuevo: crear
+            const newProduct = this.productRepo.create(mapped as Product);
+            await this.productRepo.save(newProduct);
+            product = newProduct;
+            results.created += 1;
+          }
+
+          // Mapear producto a todas las tiendas configuradas
+          for (const storeId of this.storeIds) {
+            try {
+              await this.productStoreService.mapProductToStores(
+                product.id,
+                storeId,
+              );
+              results.mapped += 1;
+            } catch (mapErr) {
+              this.logger.warn(
+                `Error mapeando producto ${product!.id} a tienda ${storeId}: ${(mapErr as any).message}`,
+              );
+              results.errors.push({
+                articleId: article.xarticulo_id,
+                articleName: article.xarticulo,
+                storeId,
+                mapError: (mapErr as any).message ?? mapErr,
+              });
+            }
+          }
+        } catch (err) {
+          results.errors.push({
+            articleId: article.xarticulo_id,
+            articleName: article.xarticulo,
+            error: (err as any).message ?? err,
           });
         }
-
-        if (product) {
-          Object.assign(product, mapped);
-          await this.productRepo.save(product);
-          results.updated += 1;
-        } else {
-          const newProduct = this.productRepo.create(mapped as Product);
-          await this.productRepo.save(newProduct);
-          results.created += 1;
-        }
-      } catch (err) {
-        results.errors.push({ item, error: (err as any).message ?? err });
       }
+
+      this.logger.log(`Sincronización finalizada: ${JSON.stringify(results)}`);
+      return results;
+    } catch (error) {
+      this.logger.error(
+        `Error durante sincronización de MariaDB: ${(error as any).message}`,
+        (error as any).stack,
+      );
+      throw new BadRequestException(
+        `Error al sincronizar desde MariaDB: ${(error as any).message}`,
+      );
     }
-
-    this.logger.log(`Sincronización finalizada: ${JSON.stringify(results)}`);
-    return results;
-  }
-
-  /**
-   * Obtiene productos paginados
-   */
-  async getAllProducts(
-    query: ProductPaginationDto,
-  ): Promise<PaginatedResponse<Product>> {
-    const {
-      page = 1,
-      limit = 10,
-      search,
-      sortBy = 'id',
-      sortDir = 'ASC',
-    } = query;
-    const skip = (page - 1) * limit;
-    const dir = (sortDir ?? 'ASC').toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
-
-    // Type assertion para que TypeScript sepa que es válido
-    const order = { [sortBy]: dir } as Record<string, 'ASC' | 'DESC'>;
-
-    let where = QueryBuilderUtil.buildSearchConditions<Product>(search, [
-      'id',
-      'name',
-      'sku',
-    ]);
-
-    const [data, total] = await this.productRepo.findAndCount({
-      select: {
-        id: true,
-        name: true,
-        salePrice: true,
-      },
-      where,
-      skip,
-      take: limit,
-      order,
-    });
-
-    const totalPages = Math.max(1, Math.ceil(total / limit));
-
-    const response: PaginatedResponse<Product> = {
-      data,
-      page,
-      limit,
-      total,
-      totalPages,
-      hasPrevious: page > 1,
-      hasNext: page < totalPages,
-    };
-
-    return response;
   }
 
   /**

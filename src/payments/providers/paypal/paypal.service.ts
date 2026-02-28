@@ -4,28 +4,27 @@ import {
   BadRequestException,
   Inject,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
-import { PaymentProviderInterface } from '../payment-provider.interface';
-import { PayPalConfig } from './paypal.interface';
 import {
-  PAYPAL_API_URLS,
-  PAYPAL_ENDPOINTS,
-  PayPalMode,
-} from './paypal.constants';
+  JwtSignatureService,
+  PayloadSignatureToken,
+} from 'src/payments/services/jwt-signature.service';
+import { PaymentProviderInterface } from '../payment-provider.interface';
+import { CreateOrderPayPalResponse, PayPalConfig } from './paypal.interface';
+import { PAYPAL_API_URLS, PAYPAL_ENDPOINTS } from './paypal.constants';
 import {
   CreatePayPalOrderRequest,
   PayPalCredentials,
   PayPalAuthResponse,
   PayPalOrderResponse,
-  PayPalOrderItem,
   PayPalCaptureResponse,
   PayPalRefundRequest,
   PayPalRefundResponse,
 } from './paypal.interface';
+import { Order } from 'src/orders/entities/order.entity';
 
 @Injectable()
 export class PaypalService implements PaymentProviderInterface {
@@ -33,18 +32,10 @@ export class PaypalService implements PaymentProviderInterface {
 
   constructor(
     private readonly httpService: HttpService,
+    private readonly jwtSignatureService: JwtSignatureService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {
     this.logger.log('PayPal service initialized');
-  }
-  async init(config: PayPalConfig): Promise<void> {
-    // TODO: Inicializar SDK de PayPal con config
-    return;
-  }
-
-  async refund(paymentId: number, amount?: string): Promise<any> {
-    // TODO: Llamar a la API de PayPal para crear el reembolso
-    return { success: true };
   }
 
   /**
@@ -55,19 +46,68 @@ export class PaypalService implements PaymentProviderInterface {
    */
   async createOrder(
     credentials: PayPalCredentials,
-    orderData: CreatePayPalOrderRequest,
-    storeId: number,
-  ): Promise<PayPalOrderResponse> {
+    orderData: Order,
+  ): Promise<CreateOrderPayPalResponse> {
     const baseUrl = this.getBaseUrl(credentials.mode);
     const url = `${baseUrl}${PAYPAL_ENDPOINTS.ORDERS}`;
 
+    const total = Number(orderData.total).toFixed(2);
+    const subtotal = Number(orderData.subtotal).toFixed(2);
+    const shipping = Number(orderData.shippingCost).toFixed(2);
+    const tax = Number(orderData.tax).toFixed(2);
+
+    const payload: PayloadSignatureToken = {
+      orderId: orderData.id,
+      storeId: orderData.storeId,
+    };
+
+    const signatureToken = this.jwtSignatureService.sign(payload);
+
+    const paypalOrderData: CreatePayPalOrderRequest = {
+      intent: 'CAPTURE',
+      purchase_units: [
+        {
+          reference_id: orderData.id + '',
+          amount: {
+            currency_code: orderData.currency,
+            value: total,
+            breakdown: {
+              item_total: {
+                currency_code: orderData.currency,
+                value: subtotal,
+              },
+              shipping: {
+                currency_code: orderData.currency,
+                value: shipping,
+              },
+              tax_total: {
+                currency_code: orderData.currency,
+                value: tax,
+              },
+            },
+          },
+          description: `${orderData.orderNumber}`,
+        },
+      ],
+      application_context: {
+        // Agregar firma JWT al return/cancel URL para validar al capturar
+        return_url: `${process.env.FRONTEND_URL}/api/v1/payments/success?sig=${signatureToken}&provider=paypal`,
+        cancel_url: `${process.env.FRONTEND_URL}/api/v1/payments/cancel?sig=${signatureToken}&provider=paypal`,
+        brand_name: orderData.store.name,
+        user_action: 'PAY_NOW',
+      },
+    };
+
     try {
       // 1. Obtener access token
-      const accessToken = await this.getAccessToken(storeId, credentials);
+      const accessToken = await this.getAccessToken(
+        orderData.storeId,
+        credentials,
+      );
 
-      // 2. Crear orden en PayPal usando HttpService
+      // 2. Crear orden en PayPal
       const response = await firstValueFrom(
-        this.httpService.post<PayPalOrderResponse>(url, orderData, {
+        this.httpService.post<PayPalOrderResponse>(url, paypalOrderData, {
           headers: {
             Authorization: `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
@@ -80,7 +120,10 @@ export class PaypalService implements PaymentProviderInterface {
         `Orden creada en PayPal. ID: ${response.data.id}, Status: ${response.data.status}`,
       );
 
-      return response.data;
+      return {
+        responseData: response.data,
+        payloadData: paypalOrderData,
+      };
     } catch (error) {
       this.logger.error(
         'Error creando orden en PayPal:',
@@ -193,7 +236,7 @@ export class PaypalService implements PaymentProviderInterface {
     captureId: string,
     credentials: PayPalCredentials,
     storeId: number,
-    refundData?: PayPalRefundRequest,
+    refundData: PayPalRefundRequest,
   ): Promise<PayPalRefundResponse> {
     const baseUrl = this.getBaseUrl(credentials.mode);
     const url = `${baseUrl}${PAYPAL_ENDPOINTS.REFUND(captureId)}`;
@@ -315,14 +358,5 @@ export class PaypalService implements PaymentProviderInterface {
       );
       throw new BadRequestException('No se pudo autenticar con PayPal');
     }
-  }
-
-  /**
-   * Invalidates cached token for a store (useful when store config changes)
-   */
-  async invalidateToken(storeId: string): Promise<void> {
-    const cacheKey = `paypal:token:${storeId}`;
-    await this.cacheManager.del(cacheKey);
-    this.logger.debug(`Token invalidado para tienda ${storeId}`);
   }
 }

@@ -7,26 +7,39 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Order, FulfillmentType } from '../entities/order.entity';
 import { OrderItem } from '../entities/order-items.entity';
-import { Product } from '../../products/entities/product.entity';
+import { ProductStore } from '../../products/entities/product-store.entity';
 import { OrderStatus } from '../entities/order-status.entity';
 import { PickupPoint } from '../entities/pickup-point.entity';
-import { CreateOrderDto } from '../dtos/create-order.dto';
+import {
+  CreateOrderDto,
+  CreateShippingOrderDto,
+  CreatePickupOrderDto,
+} from '../dtos/create-order.dto';
 import { UsersService } from 'src/access-control/users/services/users.service';
 import { StoresService } from 'src/stores/services/stores.service';
+import { OrderStatusService } from './order-status.service';
+import { PickupPointService } from './pickup-point.service';
 import { PayloadToken } from 'src/auth/models/token.model';
+import { ChangePaymentInfoDto } from '../dtos/change-payment-info.dto';
+import { PaymentStatus } from 'src/payments/entities/payment-status.enum';
+import {
+  buildOrderItems,
+  calculateOrderTotals,
+  assignOrderTypeFields,
+  isShippingOrder,
+  isPickupOrder,
+} from '../../common/utils/order.util';
+import { validateUserStoreContext } from '../../common/utils/validation.util';
+import { ProductStoreService } from 'src/products/services/product-store.service';
 
 @Injectable()
 export class OrdersService {
   constructor(
     @InjectRepository(Order) private orderRepo: Repository<Order>,
-    @InjectRepository(OrderItem) private orderItemRepo: Repository<OrderItem>,
-    @InjectRepository(Product) private productRepo: Repository<Product>,
-    @InjectRepository(OrderStatus)
-    private orderStatusRepo: Repository<OrderStatus>,
-    @InjectRepository(PickupPoint)
-    private pickupPointRepo: Repository<PickupPoint>,
-    private usersService: UsersService,
     private storeService: StoresService,
+    private orderStatusService: OrderStatusService,
+    private pickupPointService: PickupPointService,
+    private productStoreService: ProductStoreService,
   ) {}
 
   private async generateOrderNumber(): Promise<string> {
@@ -44,127 +57,96 @@ export class OrdersService {
   }
 
   /**
-   * Crea un pedido básico con items.
-   * - Valida que existan los productos
-   * - Calcula subtotal, total (tax/shipping/discount opcionales)
-   * - Asigna un estado inicial (se busca código 'pending', si no existe, el primero activo)
+   * Valida que el punto de retiro exista (si es orden PICKUP)
    */
-  async createOrder(dto: CreateOrderDto): Promise<Order> {
-    const productIds = dto.items.map((i) => i.productId);
-    const products = await this.productRepo.find({
-      where: { id: In(productIds) },
-    });
-
-    if (products.length !== productIds.length) {
-      const foundIds = products.map((p) => p.id);
-      const missing = productIds.filter((id) => !foundIds.includes(id));
-      throw new NotFoundException(
-        `Productos no encontrados: ${missing.join(', ')}`,
-      );
+  private async validatePickupPoint(dto: CreateOrderDto): Promise<void> {
+    if (!isPickupOrder(dto)) {
+      return;
     }
 
-    // Build order items snapshot
-    const items: Partial<OrderItem>[] = dto.items.map((items) => {
-      const p = products.find((px) => px.id === items.productId)!;
-      const unitPrice = Number(p.salePrice);
-      const qty = items.quantity;
-      const totalPrice = Number((unitPrice * qty).toFixed(2));
-      return {
-        productId: p.id,
-        productName: p.name,
-        productSku: p.sku,
-        productImage: null,
-        quantity: qty,
-        unitPrice,
-        totalPrice,
-      };
-    });
+    await this.pickupPointService.findOne(dto.pickupPointId!);
+  }
 
-    const subtotal = Number(
-      items
-        .reduce((s, it) => s + Number((it.totalPrice as number) || 0), 0)
-        .toFixed(2),
-    );
+  /**
+   * Crea un pedido con validación específica según el tipo de cumplimiento.
+   *
+   * - Para SHIPPING: Requiere dirección de envío completa
+   * - Para PICKUP: Requiere punto de retiro válido
+   *
+   * Luego realiza:
+   * - Validación de existencia de productos
+   * - Cálculo de subtotal y total (con tax/shipping/discount opcionales)
+   * - Asignación de estado inicial ('pending')
+   * - Obtiene storeUserId del token del usuario autenticado (multitienda)
+   *
+   * @param dto - CreateShippingOrderDto | CreatePickupOrderDto
+   * @param user - PayloadToken del usuario autenticado (contiene storeId y storeUserId)
+   * @returns Orden creada con items y relaciones
+   * @throws BadRequestException si no hay storeUserId en el token
+   * @throws NotFoundException si la tienda no existe
+   */
+  async createOrder(dto: CreateOrderDto, user: PayloadToken): Promise<Order> {
+    // Fase 1: Validaciones
+    const { storeId, storeUserId } = validateUserStoreContext(user);
 
-    const tax = dto.tax ?? 0;
-    const shippingCost = dto.shippingCost ?? 0;
-    const discount = dto.discount ?? 0;
-    const total = Number((subtotal + tax + shippingCost - discount).toFixed(2));
+    // Validar que todos los productStoreIds existen y están activos en la tienda
+    const productStoreIds = dto.items.map((i) => i.productId);
+    const productStores: ProductStore[] = [];
 
-    // Get initial status (prefer 'pending')
-    let status = await this.orderStatusRepo.findOne({
-      where: { code: 'pending' },
-    });
-    // TODO: Configurar en settings el estado inicial
-    if (!status) {
-      throw new NotFoundException('No hay estados de pedido configurados');
+    for (const id of productStoreIds) {
+      const ps = await this.productStoreService.findOne(id);
+      if (ps.storeId !== storeId) {
+        throw new BadRequestException(
+          `ProductStore ${id} no pertenece a esta tienda`,
+        );
+      }
+      if (!ps.isActive) {
+        throw new BadRequestException(`ProductStore ${id} no está activo`);
+      }
+      productStores.push(ps);
     }
 
-    if (dto.fulfillmentType === FulfillmentType.PICKUP && dto.pickupPointId) {
-      const pp = await this.pickupPointRepo.findOne({
-        where: { id: dto.pickupPointId },
-      });
-      if (!pp) throw new NotFoundException('Punto de retiro no encontrado');
-    }
+    const status = await this.orderStatusService.findOne('pending');
+    await this.validatePickupPoint(dto);
 
+    // Fase 2: Construcción de datos usando utilidades
+    const items = buildOrderItems(dto.items, productStores);
+    const totals = calculateOrderTotals(items as OrderItem[]);
     const orderNumber = await this.generateOrderNumber();
+    const store = await this.storeService.findOne(storeId);
 
-    const customerId = await this.usersService.findCustomerIdByUserId(
-      dto.userId,
-    );
-
-    const store = await this.storeService.findOne(dto.storeId);
-
+    // Fase 3: Creación del objeto de orden
     const orderToSave: Partial<Order> = {
       orderNumber,
-      customerId,
+      storeUserId,
       store,
       fulfillmentType: dto.fulfillmentType,
-      pickupPointId: dto.pickupPointId ?? null,
-
-      shippingProvince: dto.shippingProvince ?? null,
-      shippingMunicipality: dto.shippingMunicipality ?? null,
-      shippingFirstName: dto.shippingFirstName ?? null,
-      shippingMiddleName: dto.shippingMiddleName ?? null,
-      shippingLastName: dto.shippingLastName ?? null,
-      shippingSecondLastName: dto.shippingSecondLastName ?? null,
-      shippingStreet: dto.shippingStreet ?? null,
-      shippingNumber: dto.shippingNumber ?? null,
-      shippingApartment: dto.shippingApartment ?? null,
-      shippingFloor: dto.shippingFloor ?? null,
-      shippingBetweenStreets: dto.shippingBetweenStreets ?? null,
-      shippingNeighborhood: dto.shippingNeighborhood ?? null,
-      shippingPostalCode: dto.shippingPostalCode ?? null,
-      shippingContactPhone: dto.shippingContactPhone ?? null,
-      shippingReference: dto.shippingReference ?? null,
-
       statusId: status.id,
       paymentMethod: dto.paymentMethod ?? null,
-      subtotal,
-      tax,
-      shippingCost,
-      discount,
-      total,
-      currency: dto.currency ?? 'USD',
+      subtotal: totals.subtotal,
+      tax: totals.tax,
+      shippingCost: totals.shippingCost,
+      discount: totals.discount,
+      total: totals.total,
+      currency: dto.currency,
       customerNotes: dto.customerNotes ?? null,
-
       items: items as OrderItem[],
     };
 
-    const saved = await this.orderRepo.save(orderToSave as Order);
+    assignOrderTypeFields(orderToSave, dto);
 
-    // Re-obtener con relaciones para asegurarnos de que las subentidades (items, store, status) estén presentes
-    const order = await this.orderRepo.findOne({
-      where: { id: saved.id },
-      relations: ['items', 'store', 'status'],
-    });
+    // Fase 4: Persistencia y retorno
+    const saved = await this.orderRepo.save(orderToSave);
 
-    return order!;
+    const order = await this.findOne(saved.id, user);
+
+    return order;
   }
 
   /**
    * Obtiene un pedido por id y verifica permisos:
    * - usuarios con role 'customer' solo pueden ver sus propios pedidos
+   * (basado en storeUserId del token que está vinculado a la orden)
    */
   async findOne(id: number, user?: PayloadToken): Promise<Order> {
     const order = await this.orderRepo.findOne({
@@ -178,8 +160,8 @@ export class OrdersService {
 
     // Si el request viene de un usuario tipo customer, asegurar que solo vea sus pedidos
     if (user && user.role === 'customer') {
-      const custId = user.customerId ?? null;
-      if (custId === null || order.customerId !== custId) {
+      const storeUserId = user.storeUserId ?? null;
+      if (storeUserId === null || order.storeUserId !== storeUserId) {
         throw new BadRequestException('Access denied to this order');
       }
     }
@@ -204,14 +186,8 @@ export class OrdersService {
     // Reusar la validación de permisos y existencia de pedido
     const order = await this.findOne(orderId, user);
 
-    // Buscar estado por código y activo
-    const status = await this.orderStatusRepo.findOne({
-      where: { code: statusCode, isActive: true },
-    });
-
-    if (!status) {
-      throw new NotFoundException('Estado no encontrado o inactivo');
-    }
+    // Buscar estado por código y activo usando el servicio
+    const status = await this.orderStatusService.findOneActive(statusCode);
 
     if (order.statusId === status.id) {
       throw new BadRequestException('El pedido ya posee ese estado');
@@ -225,7 +201,7 @@ export class OrdersService {
           "No se puede marcar como 'shipped' en pedidos para recogida (pickup)",
         );
       }
-      if (order.paymentStatus !== 'paid') {
+      if (order.paymentStatus !== PaymentStatus.COMPLETED) {
         throw new BadRequestException(
           "No se puede enviar un pedido cuyo pago no está marcado como 'paid'",
         );
@@ -261,5 +237,17 @@ export class OrdersService {
     });
 
     return updated!;
+  }
+
+  async changePaymentInfo(orderId: number, data: ChangePaymentInfoDto) {
+    const order = await this.findOne(orderId);
+
+    await this.orderRepo.update(orderId, {
+      paymentStatus: data.paymentStatus,
+      paymentMethod: data.paymentMethod,
+      paymentTransactionId: data.paymentTransactionId,
+    });
+
+    return this.findOne(orderId);
   }
 }
